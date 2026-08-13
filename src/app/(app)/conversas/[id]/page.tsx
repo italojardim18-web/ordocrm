@@ -125,7 +125,7 @@ export default async function ConversationPage({
 
       {/* Coluna esquerda: as outras conversas. Some no celular, onde a lista
           é uma tela própria. */}
-      <aside className="hidden w-64 shrink-0 flex-col rounded-lg border bg-card lg:flex">
+      <aside className="hidden w-56 shrink-0 flex-col rounded-lg border bg-card md:flex xl:w-64">
         <h2 className="border-b px-4 py-3 text-sm font-medium">Conversas</h2>
         <ul className="min-h-0 flex-1 divide-y overflow-y-auto">
           {(todas ?? []).map((item) => {
@@ -164,7 +164,7 @@ export default async function ConversationPage({
         <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
           <Link
             href="/conversas"
-            className="text-sm text-muted-foreground hover:underline lg:hidden"
+            className="text-sm text-muted-foreground hover:underline md:hidden"
           >
             ←
           </Link>
@@ -222,7 +222,7 @@ export default async function ConversationPage({
       </div>
 
       {/* Coluna direita: o contexto comercial, à mão enquanto se responde. */}
-      <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto rounded-lg border bg-card p-4 xl:flex">
+      <aside className="hidden w-60 shrink-0 flex-col gap-3 overflow-y-auto rounded-lg border bg-card p-4 lg:flex xl:w-72">
         <div>
           <h2 className="text-sm font-medium">{titulo}</h2>
           {lead?.pipeline_stages?.name ? (

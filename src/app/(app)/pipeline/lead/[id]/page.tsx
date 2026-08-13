@@ -23,6 +23,7 @@ import { LeadActions } from "./lead-actions";
 import { LeadProfileForm } from "./lead-profile-form";
 import { ActivityPanel, NotesPanel, TasksPanel } from "./lead-panels";
 import { OpportunitiesPanel } from "./opportunities-panel";
+import { ConversationPanel } from "./conversation-panel";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -105,8 +106,9 @@ export default async function LeadPage({
         members={members}
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-6">
+      <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)_minmax(0,18rem)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)]">
+        {/* Esquerda: quem é o lead. */}
+        <div className="flex flex-col gap-5">
           <LeadProfileForm
             lead={lead}
             products={products}
@@ -155,7 +157,16 @@ export default async function LeadPage({
           </Card>
         </div>
 
-        <div className="flex flex-col gap-6">
+        {/* Centro: a conversa — a ação mais frequente fica no meio. */}
+        <div className="flex min-h-[32rem] flex-col lg:h-[calc(100svh-14rem)]">
+          <ConversationPanel
+            leadId={lead.id}
+            workspaceId={context.workspace.id}
+          />
+        </div>
+
+        {/* Direita: o processo comercial. */}
+        <div className="flex flex-col gap-5">
           <AppointmentsPanel
             leadId={lead.id}
             appointments={appointments}

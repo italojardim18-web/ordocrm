@@ -41,7 +41,10 @@ export function LeadProfileForm({
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <form action={formAction} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div
+            className="flex flex-col gap-3"
+            style={{ display: "flex", flexDirection: "column" }}
+          >
             <div className="flex flex-col gap-2">
               <Label htmlFor="name">Nome completo *</Label>
               <Input id="name" name="name" defaultValue={lead.name} required />
