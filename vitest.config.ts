@@ -6,6 +6,9 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     testTimeout: 30_000,
+    // As suítes de RLS compartilham o mesmo banco local: em paralelo, a
+    // limpeza de uma apaga as fixtures da outra no meio da execução.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

@@ -4,8 +4,15 @@
  * Requer o stack local com migrations + seed (`supabase db reset`).
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { config as loadEnv } from "dotenv";
+import {
+  adminClient,
+  criarFixtures,
+  limparFixtures,
+  LEAD_A as LEAD_MARIANA,
+  LEAD_B,
+} from "./fixtures";
 
 loadEnv({ path: ".env.local" });
 
@@ -17,11 +24,11 @@ const ANON_KEY =
 const hasStack = Boolean(SUPABASE_URL && ANON_KEY);
 
 const WS_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const PIPELINE_A = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-const STAGE_NEW = "c0000000-0000-4000-8000-000000000001";
-const STAGE_QUALIFICATION = "c0000000-0000-4000-8000-000000000002";
-const LEAD_MARIANA = "33330000-0000-4000-8000-000000000001";
-const LEAD_B = "33330000-0000-4000-8000-000000000015";
+let PIPELINE_A = "";
+let STAGE_NEW = "";
+let STAGE_QUALIFICATION = "";
+
+
 const LOST_REASON = "22220000-0000-4000-8000-000000000001";
 const PASSWORD = "praxis123!";
 
@@ -42,12 +49,38 @@ describe.skipIf(!hasStack)("RLS — CRM principal (Fase 2)", () => {
   let assistantA: SupabaseClient;
   let adminB: SupabaseClient;
 
+  const db = adminClient();
+
   beforeAll(async () => {
+    const ok = await criarFixtures(db);
+    if (!ok) throw new Error("workspaces sem pipeline — rode as migrations");
+
+    const { data: pipeline } = await db
+      .from("pipelines")
+      .select("id")
+      .eq("workspace_id", WS_A)
+      .order("is_default", { ascending: false })
+      .limit(1)
+      .single();
+    PIPELINE_A = pipeline!.id;
+
+    const { data: etapas } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("pipeline_id", PIPELINE_A)
+      .order("position")
+      .limit(2);
+    STAGE_NEW = etapas![0].id;
+    STAGE_QUALIFICATION = etapas![1]?.id ?? etapas![0].id;
     [adminA, assistantA, adminB] = await Promise.all([
       signIn("admin@praxis.dev"),
       signIn("assistente@praxis.dev"),
       signIn("admin@outra.dev"),
     ]);
+  });
+
+  afterAll(async () => {
+    await limparFixtures(db);
   });
 
   it("leads são isolados por workspace", async () => {
@@ -232,18 +265,37 @@ describe.skipIf(!hasStack)("RLS — CRM principal (Fase 2)", () => {
   it("merge_leads é exclusivo do admin", async () => {
     const { error } = await assistantA.rpc("merge_leads", {
       p_primary_id: LEAD_MARIANA,
-      p_duplicate_id: "33330000-0000-4000-8000-000000000002",
+      p_duplicate_id: LEAD_B,
     });
     expect(error).not.toBeNull();
   });
 
   it("normalização de contato acontece no banco", async () => {
-    const { data } = await adminA
-      .from("leads")
-      .select("phone, phone_normalized, email_normalized")
-      .eq("id", LEAD_MARIANA)
+    // Cria o próprio lead: testes anteriores mexem no da fixture (mesclagem,
+    // mudança de etapa) e o resultado dependeria da ordem de execução.
+    const { data: stage } = await adminA
+      .from("pipeline_stages")
+      .select("id, pipeline_id")
+      .order("position")
+      .limit(1)
       .single();
-    expect(data?.phone_normalized).toBe("5567999110001");
+
+    const { data: criado } = await adminA
+      .from("leads")
+      .insert({
+        workspace_id: WS_A,
+        pipeline_id: stage!.pipeline_id,
+        stage_id: stage!.id,
+        position: 0,
+        name: "Fixture normalização",
+        phone: "(67) 90000-0009",
+        email: "  MAIUSCULO@Example.COM  ",
+      })
+      .select("phone_normalized, email_normalized")
+      .single();
+
+    expect(criado?.phone_normalized).toBe("5567900000009");
+    expect(criado?.email_normalized).toBe("maiusculo@example.com");
   });
 });
 

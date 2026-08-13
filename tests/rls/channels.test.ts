@@ -5,6 +5,13 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { config as loadEnv } from "dotenv";
+import {
+  adminClient,
+  criarFixtures,
+  limparFixtures,
+  CONVERSATION,
+  WS_A,
+} from "./fixtures";
 
 loadEnv({ path: ".env.local" });
 
@@ -15,8 +22,8 @@ const ANON_KEY =
 
 const hasStack = Boolean(SUPABASE_URL && ANON_KEY);
 
-const WS_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const CONVERSATION = "66660000-0000-4000-8000-000000000001";
+
+
 const PASSWORD = "praxis123!";
 
 async function signIn(email: string): Promise<SupabaseClient> {
@@ -37,7 +44,12 @@ describe.skipIf(!hasStack)("RLS — canais e conversas (Fase 4)", () => {
   let adminB: SupabaseClient;
   let anon: SupabaseClient;
 
+  const db = adminClient();
+
   beforeAll(async () => {
+    // A suíte cria o que precisa: não depende do seed de desenvolvimento.
+    const ok = await criarFixtures(db);
+    if (!ok) throw new Error("workspaces sem pipeline — rode as migrations");
     [adminA, assistantA, adminB] = await Promise.all([
       signIn("admin@praxis.dev"),
       signIn("assistente@praxis.dev"),
@@ -52,8 +64,7 @@ describe.skipIf(!hasStack)("RLS — canais e conversas (Fase 4)", () => {
   // uma ponte estiver conectada a este banco, uma sobra viraria mensagem real
   // para um número de terceiro — por isso a fila é limpa ao final.
   afterAll(async () => {
-    if (!adminA) return;
-    await adminA.rpc("purge_test_outbox", { p_conversation_id: CONVERSATION });
+    await limparFixtures(db);
   });
 
   it("conversas e mensagens são isoladas por workspace", async () => {

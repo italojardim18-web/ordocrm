@@ -90,8 +90,14 @@ export default async function DashboardPage({
   };
 
   const supabase = await createClient();
-  const [data, products, members, { data: upcoming }, { data: overdue }] =
-    await Promise.all([
+  const [
+    data,
+    products,
+    members,
+    { data: upcoming },
+    { data: agendadas },
+    { data: overdue },
+  ] = await Promise.all([
       getDashboardData(context.workspace.id, filters),
       getProducts(context.workspace.id, true),
       getMembers(context.workspace.id),
@@ -113,6 +119,10 @@ export default async function DashboardPage({
             leads: { name: string } | null;
           }[]
         >(),
+      supabase.rpc("upcoming_scheduled_messages", {
+        p_workspace_id: context.workspace.id,
+        p_limit: 5,
+      }),
       supabase
         .from("tasks")
         .select("id, title, due_at, lead_id, leads (name)")
@@ -318,7 +328,48 @@ export default async function DashboardPage({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Mensagens agendadas</CardTitle>
+            <CardDescription>
+              O que vai sair sozinho, por ordem de horário.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-2">
+              {(agendadas ?? []).map((m: {
+                id: string;
+                lead_id: string | null;
+                lead_name: string;
+                body: string;
+                scheduled_for: string;
+              }) => (
+                <li key={m.id} className="flex justify-between gap-2 text-sm">
+                  {m.lead_id ? (
+                    <Link
+                      href={`/pipeline/lead/${m.lead_id}`}
+                      className="truncate hover:underline"
+                    >
+                      {m.lead_name} · {m.body}
+                    </Link>
+                  ) : (
+                    <span className="truncate">{m.body}</span>
+                  )}
+                  <span className="shrink-0 text-muted-foreground">
+                    {formatDateTime(m.scheduled_for)}
+                  </span>
+                </li>
+              ))}
+              {(agendadas ?? []).length === 0 ? (
+                <li className="text-sm text-muted-foreground">
+                  Nenhuma mensagem agendada.
+                </li>
+              ) : null}
+            </ul>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Próximas sessões</CardTitle>

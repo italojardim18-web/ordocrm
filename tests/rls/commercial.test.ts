@@ -3,8 +3,9 @@
  * tokens de calendário. Requer o stack local com migrations + seed.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { config as loadEnv } from "dotenv";
+import { adminClient, criarFixtures, limparFixtures } from "./fixtures";
 
 loadEnv({ path: ".env.local" });
 
@@ -57,7 +58,14 @@ describe.skipIf(!hasStack)("RLS — processo comercial (Fase 3)", () => {
   let assistantA: SupabaseClient;
   let adminB: SupabaseClient;
 
+  const db = adminClient();
+
+  afterAll(async () => {
+    await limparFixtures(db);
+  });
+
   beforeAll(async () => {
+    await criarFixtures(db);
     [adminA, assistantA, adminB] = await Promise.all([
       signIn("admin@praxis.dev"),
       signIn("assistente@praxis.dev"),

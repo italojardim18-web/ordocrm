@@ -21,6 +21,15 @@ function amanhaDeManha(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** Fora de 8h–21h a mensagem chega em horário incomum para contato comercial. */
+function horarioIncomum(valor: string): boolean {
+  if (!valor) return false;
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return false;
+  const h = d.getHours();
+  return h < 8 || h >= 21;
+}
+
 export function Composer({
   conversationId,
   withinWindow,
@@ -31,6 +40,7 @@ export function Composer({
   channelConnected: boolean;
 }) {
   const [agendando, setAgendando] = useState(false);
+  const [quando, setQuando] = useState(amanhaDeManha);
 
   const [state, formAction, pending] = useActionState<SendState, FormData>(
     async (prev, formData) => {
@@ -94,14 +104,21 @@ export function Composer({
               name="scheduledFor"
               type="datetime-local"
               required
-              defaultValue={amanhaDeManha()}
+              value={quando}
+              onChange={(e) => setQuando(e.target.value)}
               className="w-56"
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            A mensagem sai sozinha no horário escolhido, desde que o ORDO esteja
-            ligado.
+            Sai sozinha no horário escolhido, desde que o ORDO esteja ligado. Se
+            atrasar mais de 4 horas, não é enviada — chegaria fora de contexto.
           </p>
+          {horarioIncomum(quando) ? (
+            <p className="w-full text-xs text-brass-foreground">
+              Esse horário está fora do expediente (8h–21h). A mensagem vai
+              chegar assim mesmo — confirme se é isso que você quer.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
