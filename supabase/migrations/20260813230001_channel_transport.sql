@@ -38,6 +38,14 @@ comment on column public.channel_connections.bridge_secret_enc is
 -- incrementar o contador de não lidas.
 -- -----------------------------------------------------------------------------
 
+-- CREATE OR REPLACE só substitui assinatura idêntica: acrescentar p_direction
+-- criaria uma SEGUNDA função, e o Postgres passaria a recusar as chamadas com
+-- "could not choose the best candidate function". A antiga precisa sair antes.
+drop function if exists public.ingest_channel_message(
+  uuid, public.channel_provider, text, text, text, text, text,
+  timestamptz, text, text
+);
+
 create or replace function public.ingest_channel_message(
   p_workspace_id uuid,
   p_provider public.channel_provider,
