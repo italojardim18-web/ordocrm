@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { config } from "./config.js";
+import { drenar, guardar } from "./spool.js";
 
 /**
  * Cliente do ORDO. Toda requisição vai assinada com HMAC-SHA256 do corpo
@@ -14,7 +15,7 @@ function sign(body) {
  * Entrega um envelope ao ORDO com retentativa e recuo exponencial.
  * A ponte não pode perder mensagem porque o ORDO estava reiniciando.
  */
-export async function sendToOrdo(envelope, { attempts = 5 } = {}) {
+async function entregar(envelope, attempts = 3) {
   const body = JSON.stringify(envelope);
   const url = `${config.ordoUrl.replace(/\/$/, "")}/api/webhooks/bridge`;
 
@@ -50,8 +51,27 @@ export async function sendToOrdo(envelope, { attempts = 5 } = {}) {
     }
   }
 
-  console.error("[ordo] desisti de entregar o evento após todas as tentativas");
   return false;
+}
+
+/**
+ * Entrega um evento ao ORDO. Se não conseguir, guarda em disco e segue
+ * tentando — evento de conversa não pode sumir porque o ORDO estava fora.
+ * Eventos de estado (`state`) são descartáveis: o próximo já corrige.
+ */
+export async function sendToOrdo(envelope, { attempts = 3 } = {}) {
+  const ok = await entregar(envelope, attempts);
+  if (ok) return true;
+
+  if (envelope.event === "state") return false;
+
+  await guardar(envelope);
+  return false;
+}
+
+/** Reenvia o que ficou guardado. Chamado periodicamente e na partida. */
+export async function drenarSpool() {
+  return drenar((envelope) => entregar(envelope, 1));
 }
 
 export function verifyIncomingSignature(rawBody, header) {

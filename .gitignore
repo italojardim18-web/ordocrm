@@ -53,3 +53,4 @@ next-env.d.ts
 /bridge/node_modules/
 /bridge/sessao/
 /bridge/qr.png
+/bridge/spool/

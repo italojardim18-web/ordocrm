@@ -157,3 +157,46 @@ listadas e validação jurídica própria.
 | CSV fora do MVP | Importação/exportação em massa não existe | Pós-MVP |
 | MFA não obrigatória | Estrutura pronta, não ativada | Quando houver mais usuários |
 | Um pipeline por vez na interface | O modelo suporta vários | Quando surgir a segunda esteira |
+
+## 10. Inicialização automática no Mac (uso interno)
+
+O ORDO sobe sozinho no login através de um LaunchAgent do usuário.
+
+| Peça | Onde |
+| --- | --- |
+| Serviço | `~/Library/LaunchAgents/com.ordo.stack.plist` |
+| Script | `~/ordo/scripts/iniciar-ordo.sh` |
+| Segredos | `~/.ordo/env` (chmod 600, fora do repositório) |
+| Registros | `~/Library/Logs/ordo/` |
+
+O script sobe na ordem: **Colima → Supabase → aplicação → ponte**. A ponte fica
+em primeiro plano para o `launchd` supervisioná-la e reiniciar se cair.
+
+### Por que o projeto não fica no Desktop
+
+O macOS (TCC) impede serviços iniciados pelo `launchd` de lerem `~/Desktop`,
+`~/Documents` e `~/Downloads` — o serviço falha com *Operation not permitted*.
+Por isso o projeto vive em **`~/ordo`**, com um atalho em `~/Desktop/crm` para
+o uso do dia a dia. A alternativa seria dar Acesso Total ao Disco ao `bash`,
+permissão ampla demais para o que se precisa.
+
+Bônus: o Desktop é sincronizado com o iCloud, o que criava arquivos
+duplicados (` 2.ts`) dentro de `.next` e tornava qualquer operação lenta.
+
+### Comandos
+
+```bash
+launchctl load   ~/Library/LaunchAgents/com.ordo.stack.plist   # ligar
+launchctl unload ~/Library/LaunchAgents/com.ordo.stack.plist   # desligar
+tail -f ~/Library/Logs/ordo/stack.log                          # acompanhar
+curl -s http://localhost:8787/health                           # estado da ponte
+```
+
+**Antes de rodar os testes, desligue o serviço** — a suíte enfileira envios que
+seriam entregues de verdade (ver `bridge/README.md`).
+
+### Se a mensagem chegar com o ORDO fora do ar
+
+A ponte grava o evento em `bridge/spool/` e reenvia assim que o ORDO responder.
+Nada se perde enquanto a aplicação reinicia ou compila — o que importa, já que
+o WhatsApp não reenvia histórico para dispositivo conectado.

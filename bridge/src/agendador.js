@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { drenarSpool } from "./ordo-client.js";
 
 /**
  * Agendador da fila de saída.
@@ -9,6 +10,13 @@ import { config } from "./config.js";
  */
 
 let timer = null;
+
+async function rodada() {
+  // Primeiro escoa o que ficou preso em disco: mensagem recebida com o ORDO
+  // fora do ar precisa chegar antes de qualquer envio novo.
+  await drenarSpool();
+  await processarFila();
+}
 
 async function processarFila() {
   if (!config.jobsSecret) return;
@@ -50,15 +58,18 @@ export function iniciarAgendador() {
       "[fila] JOBS_SECRET ausente — o envio de mensagens ficará parado.\n" +
         "       Defina a mesma variável aqui e no ORDO.",
     );
+    // Ainda assim mantemos o dreno: receber não depende de enviar.
+    timer = setInterval(() => drenarSpool(), config.outboxIntervalMs);
+    drenarSpool();
     return;
   }
 
   console.log(
     `[fila] processando a cada ${config.outboxIntervalMs / 1000}s`,
   );
-  timer = setInterval(processarFila, config.outboxIntervalMs);
+  timer = setInterval(rodada, config.outboxIntervalMs);
   // Uma rodada logo de saída, para não esperar o primeiro intervalo.
-  processarFila();
+  rodada();
 }
 
 export function pararAgendador() {
