@@ -32,9 +32,15 @@ export function Composer({
       <textarea
         id="messageBody"
         name="body"
-        rows={3}
+        rows={2}
         required
-        placeholder="Escreva sua resposta…"
+        placeholder="Escreva sua resposta… (Enter envia, Shift+Enter quebra linha)"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }
+        }}
         className="border-input rounded-md border bg-transparent p-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
       />
 

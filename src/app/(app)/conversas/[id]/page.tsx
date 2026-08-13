@@ -75,7 +75,7 @@ export default async function ConversationPage({
   const withinWindow = isWithinServiceWindow(conversation.last_inbound_at);
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex h-[calc(100svh-7rem)] flex-col gap-3">
       <MarkReadOnMount
         conversationId={id}
         unreadCount={conversation.unread_count}
@@ -104,8 +104,8 @@ export default async function ConversationPage({
         ) : null}
       </div>
 
-      <div className="flex flex-col rounded-lg border bg-card">
-        <ol className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto p-4">
+      <div className="flex min-h-0 flex-1 flex-col rounded-lg border bg-card">
+        <ol className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
           {(messages ?? []).map((message) => (
             <li
               key={message.id}
