@@ -225,8 +225,47 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
 - Seed de teste sem checagem de erro produz teste que passa por engano; o
   helper `insert()` agora falha alto.
 
-## Backlog imediato (Fase 6)
+## Estado ao final da Fase 6 — MVP completo (13/08/2026)
 
-Qualidade e entrega: acessibilidade, responsividade, testes ponta a ponta
-(Playwright), seed de demonstração, revisão final de RLS e LGPD, documentação
-de operação.
+- **E2E (Playwright): 9 testes** cobrindo login, rota protegida, credencial
+  errada, criação de lead, movimentação de etapa, paridade Kanban/lista,
+  agendamento + venda, perda com motivo obrigatório, formulário público
+  criando lead e bloqueio do assistente em áreas administrativas.
+- **Acessibilidade**: sem imagem sem alt, sem controle sem nome acessível, sem
+  campo sem rótulo, hierarquia de títulos correta e nenhum estouro horizontal.
+  Corrigido: alvos de toque agora têm 44px em ponteiros grossos (utilitário
+  `.tap-target`), sem alterar o tamanho visual. Adicionado respeito a
+  `prefers-reduced-motion`.
+- **Responsividade**: no celular o pipeline abre em **lista** (arrastar cartão
+  com o dedo é ruim); a escolha explícita do usuário sempre vence e persiste
+  na URL.
+- **Auditoria de segurança final**: todas as tabelas públicas com RLS; nenhum
+  segredo legível por usuários (só hashes e um timestamp); `anon` executa
+  apenas a busca pública de convite.
+- Total: **105 testes (Vitest) + 9 E2E (Playwright)**.
+
+### Achados da Fase 6
+
+- `setState` dentro de efeito e leitura de ref durante render são erros de
+  lint legítimos: a visão do pipeline virou estado derivado
+  (`chosenView ?? (isMobile ? "list" : "kanban")`) com `useSyncExternalStore`
+  para a media query — sem cascata de renderização e sem divergência de
+  hidratação.
+- Dois "defeitos" de E2E eram o app funcionando certo: telefone repetido
+  dispara o alerta de duplicidade, e o cartão do Kanban é exposto como
+  `button` para o teclado (daí a ambiguidade do seletor).
+- O container do Supabase local pode subir com outro sufixo de projeto se o
+  `supabase start` rodar fora do diretório do projeto — sempre executar de
+  dentro de `crm/`.
+
+## Backlog pós-MVP
+
+Por ordem de valor:
+
+1. **Worker de outbox** — envio real das mensagens (entra com as credenciais).
+2. **Importação/exportação CSV** — fora do MVP por decisão.
+3. **Múltiplos pipelines na interface** — o modelo já suporta.
+4. **MFA obrigatória** — estrutura pronta, ativação pendente.
+5. **Rate limit compartilhado** — necessário ao escalar para várias instâncias.
+6. **Antivírus em anexos** — antes de liberar upload amplo.
+7. **Billing multiempresa** — quando o produto atender outras empresas.

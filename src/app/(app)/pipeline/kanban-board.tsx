@@ -93,7 +93,7 @@ function LeadCardView({
               variant="ghost"
               size="icon-sm"
               aria-label={`Ações de ${lead.name}`}
-              className="-mr-1 -mt-1 shrink-0"
+              className="tap-target -mr-1 -mt-1 shrink-0"
             >
               ⋯
             </Button>

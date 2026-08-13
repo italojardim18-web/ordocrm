@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { LeadCard, Member, Product, Stage } from "@/lib/crm/types";
@@ -9,6 +15,14 @@ import { Input } from "@/components/ui/input";
 import { KanbanBoard } from "./kanban-board";
 import { LeadList } from "./lead-list";
 import { NewLeadDialog } from "./new-lead-dialog";
+
+const MOBILE_QUERY = "(max-width: 767px)";
+
+function subscribeToMobile(onChange: () => void) {
+  const media = window.matchMedia(MOBILE_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
 
 export interface BoardFilters {
   search: string;
@@ -33,9 +47,22 @@ export function PipelineView({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [view, setView] = useState<"kanban" | "list">(
-    searchParams.get("visao") === "lista" ? "list" : "kanban",
+  // `null` = usuário ainda não escolheu; aí o dispositivo decide.
+  const [chosenView, setChosenView] = useState<"kanban" | "list" | null>(() => {
+    const fromUrl = searchParams.get("visao");
+    if (fromUrl === "lista") return "list";
+    if (fromUrl === "kanban") return "kanban";
+    return null;
+  });
+
+  // No celular a lista é a visão útil: arrastar cartão com o dedo é ruim e o
+  // Kanban exige rolagem lateral. A escolha explícita do usuário sempre vence.
+  const isMobile = useSyncExternalStore(
+    subscribeToMobile,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false, // no servidor assumimos desktop; o cliente corrige na hidratação
   );
+  const effectiveView = chosenView ?? (isMobile ? "list" : "kanban");
   const [filters, setFilters] = useState<BoardFilters>({
     search: searchParams.get("busca") ?? "",
     channel: searchParams.get("canal") ?? "",
@@ -46,14 +73,15 @@ export function PipelineView({
   // Filtros e visão compartilhados via URL (Kanban e lista usam o mesmo estado).
   useEffect(() => {
     const params = new URLSearchParams();
-    if (view === "list") params.set("visao", "lista");
+    if (chosenView === "list") params.set("visao", "lista");
+    else if (chosenView === "kanban") params.set("visao", "kanban");
     if (filters.search) params.set("busca", filters.search);
     if (filters.channel) params.set("canal", filters.channel);
     if (filters.productId) params.set("produto", filters.productId);
     if (filters.ownerId) params.set("responsavel", filters.ownerId);
     const qs = params.toString();
     window.history.replaceState(null, "", qs ? `?${qs}` : "/pipeline");
-  }, [view, filters]);
+  }, [chosenView, filters]);
 
   // Tempo real: mudanças nos leads do workspace recarregam os dados do servidor.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,18 +142,20 @@ export function PipelineView({
           className="ml-auto flex rounded-md border"
         >
           <Button
-            variant={view === "kanban" ? "secondary" : "ghost"}
+            variant={effectiveView === "kanban" ? "secondary" : "ghost"}
             size="sm"
-            aria-pressed={view === "kanban"}
-            onClick={() => setView("kanban")}
+            aria-pressed={effectiveView === "kanban"}
+            className="tap-target"
+            onClick={() => setChosenView("kanban")}
           >
             Kanban
           </Button>
           <Button
-            variant={view === "list" ? "secondary" : "ghost"}
+            variant={effectiveView === "list" ? "secondary" : "ghost"}
             size="sm"
-            aria-pressed={view === "list"}
-            onClick={() => setView("list")}
+            aria-pressed={effectiveView === "list"}
+            className="tap-target"
+            onClick={() => setChosenView("list")}
           >
             Lista
           </Button>
@@ -205,7 +235,7 @@ export function PipelineView({
         ) : null}
       </div>
 
-      {view === "kanban" ? (
+      {effectiveView === "kanban" ? (
         <KanbanBoard stages={stages} leads={filtered} members={members} />
       ) : (
         <LeadList stages={stages} leads={filtered} members={members} />

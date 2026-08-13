@@ -106,3 +106,37 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  /*
+   * Amplia a área de toque para 44px sem mudar o tamanho visual do controle.
+   * Aplicado só em ponteiros grossos (dedo): com mouse, o alvo visual já basta
+   * e um alvo invisível maior atrapalharia cliques vizinhos.
+   */
+  @media (pointer: coarse) {
+    .tap-target {
+      position: relative;
+    }
+    .tap-target::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  /* Respeita quem pediu menos animação no sistema. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

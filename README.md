@@ -1,81 +1,126 @@
 # Praxis Mentis CRM
 
 CRM SaaS multiempresa para operações comerciais conduzidas por conversa
-(WhatsApp/Instagram), com pipeline configurável, agendamentos e dashboard.
-Interface em português do Brasil.
+(WhatsApp/Instagram), com pipeline configurável, agendamentos, vendas e
+dashboard sobre dados reais. Interface em português do Brasil.
+
+Multi-tenant desde o primeiro migration: o workspace inicial é a operação do
+**Ítalo Jardim**; **Praxis Mentis** é o nome do produto, e a identidade visual
+(nome, logo, cores) é configuração por workspace.
 
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript estrito · Tailwind CSS v4 ·
-shadcn/ui · Supabase (Postgres + Auth + RLS) via `@supabase/ssr` · Vitest.
+shadcn/ui · Supabase (Postgres + Auth + RLS + Realtime) via `@supabase/ssr` ·
+dnd-kit · Recharts · Zod · Vitest · Playwright.
 
 ## Pré-requisitos
 
-- Node.js 24+ (LTS)
-- [Supabase CLI](https://supabase.com/docs/guides/local-development) e Docker
-  (para o stack local)
+- Node.js 24+
+- [Supabase CLI](https://supabase.com/docs/guides/local-development)
+- Um runtime de contêiner (Docker Desktop, OrbStack ou Colima)
 
 ## Desenvolvimento
 
 ```bash
 npm install
-supabase start          # sobe Postgres/Auth/Studio locais (requer Docker)
-supabase db reset       # aplica migrations + seed
-npm run dev             # http://localhost:3000
+supabase start
+npm run dev
 ```
 
-Copie `.env.example` para `.env.local` e preencha `NEXT_PUBLIC_SUPABASE_URL`
-e `NEXT_PUBLIC_SUPABASE_ANON_KEY` com os valores de `supabase status`.
+O `supabase start` imprime as chaves locais; copie-as para `.env.local`
+(veja `.env.example`). Depois, `supabase db reset` aplica migrations + seed.
 
-### Usuários do seed (apenas desenvolvimento)
+Contas do seed (apenas desenvolvimento):
 
-| E-mail | Senha | Papel / workspace |
+| Papel | E-mail | Senha |
 | --- | --- | --- |
-| `admin@praxis.dev` | `praxis123!` | Admin · Ítalo Jardim |
-| `assistente@praxis.dev` | `praxis123!` | Assistente · Ítalo Jardim |
-| `admin@outra.dev` | `praxis123!` | Admin · Outra Empresa (isolamento) |
+| Administrador | `admin@praxis.dev` | `praxis123!` |
+| Assistente | `assistente@praxis.dev` | `praxis123!` |
+| Admin de outro workspace | `admin@outra.dev` | `praxis123!` |
 
-## Qualidade
+A terceira conta existe para provar isolamento entre empresas — use-a para
+confirmar que um workspace nunca enxerga dados do outro.
 
-```bash
-npm run lint        # ESLint
-npm run typecheck   # tsc --noEmit
-npm run test        # Vitest (a suíte de RLS exige o stack local ativo)
-npm run build       # build de produção
-```
+## Scripts
 
-Os testes de `tests/rls/` provam o isolamento entre dois workspaces e as
-restrições do papel assistente; sem o stack local eles são ignorados com aviso.
+| Comando | O que faz |
+| --- | --- |
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de produção |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript sem emitir |
+| `npm run test` | Unitários, integração e RLS (Vitest) |
+| `npm run test:e2e` | Fluxos críticos ponta a ponta (Playwright) |
+
+Os testes de RLS e de fórmulas do dashboard precisam do stack local no ar; se
+não estiver, eles se marcam como ignorados em vez de falhar.
 
 ## Estrutura
 
-- `supabase/migrations/` — schema versionado (RLS, RPCs, triggers)
-- `supabase/seed.sql` — seed sintético de desenvolvimento (nunca produção)
-- `src/app/(auth)/` — login, recuperação, redefinição e convite
-- `src/app/(app)/` — área autenticada (Pipeline, Dashboard, configurações)
-- `src/proxy.ts` — renovação de sessão e proteção de rotas (Next 16)
-- `docs/product-decisions.md` — decisões, suposições e pendências
+```
+src/
+  app/
+    (app)/            # área autenticada: pipeline, dashboard, conversas, configurações
+    f/[slug]/         # formulário público de captação
+    api/
+      forms/[slug]/   # ingestão do formulário público
+      webhooks/meta/  # webhook oficial WhatsApp + Instagram
+      integrations/   # OAuth do Google Calendar
+  lib/
+    crm/              # consultas, tipos e fórmulas do dashboard
+    channels/         # normalização Meta, formulário, rate limit
+    calendar/         # adaptador Google Calendar
+    supabase/         # clientes (browser, server, admin)
+supabase/migrations/  # esquema versionado
+tests/                # unit, integration, rls, e2e
+docs/                 # decisões de produto e guias de integração
+```
 
-## Conectar o Google Calendar
+## Segurança — princípios que o código segue
 
-1. No [Google Cloud Console](https://console.cloud.google.com), crie um projeto
-   e ative a **Google Calendar API**.
-2. Configure a tela de consentimento OAuth (tipo Externo) e adicione os escopos
-   `calendar.readonly` e `calendar.events`.
-3. Crie credenciais **ID do cliente OAuth → Aplicativo da Web** com o redirect
-   autorizado `<NEXT_PUBLIC_SITE_URL>/api/integrations/google/callback`.
-4. Preencha no ambiente do servidor: `GOOGLE_CLIENT_ID`,
-   `GOOGLE_CLIENT_SECRET`, `INTEGRATION_TOKEN_KEY` (gere com
-   `openssl rand -base64 32`) e `SUPABASE_SERVICE_ROLE_KEY`.
-5. Em **Configurações → Integrações**, clique em *Conectar Google Calendar* e
-   escolha o calendário das sessões.
+- **RLS em toda tabela exposta.** O isolamento entre empresas é do banco, não
+  da aplicação; testes automatizados provam isso a cada migration.
+- **Toda RPC nova nasce sem acesso.** O Postgres concede execução a `PUBLIC`
+  por padrão; o esquema revoga isso e concede explicitamente só o necessário.
+- **Segredos nunca chegam ao navegador.** Tokens de integração são cifrados
+  (AES-256-GCM) e as colunas não têm privilégio de leitura para usuários.
+- **O servidor revalida tudo.** Nenhuma permissão depende da interface.
+- **Logs sem dado pessoal.** Nem conteúdo de mensagem, nem telefone, nem token.
 
-Sem essas credenciais a integração aparece como "aguardando configuração" e os
-agendamentos ficam registrados apenas no CRM — nenhum dado é perdido.
+## Variáveis de ambiente
 
-## Primeiro administrador (produção)
+| Variável | Onde | Para quê |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | ambos | URL base (OAuth, links) |
+| `NEXT_PUBLIC_SUPABASE_URL` | ambos | Projeto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ambos | Chave pública (protegida por RLS) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **só servidor** | Webhooks e formulário público |
+| `INTEGRATION_TOKEN_KEY` | **só servidor** | Cifra tokens (`openssl rand -base64 32`) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **só servidor** | Google Calendar |
 
-A criação de workspaces é um fluxo controlado: crie o usuário no painel do
-Supabase (Auth → Users) e insira o workspace + vínculo `admin` via SQL editor,
-seguindo o modelo de `supabase/seed.sql` (sem os usuários de teste). Os
-próximos usuários entram por convite dentro do produto.
+Sem as credenciais do Google, a integração aparece honestamente como
+"aguardando configuração" — nada finge estar conectado.
+
+## Integrações
+
+Estado atual e o passo a passo das verificações externas estão em
+[`docs/integracoes-meta-google.md`](docs/integracoes-meta-google.md):
+
+- **Formulário público + UTMs** — funcionando, sem dependência externa.
+- **Google Calendar** — código pronto; falta o OAuth (calendário PsicoManager).
+- **WhatsApp** — código pronto; via **coexistência** por BSP, mantendo o mesmo
+  número no celular e no CRM.
+- **Instagram** — código pronto; mesma infraestrutura de webhook.
+
+Em desenvolvimento, **Configurações → Integrações** traz um simulador de
+mensagem recebida que exercita o caminho completo sem credenciais.
+
+## Documentação
+
+- [`docs/product-decisions.md`](docs/product-decisions.md) — decisões, achados
+  e suposições de cada fase.
+- [`docs/integracoes-meta-google.md`](docs/integracoes-meta-google.md) — o que
+  o Ítalo precisa fazer nas contas Meta e Google.
+- [`docs/operacao.md`](docs/operacao.md) — deploy, migrations, backups,
+  checklist de lançamento e LGPD.
