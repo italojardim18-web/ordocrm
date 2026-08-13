@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Praxis Mentis CRM
 
-## Getting Started
+CRM SaaS multiempresa para operações comerciais conduzidas por conversa
+(WhatsApp/Instagram), com pipeline configurável, agendamentos e dashboard.
+Interface em português do Brasil.
 
-First, run the development server:
+## Stack
+
+Next.js 16 (App Router) · React 19 · TypeScript estrito · Tailwind CSS v4 ·
+shadcn/ui · Supabase (Postgres + Auth + RLS) via `@supabase/ssr` · Vitest.
+
+## Pré-requisitos
+
+- Node.js 24+ (LTS)
+- [Supabase CLI](https://supabase.com/docs/guides/local-development) e Docker
+  (para o stack local)
+
+## Desenvolvimento
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+supabase start          # sobe Postgres/Auth/Studio locais (requer Docker)
+supabase db reset       # aplica migrations + seed
+npm run dev             # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copie `.env.example` para `.env.local` e preencha `NEXT_PUBLIC_SUPABASE_URL`
+e `NEXT_PUBLIC_SUPABASE_ANON_KEY` com os valores de `supabase status`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Usuários do seed (apenas desenvolvimento)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| E-mail | Senha | Papel / workspace |
+| --- | --- | --- |
+| `admin@praxis.dev` | `praxis123!` | Admin · Ítalo Jardim |
+| `assistente@praxis.dev` | `praxis123!` | Assistente · Ítalo Jardim |
+| `admin@outra.dev` | `praxis123!` | Admin · Outra Empresa (isolamento) |
 
-## Learn More
+## Qualidade
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run lint        # ESLint
+npm run typecheck   # tsc --noEmit
+npm run test        # Vitest (a suíte de RLS exige o stack local ativo)
+npm run build       # build de produção
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Os testes de `tests/rls/` provam o isolamento entre dois workspaces e as
+restrições do papel assistente; sem o stack local eles são ignorados com aviso.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estrutura
 
-## Deploy on Vercel
+- `supabase/migrations/` — schema versionado (RLS, RPCs, triggers)
+- `supabase/seed.sql` — seed sintético de desenvolvimento (nunca produção)
+- `src/app/(auth)/` — login, recuperação, redefinição e convite
+- `src/app/(app)/` — área autenticada (Pipeline, Dashboard, configurações)
+- `src/proxy.ts` — renovação de sessão e proteção de rotas (Next 16)
+- `docs/product-decisions.md` — decisões, suposições e pendências
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Primeiro administrador (produção)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+A criação de workspaces é um fluxo controlado: crie o usuário no painel do
+Supabase (Auth → Users) e insira o workspace + vínculo `admin` via SQL editor,
+seguindo o modelo de `supabase/seed.sql` (sem os usuários de teste). Os
+próximos usuários entram por convite dentro do produto.
