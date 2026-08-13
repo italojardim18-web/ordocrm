@@ -102,8 +102,8 @@ export function AppNav({
                   <DropdownMenuItem asChild>
                     <Link href="/configuracoes/workspace">Workspace</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled>
-                    Integrações (em breve)
+                  <DropdownMenuItem asChild>
+                    <Link href="/configuracoes/integracoes">Integrações</Link>
                   </DropdownMenuItem>
                 </>
               ) : null}

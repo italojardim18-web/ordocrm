@@ -237,3 +237,54 @@ insert into public.tasks (workspace_id, lead_id, title, due_at, assigned_to, cre
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000006', 'Retomar contato — enviar horários disponíveis', now() - interval '2 days', '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-222222222222'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000007', 'Follow-up: confirmar interesse na sessão', now() + interval '1 day', '11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000010', 'Enviar proposta do pacote terapêutico', now() + interval '2 days', '11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111');
+
+-- =============================================================================
+-- Fase 3 — agendamentos e oportunidades de demonstração
+-- =============================================================================
+
+insert into public.appointments
+  (id, workspace_id, lead_id, title, starts_at, ends_at, status, created_by) values
+  -- Sessão futura (etapa Sessão de alinhamento)
+  ('44440000-0000-4000-8000-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000008',
+   'Sessão de alinhamento', now() + interval '2 days', now() + interval '2 days' + interval '1 hour', 'scheduled',
+   '11111111-1111-4111-8111-111111111111'),
+  ('44440000-0000-4000-8000-000000000002', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000009',
+   'Sessão de alinhamento', now() + interval '4 days', now() + interval '4 days' + interval '1 hour', 'scheduled',
+   '22222222-2222-4222-8222-222222222222'),
+  -- Sessão realizada, aguardando decisão (follow-up pós-sessão)
+  ('44440000-0000-4000-8000-000000000003', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000010',
+   'Sessão de alinhamento', now() - interval '11 days', now() - interval '11 days' + interval '1 hour', 'completed',
+   '11111111-1111-4111-8111-111111111111'),
+  -- Sessões que viraram venda
+  ('44440000-0000-4000-8000-000000000004', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000011',
+   'Sessão de alinhamento', now() - interval '17 days', now() - interval '17 days' + interval '1 hour', 'completed',
+   '11111111-1111-4111-8111-111111111111'),
+  ('44440000-0000-4000-8000-000000000005', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000012',
+   'Sessão de alinhamento', now() - interval '22 days', now() - interval '22 days' + interval '1 hour', 'completed',
+   '22222222-2222-4222-8222-222222222222'),
+  -- Ausência (para a métrica de no-show)
+  ('44440000-0000-4000-8000-000000000006', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000013',
+   'Sessão de alinhamento', now() - interval '12 days', now() - interval '12 days' + interval '1 hour', 'no_show',
+   '22222222-2222-4222-8222-222222222222');
+
+insert into public.opportunities
+  (workspace_id, lead_id, product_id, status, potential_value, sold_value,
+   payment_method, closed_at, lost_reason_id, owner_id, created_by, created_at) values
+  -- Ganhas
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000011', '11110000-0000-4000-8000-000000000001',
+   'won', 2400.00, 2400.00, 'Pix', now() - interval '15 days', null,
+   '11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111', now() - interval '19 days'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000012', '11110000-0000-4000-8000-000000000002',
+   'won', 1800.00, 1620.00, 'Cartão 3x', now() - interval '20 days', null,
+   '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-222222222222', now() - interval '24 days'),
+  -- Abertas
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000010', '11110000-0000-4000-8000-000000000001',
+   'open', 2400.00, null, null, null, null,
+   '11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111', now() - interval '11 days'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000008', '11110000-0000-4000-8000-000000000001',
+   'open', 2400.00, null, null, null, null,
+   '11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111', now() - interval '9 days'),
+  -- Perdida
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000013', '11110000-0000-4000-8000-000000000004',
+   'lost', 1500.00, null, null, now() - interval '9 days', '22220000-0000-4000-8000-000000000001',
+   '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-222222222222', now() - interval '14 days');

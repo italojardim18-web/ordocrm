@@ -56,6 +56,23 @@ restrições do papel assistente; sem o stack local eles são ignorados com avis
 - `src/proxy.ts` — renovação de sessão e proteção de rotas (Next 16)
 - `docs/product-decisions.md` — decisões, suposições e pendências
 
+## Conectar o Google Calendar
+
+1. No [Google Cloud Console](https://console.cloud.google.com), crie um projeto
+   e ative a **Google Calendar API**.
+2. Configure a tela de consentimento OAuth (tipo Externo) e adicione os escopos
+   `calendar.readonly` e `calendar.events`.
+3. Crie credenciais **ID do cliente OAuth → Aplicativo da Web** com o redirect
+   autorizado `<NEXT_PUBLIC_SITE_URL>/api/integrations/google/callback`.
+4. Preencha no ambiente do servidor: `GOOGLE_CLIENT_ID`,
+   `GOOGLE_CLIENT_SECRET`, `INTEGRATION_TOKEN_KEY` (gere com
+   `openssl rand -base64 32`) e `SUPABASE_SERVICE_ROLE_KEY`.
+5. Em **Configurações → Integrações**, clique em *Conectar Google Calendar* e
+   escolha o calendário das sessões.
+
+Sem essas credenciais a integração aparece como "aguardando configuração" e os
+agendamentos ficam registrados apenas no CRM — nenhum dado é perdido.
+
 ## Primeiro administrador (produção)
 
 A criação de workspaces é um fluxo controlado: crie o usuário no painel do

@@ -8,6 +8,7 @@ import {
   getMembers,
   getProducts,
   getStages,
+  isCalendarConnected,
 } from "@/lib/crm/queries";
 import { channelLabel, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AppointmentsPanel } from "./appointments-panel";
 import { LeadActions } from "./lead-actions";
 import { LeadProfileForm } from "./lead-profile-form";
 import { ActivityPanel, NotesPanel, TasksPanel } from "./lead-panels";
+import { OpportunitiesPanel } from "./opportunities-panel";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -35,14 +38,24 @@ export default async function LeadPage({
   const full = await getLeadFull(id);
   if (!full) notFound();
 
-  const { lead, notes, tasks, activities, interests } = full;
+  const {
+    lead,
+    notes,
+    tasks,
+    activities,
+    interests,
+    appointments,
+    opportunities,
+  } = full;
 
-  const [stages, products, members, lostReasons] = await Promise.all([
-    getStages(lead.pipeline_id),
-    getProducts(context.workspace.id, true),
-    getMembers(context.workspace.id),
-    getLostReasons(context.workspace.id),
-  ]);
+  const [stages, products, members, lostReasons, calendarConnected] =
+    await Promise.all([
+      getStages(lead.pipeline_id),
+      getProducts(context.workspace.id, true),
+      getMembers(context.workspace.id),
+      getLostReasons(context.workspace.id),
+      isCalendarConnected(context.workspace.id),
+    ]);
 
   const currentStage = stages.find((s) => s.id === lead.stage_id);
   const lostReason = lead.lost_reason_id
@@ -143,6 +156,18 @@ export default async function LeadPage({
         </div>
 
         <div className="flex flex-col gap-6">
+          <AppointmentsPanel
+            leadId={lead.id}
+            appointments={appointments}
+            calendarConnected={calendarConnected}
+            leadHasEmail={Boolean(lead.email)}
+          />
+          <OpportunitiesPanel
+            leadId={lead.id}
+            opportunities={opportunities}
+            products={products}
+            lostReasons={lostReasons}
+          />
           <NotesPanel
             leadId={lead.id}
             notes={notes}

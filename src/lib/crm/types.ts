@@ -117,6 +117,28 @@ export interface ActivityRow {
   created_at: string;
 }
 
+export interface AppointmentRow {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  status: "scheduled" | "completed" | "cancelled" | "no_show";
+  meet_link: string | null;
+  calendar_event_id: string | null;
+  calendar_sync_status: "pending" | "synced" | "error" | null;
+}
+
+export interface OpportunityRow {
+  id: string;
+  product_id: string;
+  status: "open" | "won" | "lost";
+  potential_value: number | null;
+  sold_value: number | null;
+  payment_method: string | null;
+  closed_at: string | null;
+  created_at: string;
+}
+
 export interface HistoryRow {
   id: number;
   from_stage_type: StageType | null;

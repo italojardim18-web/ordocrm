@@ -1,12 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import type {
   ActivityRow,
+  AppointmentRow,
   HistoryRow,
   LeadCard,
   LeadDetail,
   LostReason,
   Member,
   Note,
+  OpportunityRow,
   Product,
   Stage,
   TaskRow,
@@ -123,6 +125,8 @@ export interface LeadFull {
   activities: ActivityRow[];
   history: HistoryRow[];
   interests: string[];
+  appointments: AppointmentRow[];
+  opportunities: OpportunityRow[];
 }
 
 export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
@@ -137,7 +141,15 @@ export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
 
   if (!lead) return null;
 
-  const [notes, tasks, activities, history, interests] = await Promise.all([
+  const [
+    notes,
+    tasks,
+    activities,
+    history,
+    interests,
+    appointments,
+    opportunities,
+  ] = await Promise.all([
     supabase
       .from("notes")
       .select("id, body, visibility, author_id, created_at")
@@ -170,6 +182,24 @@ export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
       .from("lead_product_interests")
       .select("product_id")
       .eq("lead_id", leadId),
+    supabase
+      .from("appointments")
+      .select(
+        "id, title, starts_at, ends_at, status, meet_link, calendar_event_id, calendar_sync_status",
+      )
+      .eq("lead_id", leadId)
+      .is("deleted_at", null)
+      .order("starts_at", { ascending: false })
+      .returns<AppointmentRow[]>(),
+    supabase
+      .from("opportunities")
+      .select(
+        "id, product_id, status, potential_value, sold_value, payment_method, closed_at, created_at",
+      )
+      .eq("lead_id", leadId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .returns<OpportunityRow[]>(),
   ]);
 
   return {
@@ -179,7 +209,25 @@ export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
     activities: activities.data ?? [],
     history: history.data ?? [],
     interests: (interests.data ?? []).map((i) => i.product_id),
+    appointments: appointments.data ?? [],
+    opportunities: opportunities.data ?? [],
   };
+}
+
+/** Existe conexão de calendário ativa? (não expõe tokens) */
+export async function isCalendarConnected(
+  workspaceId: string,
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("calendar_connections")
+    .select("id, calendar_id")
+    .eq("workspace_id", workspaceId)
+    .eq("provider", "google")
+    .eq("status", "connected")
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data?.calendar_id);
 }
 
 /** Duplicados potenciais por telefone/e-mail normalizados (mesmo workspace). */

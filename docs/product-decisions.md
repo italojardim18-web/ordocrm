@@ -107,7 +107,43 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
 - Drag entre colunas exige eventos de ponteiro reais; testes automatizados
   cobrem a movimentação via RPC e menu (caminho acessível).
 
-## Backlog imediato (Fase 3)
+## Estado ao final da Fase 3 (13/08/2026)
 
-Agendamentos com estados, oportunidades/vendas/perdas (RPC `register_sale`),
-integração Google Calendar (adaptador + OAuth, ativável com credenciais).
+- Migration `20260813120001_commercial.sql`: `appointments` (estados
+  agendada/realizada/cancelada/não compareceu, campos de sync), `opportunities`
+  (aberta/ganha/perdida, valor potencial × vendido, forma de pagamento),
+  `calendar_connections` e `calendar_sync_events`; RPCs `register_sale` e
+  `mark_opportunity_lost`; `mark_lead_lost` passou a fechar oportunidades
+  abertas do lead.
+- Google Calendar: adaptador REST próprio (`src/lib/calendar/google.ts`), OAuth
+  em `/api/integrations/google/{start,callback}`, refresh automático de token,
+  criação/atualização/cancelamento idempotentes por
+  `extendedProperties.private.praxis_appointment_id`, Meet opcional e
+  free/busy para conflito remoto. **Status honesto**: sem
+  `GOOGLE_CLIENT_ID/SECRET` a tela mostra "aguardando configuração" e as
+  sessões ficam apenas no CRM.
+- Lead 360° ganhou painéis de Agendamentos (com aviso de conflito e opção de
+  agendar mesmo assim) e de Oportunidades/Vendas.
+- Testes: 56 passando (unitários de conflito, payload do Calendar e
+  criptografia; RLS das três fases).
+
+### Decisões e achados técnicos da Fase 3
+
+- **Tokens de integração**: cifrados com AES-256-GCM (`INTEGRATION_TOKEN_KEY`,
+  32 bytes base64) e protegidos por **privilégio de coluna** — `authenticated`
+  não tem `SELECT` em `access_token_enc`/`refresh_token_enc`, então nem um
+  admin comprometido lê tokens pela API. Só o servidor (service_role) acessa.
+- **Armadilha do PL/pgSQL corrigida**: `record IS NOT NULL` só é verdadeiro
+  quando *todas* as colunas são não-nulas — como `archived_at` é nulo nas
+  etapas ativas, o teste falhava silenciosamente e a venda não movia o lead.
+  Agora testamos `v_won_stage.id is not null`. Regra para as próximas fases:
+  nunca usar `record IS NOT NULL` para "encontrou linha?".
+- Movimentação de etapa após a venda continua passando por `move_lead_stage`,
+  preservando o histórico do funil.
+- Sincronização com o Calendar é best-effort: falha não impede o agendamento,
+  fica registrada em `calendar_sync_events` e visível no card da sessão.
+
+## Backlog imediato (Fase 4)
+
+Formulário público com UTMs, infraestrutura de webhooks (idempotência por
+evento externo), adaptadores WhatsApp/Instagram e inbox de conversas.
