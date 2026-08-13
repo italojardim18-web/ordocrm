@@ -1,4 +1,4 @@
-# Praxis Mentis CRM — Decisões de produto e técnica
+# ORDO — Decisões de produto e técnica
 
 > Documento vivo. Atualizado ao final da Fase 1 (12/08/2026).
 > O plano completo (arquitetura, modelo de dados, RLS, integrações, fases)
@@ -9,7 +9,7 @@
 CRM SaaS multiempresa para operação comercial por conversa (WhatsApp/Instagram),
 com pipeline configurável, cadastro progressivo de leads, agendamentos via
 Google Calendar, oportunidades/vendas sobre produtos configuráveis e dashboard
-com dados reais. Nome oficial do produto: **Praxis Mentis**. O workspace inicial
+com dados reais. Nome oficial do produto: **ORDO**. O workspace inicial
 usa a marca profissional **Ítalo Jardim** via `workspace_branding`.
 
 ## Decisões aprovadas

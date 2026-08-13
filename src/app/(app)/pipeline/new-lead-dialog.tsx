@@ -145,7 +145,7 @@ export function NewLeadDialog({
           {state.duplicates && state.duplicates.length > 0 ? (
             <div
               role="alert"
-              className="flex flex-col gap-2 rounded-md border border-gold bg-muted p-3 text-sm"
+              className="flex flex-col gap-2 rounded-md border border-brass bg-muted p-3 text-sm"
             >
               <p className="font-medium">Possível duplicidade encontrada:</p>
               <ul className="list-inside list-disc">

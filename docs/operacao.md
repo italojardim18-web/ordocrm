@@ -1,6 +1,6 @@
 # Operação: deploy, manutenção e lançamento
 
-Guia de quem coloca e mantém o Praxis Mentis no ar. Atualizado em 13/08/2026.
+Guia de quem coloca e mantém o ORDO no ar. Atualizado em 13/08/2026.
 
 ## 1. Ambientes
 

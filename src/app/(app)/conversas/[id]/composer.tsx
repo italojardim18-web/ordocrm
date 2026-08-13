@@ -39,7 +39,7 @@ export function Composer({
       />
 
       {!withinWindow ? (
-        <p className="text-xs text-gold-foreground">
+        <p className="text-xs text-brass-foreground">
           <strong>Fora da janela de 24 horas.</strong> A plataforma só aceita
           mensagem de texto livre até 24h após a última mensagem do contato;
           depois disso é preciso usar um template aprovado. A mensagem ficará na

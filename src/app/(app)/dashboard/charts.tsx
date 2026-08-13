@@ -16,13 +16,14 @@ import {
 import type { Breakdowns, TimeseriesRow } from "@/lib/crm/dashboard";
 import { channelLabel, formatBRL } from "@/lib/format";
 
-// Paleta da marca aplicada aos gráficos (verde principal, dourado, verde claro).
+// Paleta ORDO nos gráficos: burgundy lidera, brass orienta.
+// Sem gradientes e sem cores fora da paleta — regra do brand book.
 const COLORS = {
-  primary: "#3B765A",
-  gold: "#AA874A",
-  light: "#84AB97",
-  deep: "#063427",
-  muted: "#9C9C9C",
+  primary: "#521D2A", // burgundy
+  brass: "#B2966F",
+  light: "#8C5A63", // burgundy claro, para a terceira série
+  deep: "#291015",
+  muted: "#B6AEA4", // stone
 };
 
 const axisStyle = { fontSize: 12, fill: "currentColor" };
@@ -68,7 +69,7 @@ export function TimeseriesChart({ data }: { data: TimeseriesRow[] }) {
           type="monotone"
           dataKey="sales"
           name="Vendas"
-          stroke={COLORS.gold}
+          stroke={COLORS.brass}
           strokeWidth={2}
           dot={false}
         />
@@ -97,7 +98,7 @@ export function ChannelChart({ data }: { data: Breakdowns["by_channel"] }) {
         <Bar
           dataKey="conversions"
           name="Vendas"
-          fill={COLORS.gold}
+          fill={COLORS.brass}
           radius={[4, 4, 0, 0]}
         />
       </BarChart>
@@ -166,7 +167,7 @@ export function LostReasonsChart({
           {data.map((_, index) => (
             <Cell
               key={index}
-              fill={index === 0 ? COLORS.gold : COLORS.muted}
+              fill={index === 0 ? COLORS.brass : COLORS.muted}
             />
           ))}
         </Bar>

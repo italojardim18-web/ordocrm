@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { initials } from "@/lib/validation";
 import { cn } from "@/lib/utils";
+import { OrdoSymbol } from "@/components/ordo-mark";
 
 const MAIN_LINKS = [
   { href: "/pipeline", label: "Pipeline" },
@@ -41,8 +42,23 @@ export function AppNav({
   return (
     <header className="bg-sidebar text-sidebar-foreground">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
+        {/* Marca do produto à esquerda; o workspace vem depois, separado por
+            uma linha fina — o 'by Práxis Mentis' não cabe nesta escala e o
+            brand book manda removê-lo em vez de encolhê-lo. */}
         <div className="flex min-w-0 items-center gap-3">
-          <span className="truncate text-sm font-medium">{workspaceName}</span>
+          <Link
+            href="/pipeline"
+            className="flex shrink-0 items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sidebar-ring"
+          >
+            <OrdoSymbol className="size-6" title="ORDO" />
+            <span className="font-heading text-base tracking-[0.22em]">
+              ORDO
+            </span>
+          </Link>
+          <span aria-hidden className="h-4 w-px bg-sidebar-border" />
+          <span className="truncate text-sm text-sidebar-foreground/75">
+            {workspaceName}
+          </span>
         </div>
         <nav aria-label="Navegação principal" className="flex items-center gap-1">
           {MAIN_LINKS.map((link) => {

@@ -317,7 +317,7 @@ export function ActivityPanel({
           <li className="flex gap-3">
             <div
               aria-hidden
-              className="mt-1.5 size-2 shrink-0 rounded-full bg-gold"
+              className="mt-1.5 size-2 shrink-0 rounded-full bg-brass"
             />
             <div>
               <p className="text-sm font-medium">Lead criado</p>

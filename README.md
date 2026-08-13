@@ -1,11 +1,11 @@
-# Praxis Mentis CRM
+# ORDO
 
 CRM SaaS multiempresa para operações comerciais conduzidas por conversa
 (WhatsApp/Instagram), com pipeline configurável, agendamentos, vendas e
 dashboard sobre dados reais. Interface em português do Brasil.
 
 Multi-tenant desde o primeiro migration: o workspace inicial é a operação do
-**Ítalo Jardim**; **Praxis Mentis** é o nome do produto, e a identidade visual
+**Ítalo Jardim**; **ORDO** é o nome do produto, e a identidade visual
 (nome, logo, cores) é configuração por workspace.
 
 ## Stack

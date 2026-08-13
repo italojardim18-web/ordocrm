@@ -13,11 +13,31 @@
 | Formulário público + UTMs | **Pronto e funcionando** | Só domínio público para produção | — |
 | Google Calendar | Pronto | Projeto Google Cloud + OAuth | 1–2 dias |
 | WhatsApp Cloud API (**coexistência**) | Pronto (webhook, ingestão, envio) | Onboarding por BSP com Embedded Signup | 2–7 dias |
-| Instagram Direct | Pronto (mesmo webhook) | Conta profissional + App Review | 7–30 dias |
+| Instagram Direct | Pronto (mesmo webhook) | Conta profissional (App Review dispensável — ver abaixo) | 1–2 dias |
 | Meta Lead Ads | Estrutura pronta | Depende dos itens acima | pós-MVP |
 
-**Comece pela verificação do Meta Business hoje** — é o item de maior prazo e
-tudo da Meta depende dele.
+## Decisão de 13/08/2026: uso interno, sem verificações
+
+O ORDO será usado **apenas internamente por enquanto**, sem preço definido e
+sem atender outras empresas. Isso muda a estratégia: **as verificações da Meta
+podem ser puladas.**
+
+| Verificação | Precisa? | Consequência de pular |
+| --- | --- | --- |
+| Verificação do negócio | **Não** | Limite de 250 contatos únicos por 24h — muito acima do uso de um consultório |
+| App Review (WhatsApp) | **Não** | Nenhuma, para números que você mesmo administra |
+| App Review (Instagram) | **Não** | Standard Access cobre contas próprias; só é exigido para contas de terceiros |
+| Criar app + portfólio Meta | **Sim** | Não é verificação: é cadastro gratuito e imediato |
+
+**Caminho recomendado agora — número de teste da Meta.** Custo zero, sem
+burocracia, disponível na hora, e valida a integração inteira de ponta a ponta.
+Limite: 5 destinatários cadastrados, o que basta para homologar.
+
+**Quando as conversas reais passarem a importar**, migre para coexistência via
+BSP (seção 4) — que também dispensa as verificações.
+
+O App Review só volta a ser obrigatório no dia em que o ORDO atender **outras
+empresas**, porque aí serão contas de terceiros.
 
 ---
 
@@ -44,7 +64,7 @@ fuso America/Campo_Grande — o mesmo do workspace).
 - [ ] Criar projeto no [Google Cloud Console](https://console.cloud.google.com)
       logado como `@dritalojardim.com`.
 - [ ] Ativar a **Google Calendar API**.
-- [ ] Tela de consentimento OAuth: tipo **Externo**, nome "Praxis Mentis CRM",
+- [ ] Tela de consentimento OAuth: tipo **Externo**, nome "ORDO",
       e-mail de suporte, escopos `calendar.readonly` e `calendar.events`.
 - [ ] Adicionar `neuropsicologo@dritalojardim.com` como **usuário de teste**
       (evita passar por verificação do Google enquanto o app for interno).
@@ -62,7 +82,13 @@ verificação completa do Google.
 
 ---
 
-## 3. Meta Business — verificação da empresa (comece por aqui)
+## 3. Meta Business — portfólio (verificação dispensada por ora)
+
+> Enquanto o uso for interno, **pule a verificação do negócio**. Você só
+> precisa do portfólio criado (gratuito, imediato). Faça a verificação apenas
+> se um dia precisar passar de 250 contatos únicos por 24 horas.
+
+### Se e quando for verificar
 
 - [ ] Acessar [business.facebook.com](https://business.facebook.com) e
       confirmar/criar o portfólio empresarial de **ÍTALO PAIVA JARDIM LTDA**.
