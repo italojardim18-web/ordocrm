@@ -12,8 +12,10 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export interface BridgeMessage {
   /** ID da mensagem no WhatsApp — chave de idempotência. */
   id: string;
-  /** JID do remetente, ex.: 5567999110001@s.whatsapp.net */
+  /** JID do remetente, ex.: 5567999110001@s.whatsapp.net ou 8888…@lid */
   from: string;
+  /** Telefone real, quando a ponte conseguiu resolver. Nunca um LID. */
+  phone?: string | null;
   /** Nome do contato, quando disponível na agenda/perfil. */
   pushName?: string | null;
   text?: string | null;
@@ -41,6 +43,8 @@ export interface NormalizedBridgeMessage {
   externalMessageId: string;
   senderExternalId: string;
   senderName: string | null;
+  /** Telefone de verdade, ou null. Campo vazio é melhor que um LID. */
+  phone: string | null;
   body: string | null;
   mediaType: string | null;
   sentAt: string;
@@ -90,6 +94,7 @@ export function normalizeBridgeEvent(
         externalMessageId: message.id,
         senderExternalId: phone,
         senderName: message.pushName?.trim() || null,
+        phone: message.phone?.trim() || null,
         body: message.text?.trim() || null,
         mediaType: message.mediaType ?? null,
         sentAt: toIso(message.timestamp),

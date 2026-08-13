@@ -98,25 +98,12 @@ export async function POST(request: NextRequest) {
       p_sent_at: message.sentAt,
       p_media_type: message.mediaType,
       p_media_url: null,
+      p_direction: message.outbound ? "outbound" : "inbound",
+      p_phone: message.phone,
     });
 
-    // Eco do celular: a mensagem é nossa, então não conta como engajamento do
-    // lead nem deixa a conversa marcada como não lida.
-    if (!ingestError && message.outbound) {
-      await admin
-        .from("messages")
-        .update({ direction: "outbound", status: "sent" })
-        .eq("workspace_id", connection.workspace_id)
-        .eq("provider", "whatsapp")
-        .eq("external_message_id", message.externalMessageId);
-
-      await admin
-        .from("conversations")
-        .update({ unread_count: 0, last_inbound_at: null })
-        .eq("workspace_id", connection.workspace_id)
-        .eq("provider", "whatsapp")
-        .eq("external_conversation_id", message.externalConversationId);
-    }
+    // O eco do celular é tratado dentro da RPC, pela direção — remendar aqui
+    // com UPDATEs zerava a janela de atendimento da conversa.
 
     await admin
       .from("webhook_events")

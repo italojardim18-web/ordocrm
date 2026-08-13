@@ -75,6 +75,23 @@ describe("normalização dos eventos da ponte", () => {
     ).toHaveLength(0);
   });
 
+  it("carrega o telefone quando a ponte resolveu o LID", () => {
+    const [mensagem] = normalizeBridgeEvent(
+      envelope({ from: "88880204222603@lid", phone: "5567999110001" }),
+    );
+    expect(mensagem.senderExternalId).toBe("88880204222603");
+    expect(mensagem.phone).toBe("5567999110001");
+  });
+
+  it("deixa o telefone vazio quando o LID não foi resolvido", () => {
+    // Melhor campo vazio do que um LID que ninguém consegue discar.
+    const [mensagem] = normalizeBridgeEvent(
+      envelope({ from: "88880204222603@lid" }),
+    );
+    expect(mensagem.senderExternalId).toBe("88880204222603");
+    expect(mensagem.phone).toBeNull();
+  });
+
   it("aceita mídia sem texto", () => {
     const [mensagem] = normalizeBridgeEvent(
       envelope({ text: null, mediaType: "image" }),

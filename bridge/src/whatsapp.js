@@ -22,6 +22,33 @@ const logger = pino({ level: "silent" });
 let socket = null;
 let estado = "iniciando";
 
+/**
+ * Mapa LID → telefone.
+ *
+ * O WhatsApp passou a endereçar contatos por LID (`@lid`), um identificador
+ * interno que não é telefone. O evento de contatos traz os dois campos
+ * juntos, então montamos a correspondência conforme ela aparece. Enquanto o
+ * telefone não for conhecido, o lead fica sem telefone — melhor vazio do que
+ * com um número que não disca.
+ */
+const lidParaTelefone = new Map();
+
+function registrarContato(contato) {
+  if (!contato?.lid || !contato?.jid) return;
+  const lid = contato.lid.split("@")[0].split(":")[0];
+  const telefone = contato.jid.split("@")[0].split(":")[0];
+  if (lid && telefone && /^[0-9]{8,13}$/.test(telefone)) {
+    lidParaTelefone.set(lid, telefone);
+  }
+}
+
+/** Telefone real do JID, quando dá para saber. */
+function resolverTelefone(jid) {
+  const usuario = jid.split("@")[0].split(":")[0];
+  if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@c.us")) return usuario;
+  return lidParaTelefone.get(usuario) ?? null;
+}
+
 export function estadoAtual() {
   return estado;
 }
@@ -74,6 +101,13 @@ export async function iniciarWhatsapp() {
   });
 
   socket.ev.on("creds.update", saveCreds);
+
+  // O WhatsApp entrega a correspondência LID ↔ telefone por aqui.
+  socket.ev.on("contacts.upsert", (contatos) => contatos.forEach(registrarContato));
+  socket.ev.on("contacts.update", (contatos) => contatos.forEach(registrarContato));
+  socket.ev.on("messaging-history.set", ({ contacts }) =>
+    (contacts ?? []).forEach(registrarContato),
+  );
 
   socket.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -140,9 +174,17 @@ export async function iniciarWhatsapp() {
       const midia = extrairTipoMidia(message);
       if (!texto && !midia) continue;
 
+      // Algumas versões trazem o telefone junto da mensagem quando o
+      // endereçamento é por LID.
+      const alternativo = message.key.remoteJidAlt ?? message.key.participantAlt;
+      if (alternativo) {
+        registrarContato({ lid: jid, jid: alternativo });
+      }
+
       normalizadas.push({
         id: message.key.id,
         from: jid,
+        phone: resolverTelefone(jid),
         pushName: message.pushName ?? null,
         text: texto,
         mediaType: midia,
@@ -161,23 +203,37 @@ export async function iniciarWhatsapp() {
   return socket;
 }
 
-/** Envia uma mensagem de texto. Usado pelo ORDO ao processar a fila de saída. */
-export async function enviarTexto(telefone, texto) {
+/**
+ * Envia uma mensagem de texto. Usado pelo ORDO ao processar a fila de saída.
+ *
+ * O identificador vem da conversa e pode ser telefone ou LID — desde que o
+ * WhatsApp passou a endereçar por LID, montar sempre `@s.whatsapp.net`
+ * entregaria no vazio.
+ */
+export async function enviarTexto(identificador, texto) {
   if (!socket || estado !== "conectado") {
     throw new Error(`sessão indisponível (estado: ${estado})`);
   }
 
-  const jid = `${telefone.replace(/\D/g, "")}@s.whatsapp.net`;
+  const limpo = String(identificador).replace(/\D/g, "");
+  if (!limpo) throw new Error("destinatário vazio");
 
-  // Confere se o número existe no WhatsApp antes de tentar entregar.
-  const [existe] = await socket.onWhatsApp(jid);
-  if (!existe?.exists) {
-    throw new Error("número não encontrado no WhatsApp");
+  let destino;
+
+  // Até 13 dígitos é telefone (E.164 no Brasil); acima disso, LID.
+  if (limpo.length <= 13) {
+    const [existe] = await socket.onWhatsApp(`${limpo}@s.whatsapp.net`);
+    if (!existe?.exists) {
+      throw new Error("número não encontrado no WhatsApp");
+    }
+    destino = existe.jid;
+  } else {
+    destino = `${limpo}@lid`;
   }
 
   // Pequena pausa entre envios: rajada é o que mais chama atenção.
   await new Promise((resolve) => setTimeout(resolve, config.sendDelayMs));
 
-  const resultado = await socket.sendMessage(existe.jid, { text: texto });
+  const resultado = await socket.sendMessage(destino, { text: texto });
   return resultado?.key?.id ?? null;
 }
