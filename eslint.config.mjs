@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // A ponte é um serviço Node independente, sem React: as regras de hooks
+    // do Next não se aplicam (e confundem `useMultiFileAuthState` do Baileys
+    // com um hook por causa do prefixo "use").
+    "bridge/**",
   ]),
 ]);
 

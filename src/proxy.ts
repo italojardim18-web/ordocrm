@@ -11,6 +11,8 @@ const PUBLIC_PATHS = [
   "/f",
   "/api/forms",
   "/api/webhooks",
+  // Job protegido por token próprio (JOBS_SECRET), não por sessão.
+  "/api/jobs",
 ];
 
 function isPublicPath(pathname: string) {

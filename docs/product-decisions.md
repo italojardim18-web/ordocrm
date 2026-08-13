@@ -258,6 +258,32 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
   `supabase start` rodar fora do diretório do projeto — sempre executar de
   dentro de `crm/`.
 
+## Transporte do WhatsApp — decisão de 13/08/2026
+
+**Escolhido: ponte de dispositivo conectado (transporte não oficial).** O
+usuário optou por não pagar mensalidade de BSP; o uso é interno.
+
+- `channel_connections.transport` distingue `cloud_api` de `bridge`. O
+  `provider` continua `whatsapp`, então leads, conversas, inbox e relatórios
+  não percebem diferença — trocar de transporte é mudar uma coluna.
+- A ponte (`bridge/`) usa Baileys e se conecta como **dispositivo conectado**:
+  o celular continua funcionando, o que dá coexistência de graça.
+- Ambos os sentidos são assinados com HMAC-SHA256 do corpo bruto.
+- Ingestão reaproveita `ingest_channel_message`, agora com `p_direction`: o
+  **eco** (mensagem que o Ítalo manda pelo celular) entra como saída, sem
+  marcar engajamento do lead nem mexer na janela de atendimento.
+- Worker de saída em `/api/jobs/outbox` com recuo exponencial (máx. 5
+  tentativas), protegido por `JOBS_SECRET`.
+
+**Riscos aceitos e registrados**: viola os termos do WhatsApp (risco de
+banimento do número), exige máquina sempre ligada, e sem SLA se o protocolo
+mudar. O caminho oficial (coexistência via BSP) segue documentado e o código
+o suporta sem reescrita.
+
+**Verificações da Meta**: dispensadas enquanto o uso for interno — nem
+verificação do negócio (limite de 250 contatos/24h é suficiente) nem App
+Review (Standard Access cobre contas próprias).
+
 ## Backlog pós-MVP
 
 Por ordem de valor:

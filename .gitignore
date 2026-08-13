@@ -48,3 +48,7 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Ponte WhatsApp (a pasta de sessão dá acesso à conta — nunca versionar)
+/bridge/node_modules/
+/bridge/sessao/

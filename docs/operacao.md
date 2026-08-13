@@ -150,7 +150,9 @@ listadas e validação jurídica própria.
 | Limitação | Impacto | Quando resolver |
 | --- | --- | --- |
 | Rate limit em memória do processo | Com várias instâncias, o limite é por instância | Ao escalar horizontalmente |
-| Sem worker de outbox | Mensagens ficam `pending`; não há envio real | Junto com as credenciais da Meta |
+| ~~Sem worker de outbox~~ | Resolvido em 13/08/2026: `/api/jobs/outbox` com recuo exponencial | — |
+| Ponte precisa de máquina sempre ligada | Mensagens recebidas com a ponte fora do ar não chegam (o WhatsApp não reenvia a dispositivo conectado) | Inerente ao transporte escolhido |
+| Transporte não oficial viola os termos do WhatsApp | Risco de banimento do número | Migrar para coexistência via BSP se/quando compensar |
 | Sem antivírus em anexos | Anexos não são verificados | Antes de liberar upload amplo |
 | CSV fora do MVP | Importação/exportação em massa não existe | Pós-MVP |
 | MFA não obrigatória | Estrutura pronta, não ativada | Quando houver mais usuários |
