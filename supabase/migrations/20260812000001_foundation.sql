@@ -522,6 +522,25 @@ $$;
 
 revoke execute on all functions in schema public from public, anon;
 
+-- Grants de tabela: a RLS é quem restringe as linhas; sem o grant o Postgres
+-- nega tudo. anon não recebe acesso a tabelas (só à RPC pública do convite).
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant all on all tables in schema public to service_role;
+grant usage on all sequences in schema public to authenticated, service_role;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema public
+  grant all on tables to service_role;
+
+-- As policies avaliam private.is_member/is_admin com o papel do usuário da
+-- requisição: ele precisa de USAGE no schema e EXECUTE nas funções.
+-- O schema private não é exposto pela API (PostgREST serve apenas "public").
+grant usage on schema private to authenticated;
+grant execute on all functions in schema private to authenticated;
+alter default privileges in schema private
+  grant execute on functions to authenticated;
+
 grant execute on function public.create_invitation(uuid, text, public.member_role) to authenticated;
 grant execute on function public.accept_invitation(text) to authenticated;
 grant execute on function public.revoke_invitation(uuid) to authenticated;
