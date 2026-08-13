@@ -77,8 +77,37 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
 - Decisões pendentes do plano (produtos reais, número WhatsApp, conta Google,
   retenção de conversas, domínio público) seguem em aberto — ver plano.
 
-## Backlog imediato (Fase 2)
+## Estado ao final da Fase 2 (13/08/2026)
 
-Produtos e pipeline padrão (7 etapas com `stage_type`), leads com cadastro
-progressivo e deduplicação, Lead 360°, Kanban/lista, histórico de etapas,
-notas (`team`/`admin_only`), tarefas e follow-ups.
+- Migration `20260813000001_crm_core.sql`: pipelines, etapas com `stage_type`
+  semântico, produtos, motivos de perda, leads (cadastro progressivo,
+  normalização de telefone/e-mail por trigger), interesses, histórico de
+  etapas, tags, notas (`team`/`admin_only`), tarefas, atividades; RLS por
+  papel; RPCs transacionais (`move_lead_stage`, `mark_lead_lost`,
+  `reactivate_lead`, `delete_stage_migrating_leads`, `merge_leads`).
+- Mudança de etapa por UPDATE direto é bloqueada por trigger: só via RPC,
+  garantindo histórico íntegro para o funil.
+- `/pipeline`: Kanban (dnd-kit, otimista com rollback, movimentação por menu
+  acessível) + lista (ordenação, paginação) com filtros compartilhados na URL;
+  criação de lead com alerta de duplicidade; Realtime em `leads`.
+- `/pipeline/lead/[id]`: Lead 360° (cadastro completo, interesses,
+  responsável, engajamento único, notas com visibilidade, tarefas com
+  vencimento, timeline, perda com motivo obrigatório, reativação).
+- `/configuracoes/produtos` e `/configuracoes/pipeline` (admin): CRUD de
+  produtos; renomear/reordenar/arquivar/excluir etapa com migração de leads.
+- Testes: 34 (unitários + RLS Fase 1 e 2) passando contra o stack local.
+
+### Decisões técnicas da Fase 2
+
+- Lista usa paginação client-side sobre janela de 500 leads mais recentes;
+  paginação server-side completa quando o volume justificar.
+- Motivos de perda gerenciáveis por SQL/seed; UI de gestão fica no backlog.
+- "Sem acesso" enganoso pós-`db reset` corrigido: falha de consulta de
+  membership agora propaga erro recarregável em vez de negar acesso.
+- Drag entre colunas exige eventos de ponteiro reais; testes automatizados
+  cobrem a movimentação via RPC e menu (caminho acessível).
+
+## Backlog imediato (Fase 3)
+
+Agendamentos com estados, oportunidades/vendas/perdas (RPC `register_sale`),
+integração Google Calendar (adaptador + OAuth, ativável com credenciais).

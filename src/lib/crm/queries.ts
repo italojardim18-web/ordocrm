@@ -1,0 +1,219 @@
+import { createClient } from "@/lib/supabase/server";
+import type {
+  ActivityRow,
+  HistoryRow,
+  LeadCard,
+  LeadDetail,
+  LostReason,
+  Member,
+  Note,
+  Product,
+  Stage,
+  TaskRow,
+} from "./types";
+
+export async function getDefaultPipeline(workspaceId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pipelines")
+    .select("id, name")
+    .eq("workspace_id", workspaceId)
+    .is("archived_at", null)
+    .order("is_default", { ascending: false })
+    .order("position", { ascending: true })
+    .limit(1);
+  return data?.[0] ?? null;
+}
+
+export async function getStages(pipelineId: string): Promise<Stage[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pipeline_stages")
+    .select("id, name, stage_type, position, archived_at")
+    .eq("pipeline_id", pipelineId)
+    .is("archived_at", null)
+    .order("position", { ascending: true })
+    .returns<Stage[]>();
+  return data ?? [];
+}
+
+/**
+ * Leads do pipeline (Kanban e lista usam esta mesma consulta).
+ * Limite alto o suficiente para a operação atual; paginação server-side
+ * completa entra quando o volume justificar (registrado em decisões).
+ */
+export async function getBoardLeads(pipelineId: string): Promise<LeadCard[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("leads")
+    .select(
+      `id, name, stage_id, position, channel, phone, email, potential_value,
+       owner_id, engaged_at, created_at,
+       lead_product_interests (product_id),
+       tasks (id, due_at, completed_at)`,
+    )
+    .eq("pipeline_id", pipelineId)
+    .is("deleted_at", null)
+    .order("position", { ascending: true })
+    .limit(500)
+    .returns<LeadCard[]>();
+  return data ?? [];
+}
+
+export async function getProducts(
+  workspaceId: string,
+  onlyActive = false,
+): Promise<Product[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("products")
+    .select("id, name, category, description, default_price, is_active")
+    .eq("workspace_id", workspaceId)
+    .order("name", { ascending: true });
+  if (onlyActive) query = query.eq("is_active", true);
+  const { data } = await query.returns<Product[]>();
+  return data ?? [];
+}
+
+export async function getLostReasons(
+  workspaceId: string,
+): Promise<LostReason[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lost_reasons")
+    .select("id, label, is_active")
+    .eq("workspace_id", workspaceId)
+    .eq("is_active", true)
+    .order("position", { ascending: true })
+    .returns<LostReason[]>();
+  return data ?? [];
+}
+
+export async function getMembers(workspaceId: string): Promise<Member[]> {
+  const supabase = await createClient();
+  const { data: members } = await supabase
+    .from("workspace_members")
+    .select("user_id, role")
+    .eq("workspace_id", workspaceId)
+    .eq("is_active", true);
+
+  const ids = (members ?? []).map((m) => m.user_id);
+  if (ids.length === 0) return [];
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", ids);
+
+  const nameById = new Map(
+    (profiles ?? []).map((p) => [p.id, p.full_name ?? ""]),
+  );
+
+  return (members ?? []).map((m) => ({
+    userId: m.user_id,
+    fullName: nameById.get(m.user_id) || "Sem nome",
+    role: m.role as Member["role"],
+  }));
+}
+
+export interface LeadFull {
+  lead: LeadDetail;
+  notes: Note[];
+  tasks: TaskRow[];
+  activities: ActivityRow[];
+  history: HistoryRow[];
+  interests: string[];
+}
+
+export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
+  const supabase = await createClient();
+
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .is("deleted_at", null)
+    .maybeSingle<LeadDetail>();
+
+  if (!lead) return null;
+
+  const [notes, tasks, activities, history, interests] = await Promise.all([
+    supabase
+      .from("notes")
+      .select("id, body, visibility, author_id, created_at")
+      .eq("lead_id", leadId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .returns<Note[]>(),
+    supabase
+      .from("tasks")
+      .select("id, title, due_at, completed_at, assigned_to, created_at")
+      .eq("lead_id", leadId)
+      .is("deleted_at", null)
+      .order("completed_at", { ascending: true, nullsFirst: true })
+      .order("due_at", { ascending: true })
+      .returns<TaskRow[]>(),
+    supabase
+      .from("activities")
+      .select("id, type, content, actor_id, created_at")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .returns<ActivityRow[]>(),
+    supabase
+      .from("lead_stage_history")
+      .select("id, from_stage_type, to_stage_type, actor_id, created_at")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false })
+      .returns<HistoryRow[]>(),
+    supabase
+      .from("lead_product_interests")
+      .select("product_id")
+      .eq("lead_id", leadId),
+  ]);
+
+  return {
+    lead,
+    notes: notes.data ?? [],
+    tasks: tasks.data ?? [],
+    activities: activities.data ?? [],
+    history: history.data ?? [],
+    interests: (interests.data ?? []).map((i) => i.product_id),
+  };
+}
+
+/** Duplicados potenciais por telefone/e-mail normalizados (mesmo workspace). */
+export async function findDuplicates(
+  workspaceId: string,
+  phone: string | null,
+  email: string | null,
+  excludeLeadId?: string,
+) {
+  const supabase = await createClient();
+  const filters: string[] = [];
+
+  const digits = phone?.replace(/\D/g, "") ?? "";
+  const normalizedPhone =
+    digits.length === 0
+      ? null
+      : digits.length === 10 || digits.length === 11
+        ? `55${digits}`
+        : digits;
+  const normalizedEmail = email?.trim().toLowerCase() || null;
+
+  if (normalizedPhone) filters.push(`phone_normalized.eq.${normalizedPhone}`);
+  if (normalizedEmail) filters.push(`email_normalized.eq.${normalizedEmail}`);
+  if (filters.length === 0) return [];
+
+  let query = supabase
+    .from("leads")
+    .select("id, name, phone, email")
+    .eq("workspace_id", workspaceId)
+    .is("deleted_at", null)
+    .or(filters.join(","))
+    .limit(5);
+  if (excludeLeadId) query = query.neq("id", excludeLeadId);
+
+  const { data } = await query;
+  return data ?? [];
+}

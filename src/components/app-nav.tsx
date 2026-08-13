@@ -91,6 +91,12 @@ export function AppNav({
               {isAdmin ? (
                 <>
                   <DropdownMenuItem asChild>
+                    <Link href="/configuracoes/produtos">Produtos</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/configuracoes/pipeline">Pipeline e etapas</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/configuracoes/usuarios">Usuários</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

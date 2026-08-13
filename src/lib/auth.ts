@@ -45,7 +45,8 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     redirect("/login");
   }
 
-  const [{ data: memberships }, { data: profile }] = await Promise.all([
+  const [{ data: memberships, error: membershipError }, { data: profile }] =
+    await Promise.all([
     supabase
       .from("workspace_members")
       .select(
@@ -58,6 +59,13 @@ export async function getSessionContext(): Promise<SessionContext | null> {
       .returns<MembershipRow[]>(),
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
   ]);
+
+  if (membershipError) {
+    // Falha transitória de rede/API não é "sem acesso": propaga para o
+    // error boundary em vez de mostrar um estado enganoso.
+    console.error("[auth] membership query failed:", membershipError.code);
+    throw new Error("Não foi possível carregar o workspace. Recarregue a página.");
+  }
 
   const membership = memberships?.[0];
   if (!membership?.workspaces) {

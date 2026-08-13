@@ -1,0 +1,126 @@
+export type StageType =
+  | "new"
+  | "qualification"
+  | "follow_up_pre_session"
+  | "alignment_session"
+  | "follow_up_post_session"
+  | "won"
+  | "lost"
+  | "custom";
+
+export type LeadChannel =
+  | "form"
+  | "whatsapp"
+  | "instagram"
+  | "paid_traffic"
+  | "manual";
+
+export interface Stage {
+  id: string;
+  name: string;
+  stage_type: StageType;
+  position: number;
+  archived_at: string | null;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  default_price: number | null;
+  is_active: boolean;
+}
+
+export interface LostReason {
+  id: string;
+  label: string;
+  is_active: boolean;
+}
+
+export interface Member {
+  userId: string;
+  fullName: string;
+  role: "admin" | "assistant";
+}
+
+export interface LeadCard {
+  id: string;
+  name: string;
+  stage_id: string;
+  position: number;
+  channel: LeadChannel;
+  phone: string | null;
+  email: string | null;
+  potential_value: number | null;
+  owner_id: string | null;
+  engaged_at: string | null;
+  created_at: string;
+  lead_product_interests: { product_id: string }[];
+  tasks: { id: string; due_at: string | null; completed_at: string | null }[];
+}
+
+export interface LeadDetail {
+  id: string;
+  workspace_id: string;
+  pipeline_id: string;
+  stage_id: string;
+  name: string;
+  social_name: string | null;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  state: string | null;
+  contact_preference: string | null;
+  channel: LeadChannel;
+  source_detail: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  owner_id: string | null;
+  potential_value: number | null;
+  next_action: string | null;
+  first_contact_at: string | null;
+  engaged_at: string | null;
+  lost_reason_id: string | null;
+  lost_note: string | null;
+  lost_at: string | null;
+  reactivated_count: number;
+  created_at: string;
+  deleted_at: string | null;
+}
+
+export interface Note {
+  id: string;
+  body: string;
+  visibility: "team" | "admin_only";
+  author_id: string;
+  created_at: string;
+}
+
+export interface TaskRow {
+  id: string;
+  title: string;
+  due_at: string | null;
+  completed_at: string | null;
+  assigned_to: string | null;
+  created_at: string;
+}
+
+export interface ActivityRow {
+  id: number;
+  type: "call" | "message" | "note" | "task" | "stage_change" | "system";
+  content: string | null;
+  actor_id: string | null;
+  created_at: string;
+}
+
+export interface HistoryRow {
+  id: number;
+  from_stage_type: StageType | null;
+  to_stage_type: StageType;
+  actor_id: string | null;
+  created_at: string;
+}
