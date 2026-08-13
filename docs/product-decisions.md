@@ -68,10 +68,11 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
 
 ## Pendências conhecidas
 
-- **Docker não está instalado nesta máquina** → o stack local do Supabase
-  (`supabase start`) e, portanto, a execução da suíte de RLS ainda não foram
-  rodados. Instalar Docker Desktop (ou OrbStack) e o Supabase CLI.
-- Supabase CLI não instalado (instalar via Homebrew ou binário oficial).
+- ~~Docker/Supabase CLI~~ → resolvido em 13/08/2026: Colima + docker CLI +
+  Supabase CLI via Homebrew; stack local no ar e suíte de RLS passando (19/19).
+  O runtime Docker local é o Colima (`colima start` após reiniciar a máquina).
+- Studio/Realtime/Storage/Analytics estão desligados no config.toml local para
+  acelerar o start; reativar conforme as fases exigirem.
 - Nenhuma credencial externa configurada (Supabase cloud, Meta, Google).
 - Decisões pendentes do plano (produtos reais, número WhatsApp, conta Google,
   retenção de conversas, domínio público) seguem em aberto — ver plano.
