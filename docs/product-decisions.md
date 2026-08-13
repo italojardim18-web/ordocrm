@@ -143,7 +143,48 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
 - Sincronização com o Calendar é best-effort: falha não impede o agendamento,
   fica registrada em `calendar_sync_events` e visível no card da sessão.
 
-## Backlog imediato (Fase 4)
+## Estado ao final da Fase 4 (13/08/2026)
 
-Formulário público com UTMs, infraestrutura de webhooks (idempotência por
-evento externo), adaptadores WhatsApp/Instagram e inbox de conversas.
+- Migration `20260813180001_channels.sql`: `channel_connections` (segredos
+  cifrados e protegidos por privilégio de coluna), `external_identities`,
+  `conversations`, `conversation_participants`, `messages`,
+  `message_attachments`, `webhook_events` (única por provedor + workspace +
+  id externo), `outbox_messages`, `form_endpoints`, `form_submissions`.
+- RPCs: `ingest_channel_message` (idempotente; associa ou cria lead, registra
+  engajamento e atividade — **não exposta a `authenticated`**),
+  `send_channel_message` (grava + enfileira no outbox) e
+  `mark_conversation_read`.
+- Formulário público `/f/[slug]` + `POST /api/forms/[slug]`: UTMs, honeypot,
+  tempo mínimo de preenchimento, rate limit por IP (hash, nunca IP em claro),
+  deduplicação por janela de 10 minutos. **Funciona sem credencial externa.**
+- Webhook `/api/webhooks/meta`: handshake de verificação, validação de
+  assinatura HMAC em tempo constante, normalização de WhatsApp e Instagram,
+  idempotência por evento e atualização de status de entrega.
+- Simulador de mensagem (dev-only) para exercitar o fluxo sem credenciais.
+- Inbox `/conversas` com janela de 24h, aviso de template e status de envio.
+- Testes: 91 passando.
+
+### Achados e decisões da Fase 4
+
+- **Falha de segurança encontrada por teste**: o Postgres concede `EXECUTE` a
+  `PUBLIC` em toda função nova, então `ingest_channel_message` estava
+  chamável por qualquer usuário autenticado (permitiria forjar mensagens em
+  qualquer workspace). Corrigido com `revoke execute ... from public, anon` +
+  `alter default privileges ... revoke execute on functions from public`.
+  **Regra para as próximas migrations**: toda RPC nova nasce sem acesso e
+  recebe grant explícito só se for para o cliente.
+- `service_role` precisou de `usage`/`execute` no schema `private`: os
+  triggers de normalização rodam também nas escritas do servidor.
+- Nomes de colunas em `RETURNS TABLE` entram no escopo do PL/pgSQL e tornam
+  ambíguas referências em `ON CONFLICT`; por isso o prefixo `out_`.
+- Revalidação não pode ocorrer durante o render de um Server Component
+  (Next 16): marcar conversa como lida virou efeito no cliente.
+- Rate limit é **em memória do processo** — adequado a uma instância; com
+  múltiplas instâncias, migrar para armazenamento compartilhado.
+- Envio real de mensagens ainda não tem worker de outbox: as mensagens ficam
+  `pending` na fila. O worker entra junto com as credenciais reais da Meta.
+
+## Backlog imediato (Fase 5)
+
+Dashboard: funções SQL agregadas por workspace/período, KPIs com fórmulas
+documentadas, funil a partir de `lead_stage_history`, gráficos e filtros.

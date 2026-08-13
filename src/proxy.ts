@@ -6,6 +6,11 @@ const PUBLIC_PATHS = [
   "/recuperar-senha",
   "/convite",
   "/auth",
+  // Captação pública: formulário e endpoints de ingestão (validam por conta
+  // própria — slug do formulário, assinatura do webhook).
+  "/f",
+  "/api/forms",
+  "/api/webhooks",
 ];
 
 function isPublicPath(pathname: string) {

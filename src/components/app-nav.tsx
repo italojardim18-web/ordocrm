@@ -21,6 +21,10 @@ const MAIN_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
 ];
 
+// Conversas fica fora da navegação principal (só Pipeline e Dashboard),
+// acessível por atalho ao lado do avatar.
+const SECONDARY_LINK = { href: "/conversas", label: "Conversas" };
+
 export function AppNav({
   workspaceName,
   userName,
@@ -62,6 +66,21 @@ export function AppNav({
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <Link
+            href={SECONDARY_LINK.href}
+            aria-current={
+              pathname.startsWith(SECONDARY_LINK.href) ? "page" : undefined
+            }
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm transition-colors",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring",
+              pathname.startsWith(SECONDARY_LINK.href)
+                ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            )}
+          >
+            {SECONDARY_LINK.label}
+          </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

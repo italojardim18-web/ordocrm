@@ -15,7 +15,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
 import { CalendarPicker, DisconnectButton } from "./calendar-controls";
+import { MessageSimulator } from "./health";
 
 export const metadata: Metadata = { title: "Integrações" };
 
@@ -31,6 +33,36 @@ export default async function IntegrationsPage({
   const connection = config
     ? await getWorkspaceConnection(context.workspace.id)
     : null;
+
+  const supabase = await createClient();
+  const [
+    { data: channels },
+    { count: webhookCount },
+    { count: failedWebhooks },
+    { count: pendingOutbox },
+  ] = await Promise.all([
+    supabase
+      .from("channel_connections")
+      .select("provider, status")
+      .eq("workspace_id", context.workspace.id),
+    supabase
+      .from("webhook_events")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", context.workspace.id),
+    supabase
+      .from("webhook_events")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", context.workspace.id)
+      .eq("status", "failed"),
+    supabase
+      .from("outbox_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", context.workspace.id)
+      .eq("status", "pending"),
+  ]);
+
+  const whatsapp = (channels ?? []).find((c) => c.provider === "whatsapp");
+  const instagram = (channels ?? []).find((c) => c.provider === "instagram");
 
   let calendars: { id: string; summary: string }[] = [];
   let calendarListError = false;
@@ -138,12 +170,17 @@ export default async function IntegrationsPage({
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <CardTitle>WhatsApp Business (Cloud API)</CardTitle>
-            <Badge variant="outline">Aguardando configuração</Badge>
+            <Badge variant="outline">
+              {whatsapp?.status === "connected"
+                ? "Conectado"
+                : "Aguardando configuração"}
+            </Badge>
           </div>
           <CardDescription>
-            Recebimento e envio de mensagens pela API oficial da Meta. Chega na
-            Fase 4; depende de conta Meta Business verificada e número
-            registrado na Cloud API.
+            Recebimento e envio de mensagens pela API oficial da Meta. Depende
+            de conta Meta Business verificada e número registrado na Cloud API.
+            O webhook do CRM já está pronto em{" "}
+            <code>/api/webhooks/meta</code>.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -152,13 +189,43 @@ export default async function IntegrationsPage({
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <CardTitle>Instagram (mensagens)</CardTitle>
-            <Badge variant="outline">Aguardando configuração</Badge>
+            <Badge variant="outline">
+              {instagram?.status === "connected"
+                ? "Conectado"
+                : "Aguardando configuração"}
+            </Badge>
           </div>
           <CardDescription>
-            Conversas do Direct pela API oficial. Chega na Fase 4; depende de
-            conta profissional vinculada ao portfólio Meta e aprovação do app.
+            Conversas do Direct pela API oficial. Depende de conta profissional
+            vinculada ao portfólio Meta e da aprovação do app (App Review).
           </CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Saúde das integrações</CardTitle>
+          <CardDescription>
+            Eventos recebidos e fila de envio dos últimos registros.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <dl className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <dt className="text-muted-foreground">Eventos recebidos</dt>
+              <dd className="text-lg font-medium">{webhookCount ?? 0}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Eventos com falha</dt>
+              <dd className="text-lg font-medium">{failedWebhooks ?? 0}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Fila de envio pendente</dt>
+              <dd className="text-lg font-medium">{pendingOutbox ?? 0}</dd>
+            </div>
+          </dl>
+          {process.env.NODE_ENV !== "production" ? <MessageSimulator /> : null}
+        </CardContent>
       </Card>
     </section>
   );

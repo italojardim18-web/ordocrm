@@ -288,3 +288,51 @@ insert into public.opportunities
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000013', '11110000-0000-4000-8000-000000000004',
    'lost', 1500.00, null, null, now() - interval '9 days', '22220000-0000-4000-8000-000000000001',
    '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-222222222222', now() - interval '14 days');
+
+-- =============================================================================
+-- Fase 4 — formulário público de demonstração
+-- =============================================================================
+
+insert into public.form_endpoints
+  (id, workspace_id, slug, name, headline, description, pipeline_id, product_id,
+   owner_id, success_message) values
+  ('55550000-0000-4000-8000-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'contato', 'Formulário de contato',
+   'Vamos conversar?',
+   'Preencha seus dados e retornamos pelo canal que você preferir.',
+   'cccccccc-cccc-4ccc-8ccc-cccccccccccc', '11110000-0000-4000-8000-000000000001',
+   '11111111-1111-4111-8111-111111111111',
+   'Recebemos seu contato!');
+
+-- Conversa de demonstração (WhatsApp) associada a um lead existente
+insert into public.external_identities
+  (workspace_id, lead_id, provider, external_id, display_name) values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '33330000-0000-4000-8000-000000000004',
+   'whatsapp', '5567999110004', 'Rafael Teste Lima');
+
+insert into public.conversations
+  (id, workspace_id, lead_id, provider, external_conversation_id,
+   last_inbound_at, last_message_at, last_message_preview, unread_count) values
+  ('66660000-0000-4000-8000-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   '33330000-0000-4000-8000-000000000004', 'whatsapp', '5567999110004',
+   now() - interval '3 hours', now() - interval '2 hours',
+   'Perfeito, qual o valor da supervisão em grupo?', 1);
+
+insert into public.conversation_participants
+  (workspace_id, conversation_id, external_id, display_name) values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '66660000-0000-4000-8000-000000000001',
+   '5567999110004', 'Rafael Teste Lima');
+
+insert into public.messages
+  (workspace_id, conversation_id, provider, external_message_id, direction,
+   status, sender_external_id, body, sent_at) values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '66660000-0000-4000-8000-000000000001',
+   'whatsapp', 'wamid.demo001', 'inbound', 'delivered', '5567999110004',
+   'Oi! Vi seu perfil e queria saber sobre supervisão.', now() - interval '4 hours'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '66660000-0000-4000-8000-000000000001',
+   'whatsapp', 'wamid.demo002', 'outbound', 'read', null,
+   'Olá, Rafael! Claro. Trabalho com supervisão individual e em grupo.',
+   now() - interval '3 hours 30 minutes'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '66660000-0000-4000-8000-000000000001',
+   'whatsapp', 'wamid.demo003', 'inbound', 'delivered', '5567999110004',
+   'Perfeito, qual o valor da supervisão em grupo?', now() - interval '2 hours');
