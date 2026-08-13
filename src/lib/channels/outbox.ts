@@ -14,12 +14,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const MAX_ATTEMPTS = 5;
 const BATCH_SIZE = 10;
 
+/**
+ * Mensagem parada há muito tempo não deve mais ser enviada.
+ * Uma resposta comercial de dois dias atrás chega fora de contexto e soa pior
+ * do que não chegar — melhor falhar visível e deixar a pessoa reenviar.
+ */
+const MAX_AGE_HOURS = 12;
+
 interface OutboxRow {
   id: number;
   workspace_id: string;
   message_id: string | null;
   provider: string;
   attempts: number;
+  created_at: string;
   payload: {
     external_conversation_id?: string;
     body?: string;
@@ -57,7 +65,9 @@ export async function processOutbox(): Promise<OutboxResult> {
 
   const { data: pending } = await admin
     .from("outbox_messages")
-    .select("id, workspace_id, message_id, provider, attempts, payload")
+    .select(
+      "id, workspace_id, message_id, provider, attempts, created_at, payload",
+    )
     .eq("status", "pending")
     .lte("next_retry_at", new Date().toISOString())
     .order("created_at")
@@ -104,6 +114,20 @@ export async function processOutbox(): Promise<OutboxResult> {
       continue;
     }
 
+    // Guarda contra fila represada: melhor não entregar do que entregar
+    // uma resposta comercial fora de hora.
+    const idadeHoras =
+      (Date.now() - new Date(row.created_at).getTime()) / 3_600_000;
+    if (idadeHoras > MAX_AGE_HOURS) {
+      await markFailed(
+        row,
+        `mensagem parada há ${Math.round(idadeHoras)}h — não enviada por estar fora de contexto`,
+        true,
+      );
+      result.failed += 1;
+      continue;
+    }
+
     try {
       const body = JSON.stringify({ to, text });
       const secret = decryptToken(connection.bridge_secret_enc);
@@ -120,6 +144,18 @@ export async function processOutbox(): Promise<OutboxResult> {
           signal: AbortSignal.timeout(20_000),
         },
       );
+
+      // 503 = ponte no ar mas sessão ainda não pareada/conectada. Não é falha
+      // da mensagem: esperar sem gastar tentativa, senão a fila se esgota
+      // sozinha enquanto o WhatsApp reconecta.
+      if (response.status === 503) {
+        await admin
+          .from("outbox_messages")
+          .update({ next_retry_at: new Date(Date.now() + 60_000).toISOString() })
+          .eq("id", row.id);
+        result.skipped += 1;
+        continue;
+      }
 
       if (!response.ok) {
         const detalhe = await response.text();

@@ -112,6 +112,26 @@ Retorna o estado da sessão: `aguardando_qr`, `conectado`, `reconectando` ou
 `desconectado`. O mesmo estado aparece em **Configurações → Integrações** do
 ORDO.
 
+## Regra importante: teste e ponte no mesmo banco
+
+Com a ponte **conectada**, tudo que entra na fila de saída é enviado de
+verdade. A suíte de testes exercita o envio, então:
+
+- **Nunca rode `npm run test` ou `npm run test:e2e` com a ponte ligada
+  apontando para o mesmo banco.** Pare a ponte antes.
+- A suíte de RLS limpa a própria fila ao terminar (`purge_test_outbox`), mas
+  não confie só nisso: um teste interrompido no meio deixa sobra.
+- Antes de conectar a ponte pela primeira vez, confira a fila:
+
+```bash
+curl -s "$SUPABASE_URL/rest/v1/outbox_messages?select=id,status,payload&status=eq.pending" \
+  -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY"
+```
+
+Duas proteções já existem no worker: mensagem parada há mais de **12 horas**
+não é enviada (chega fora de contexto), e a ponte responder 503 (sessão ainda
+não conectada) **não** gasta tentativa.
+
 ## Problemas comuns
 
 | Sintoma | Causa provável |

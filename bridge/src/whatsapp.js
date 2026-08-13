@@ -4,7 +4,9 @@ import {
   fetchLatestBaileysVersion,
   DisconnectReason,
 } from "@whiskeysockets/baileys";
+import { writeFile } from "node:fs/promises";
 import qrcode from "qrcode-terminal";
+import QRCode from "qrcode";
 import pino from "pino";
 import { config } from "./config.js";
 import { sendToOrdo } from "./ordo-client.js";
@@ -83,6 +85,16 @@ export async function iniciarWhatsapp() {
           "  Configurações → Aparelhos conectados → Conectar aparelho\n",
       );
       qrcode.generate(qr, { small: true });
+
+      // Também salva como imagem: mais fácil de escanear que o ASCII do
+      // terminal. O arquivo é sobrescrito a cada QR novo e perde a validade
+      // em segundos — não é segredo persistente.
+      try {
+        await QRCode.toFile(config.qrFile, qr, { width: 512, margin: 2 });
+        console.log(`[whatsapp] QR também salvo em ${config.qrFile}`);
+      } catch (erro) {
+        console.warn("[whatsapp] não consegui salvar o QR como imagem:", erro.message);
+      }
     }
 
     if (connection === "open") {

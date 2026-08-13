@@ -3,7 +3,7 @@
  * Requer o stack local com migrations + seed.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { config as loadEnv } from "dotenv";
 
 loadEnv({ path: ".env.local" });
@@ -46,6 +46,14 @@ describe.skipIf(!hasStack)("RLS — canais e conversas (Fase 4)", () => {
     anon = createClient(SUPABASE_URL!, ANON_KEY!, {
       auth: { persistSession: false },
     });
+  });
+
+  // A suíte chama send_channel_message, que enfileira envio de verdade. Se
+  // uma ponte estiver conectada a este banco, uma sobra viraria mensagem real
+  // para um número de terceiro — por isso a fila é limpa ao final.
+  afterAll(async () => {
+    if (!adminA) return;
+    await adminA.rpc("purge_test_outbox", { p_conversation_id: CONVERSATION });
   });
 
   it("conversas e mensagens são isoladas por workspace", async () => {

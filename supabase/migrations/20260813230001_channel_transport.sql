@@ -203,3 +203,46 @@ revoke execute on function public.ingest_channel_message(
   uuid, public.channel_provider, text, text, text, text, text,
   timestamptz, text, text, public.message_direction
 ) from public, anon;
+
+-- -----------------------------------------------------------------------------
+-- Limpeza de fila em teste
+--
+-- A suíte de RLS exercita send_channel_message, que enfileira envio de
+-- verdade. Rodando contra um banco com ponte conectada, essas sobras virariam
+-- mensagens reais para terceiros. Esta RPC deixa o teste limpar o que criou.
+-- -----------------------------------------------------------------------------
+
+create or replace function public.purge_test_outbox(p_conversation_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_workspace uuid;
+  v_removidas integer;
+begin
+  select workspace_id into v_workspace
+  from public.conversations where id = p_conversation_id;
+
+  if v_workspace is null or not private.is_admin(v_workspace) then
+    raise exception 'operação não permitida' using errcode = '42501';
+  end if;
+
+  with alvo as (
+    select o.id
+    from public.outbox_messages o
+    join public.messages m on m.id = o.message_id
+    where o.workspace_id = v_workspace
+      and o.status = 'pending'
+      and m.conversation_id = p_conversation_id
+  )
+  delete from public.outbox_messages o
+  using alvo where o.id = alvo.id;
+
+  get diagnostics v_removidas = row_count;
+  return v_removidas;
+end;
+$$;
+
+grant execute on function public.purge_test_outbox(uuid) to authenticated;

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { assertConfig, config } from "./config.js";
 import { verifyIncomingSignature } from "./ordo-client.js";
 import { enviarTexto, estadoAtual, iniciarWhatsapp } from "./whatsapp.js";
+import { iniciarAgendador, pararAgendador } from "./agendador.js";
 
 /**
  * Ponte ORDO ↔ WhatsApp.
@@ -63,6 +64,8 @@ servidor.listen(config.port, () => {
   console.log(`[ponte] ORDO em ${config.ordoUrl}`);
 });
 
+iniciarAgendador();
+
 iniciarWhatsapp().catch((erro) => {
   console.error("[ponte] não consegui iniciar o WhatsApp:", erro.message);
   process.exit(1);
@@ -71,6 +74,7 @@ iniciarWhatsapp().catch((erro) => {
 for (const sinal of ["SIGINT", "SIGTERM"]) {
   process.on(sinal, () => {
     console.log("\n[ponte] encerrando…");
+    pararAgendador();
     servidor.close(() => process.exit(0));
   });
 }

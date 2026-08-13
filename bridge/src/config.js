@@ -15,6 +15,12 @@ export const config = {
   sessionDir: process.env.BRIDGE_SESSION_DIR ?? "./sessao",
   /** Espera entre mensagens enviadas, para não parecer robô. */
   sendDelayMs: Number(process.env.BRIDGE_SEND_DELAY_MS ?? 1200),
+  /** Onde o QR de pareamento é gravado como imagem. */
+  qrFile: process.env.BRIDGE_QR_FILE ?? "./qr.png",
+  /** Token do agendador de jobs do ORDO (mesmo valor do JOBS_SECRET de lá). */
+  jobsSecret: process.env.JOBS_SECRET ?? "",
+  /** Intervalo de processamento da fila de saída. */
+  outboxIntervalMs: Number(process.env.BRIDGE_OUTBOX_INTERVAL_MS ?? 30_000),
 };
 
 export function assertConfig() {
