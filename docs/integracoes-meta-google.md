@@ -12,7 +12,7 @@
 | --- | --- | --- | --- |
 | Formulário público + UTMs | **Pronto e funcionando** | Só domínio público para produção | — |
 | Google Calendar | Pronto | Projeto Google Cloud + OAuth | 1–2 dias |
-| WhatsApp Cloud API | Pronto (webhook, ingestão, envio) | Verificação do Meta Business + número | 3–15 dias |
+| WhatsApp Cloud API (**coexistência**) | Pronto (webhook, ingestão, envio) | Onboarding por BSP com Embedded Signup | 2–7 dias |
 | Instagram Direct | Pronto (mesmo webhook) | Conta profissional + App Review | 7–30 dias |
 | Meta Lead Ads | Estrutura pronta | Depende dos itens acima | pós-MVP |
 
@@ -77,28 +77,75 @@ Instagram não passa no App Review.
 
 ---
 
-## 4. WhatsApp Business Platform (Cloud API)
+## 4. WhatsApp Business Platform — via Coexistência (decidido)
 
-**Decisão pendente importante (nº 5 do plano):** qual número usar.
+**Decisão (13/08/2026): manter o mesmo número no celular e no CRM, usando
+Coexistência (CoEx) através de um BSP.** Não haverá migração destrutiva nem
+número novo.
 
-- Se o número atual já está no **app WhatsApp Business**, migrá-lo para a
-  Cloud API **desativa o app** naquele número — a conversa passa a acontecer
-  só pelo CRM/API. É reversível, mas com atrito.
-- Alternativa mais segura: **número novo dedicado** ao CRM, mantendo o atual no
-  celular durante a transição.
+### O que a coexistência entrega
 
-Passos:
+- O número segue funcionando normalmente no **app WhatsApp Business** do
+  celular **e** na Cloud API ao mesmo tempo.
+- Mensagens respondidas no celular aparecem no CRM (webhooks
+  `smb_message_echoes`); mensagens enviadas pelo CRM aparecem no celular.
+- Sincroniza contatos e **até 6 meses** de histórico, uma única vez, mediante
+  sua aprovação (janela de 24h para concluir a sincronização).
 
-- [ ] Em [developers.facebook.com](https://developers.facebook.com), criar um
-      app do tipo **Empresa** e adicionar o produto **WhatsApp**.
-- [ ] Vincular o app ao portfólio empresarial verificado (passo 3).
-- [ ] Adicionar o número em **WhatsApp → Configuração da API** e concluir a
-      verificação por SMS/ligação.
-- [ ] Anotar: **WABA ID**, **Phone Number ID**, **token de acesso permanente**
-      (token de usuário do sistema, não o temporário de 24h) e o **App Secret**.
+### Limitações que valem conhecer
+
+| Limitação | Observação |
+| --- | --- |
+| **14 dias sem abrir** o app no celular derrubam a conexão da API | Uso diário resolve |
+| Conversas em **grupo não sincronizam** | Atendimento comercial é 1:1 |
+| Sem listas de transmissão, mensagens temporárias e "ver uma vez" | Verifique se usa listas hoje |
+| Sem selo azul (OBA); alternativa é o Meta Verified | Estético/confiança |
+| App precisa estar na versão **2.24.17+** | Só atualizar |
+| Throughput fixo de 20 mensagens/segundo | Muito acima da necessidade |
+
+### Por que via BSP
+
+A coexistência exige onboarding por **Embedded Signup** de um Tech Provider ou
+Solution Partner — não é possível ativar sozinho pelo painel da Meta. Duas
+rotas:
+
+- **Rota A (escolhida) — BSP** (360dialog, Zenvia, Wati, Twilio…): o BSP faz o
+  Embedded Signup e absorve a burocracia; ativação em dias, sem App Review
+  para você. Custo: mensalidade do BSP + custo de conversa da Meta.
+  Preferir BSP que **repasse a própria Cloud API**, porque o adaptador do CRM
+  já está escrito nesse formato e funciona quase sem mudança.
+- **Rota B — CRM como Tech Provider**: sem intermediário, mas exige verificação
+  do negócio, implementar o Embedded Signup e passar por App Review (semanas).
+  Fica como evolução futura; a migração é natural porque o formato dos dados
+  é o mesmo.
+
+### Contingência documentada (não implementada)
+
+Caso a coexistência oficial não se viabilize, existe o caminho **não oficial**
+(bibliotecas que dirigem o WhatsApp Web, como Evolution API/Baileys). Decisão
+do Ítalo em 13/08/2026: manter como **plano B**, não como caminho principal.
+Riscos a considerar antes de acionar: viola os termos de uso do WhatsApp, com
+risco de banimento do número, e faz o conteúdo das conversas transitar por
+infraestrutura não oficial — relevante porque as conversas podem conter dados
+de saúde sob sigilo profissional. Se for acionado, o CRM precisa apenas de um
+novo adaptador: o núcleo, as tabelas e o inbox não mudam.
+
+### Passos (Rota A)
+
+- [ ] Atualizar o **app WhatsApp Business** do celular (versão 2.24.17+).
+- [ ] Confirmar que o número tem histórico de uso recente (a Meta exige alguns
+      dias de atividade para elegibilidade).
+- [ ] Escolher o BSP e criar a conta. Ao comparar, perguntar explicitamente:
+      *suporta coexistência?* e *repassa a Cloud API da Meta?*
+- [ ] Fazer o **Embedded Signup** pelo painel do BSP, escolhendo a opção de
+      coexistência e autorizando a sincronização do histórico.
+- [ ] Concluir a sincronização dentro de **24 horas** do onboarding.
+- [ ] Anotar as credenciais entregues pelo BSP: **WABA ID**, **Phone Number
+      ID**, **token de acesso** e **App Secret**.
 - [ ] Cadastrar o webhook: URL `https://SEU-DOMINIO/api/webhooks/meta`,
-      token de verificação (uma senha aleatória que você define) e assinar o
-      campo **messages**.
+      token de verificação (uma senha aleatória que você define) e assinar os
+      campos **messages** e **smb_message_echoes** (este último é o que traz
+      para o CRM o que você responde pelo celular).
 - [ ] Criar e submeter os **templates** de mensagem que serão usados fora da
       janela de 24 horas (ex.: retomada de contato, lembrete de sessão).
 

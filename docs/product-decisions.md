@@ -184,7 +184,49 @@ em verde profundo. Vermelho reservado a erros/perdas (fora da paleta da marca).
 - Envio real de mensagens ainda não tem worker de outbox: as mensagens ficam
   `pending` na fila. O worker entra junto com as credenciais reais da Meta.
 
-## Backlog imediato (Fase 5)
+## Decisões de integração (13/08/2026)
 
-Dashboard: funções SQL agregadas por workspace/período, KPIs com fórmulas
-documentadas, funil a partir de `lead_stage_history`, gráficos e filtros.
+- **Google Calendar**: conta `@dritalojardim.com`, calendário **PsicoManager**
+  (`843e74f5…@group.calendar.google.com`, fuso America/Campo_Grande — o mesmo
+  do workspace). Verificado na conta do usuário; falta apenas o OAuth.
+- **WhatsApp**: manter o **mesmo número** no celular e no CRM via
+  **Coexistência (CoEx)**, com onboarding por **BSP** (Embedded Signup).
+  Descarta a migração destrutiva e o número novo. Preferir BSP que repasse a
+  Cloud API, porque o adaptador atual já usa esse formato.
+- **Contingência**: caminho não oficial (Evolution API/Baileys) fica como
+  plano B documentado, não implementado. Se acionado, exige apenas um novo
+  adaptador — núcleo, tabelas e inbox não mudam. Riscos registrados em
+  `docs/integracoes-meta-google.md`.
+
+## Estado ao final da Fase 5 (13/08/2026)
+
+- Migration `20260813210001_dashboard.sql`: `dashboard_summary`,
+  `dashboard_funnel`, `dashboard_timeseries` e `dashboard_breakdowns`, todas
+  `security invoker` (rodam sob a RLS do usuário: passar o workspace de outro
+  não produz dados) + índices por período.
+- `/dashboard` com filtros globais na URL, 6 cards principais, 8 métricas
+  secundárias, funil por `stage_type`, 4 gráficos e listas operacionais.
+- Cada indicador traz a fórmula no tooltip — número sem definição engana.
+- Divisão por zero devolve `null` e a UI mostra "—", nunca "0%".
+- Separação `dashboard.ts` (puro, seguro no cliente) e `dashboard-queries.ts`
+  (`server-only`): a versão anterior arrastava o cliente Supabase de servidor
+  para o bundle do navegador pelos filtros.
+- Testes: 105 passando, incluindo 14 de fórmula com dataset de resultado
+  conhecido (coorte, reativação sem duplicar no funil, múltiplas
+  oportunidades, período vazio).
+
+### Achados da Fase 5
+
+- `typecheck` não detecta violação de fronteira cliente/servidor do Next —
+  só o bundler. Módulos de dados novos nascem com `import "server-only"`.
+- Insert em lote pelo PostgREST preenche chave ausente com `NULL` explícito
+  em vez do default da coluna: em lote, todas as linhas precisam das mesmas
+  chaves (quebrou o seed de teste em `reactivated_count`).
+- Seed de teste sem checagem de erro produz teste que passa por engano; o
+  helper `insert()` agora falha alto.
+
+## Backlog imediato (Fase 6)
+
+Qualidade e entrega: acessibilidade, responsividade, testes ponta a ponta
+(Playwright), seed de demonstração, revisão final de RLS e LGPD, documentação
+de operação.
