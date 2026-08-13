@@ -8,6 +8,7 @@ import { channelLabel, formatBRL, formatDate, formatDateTime } from "@/lib/forma
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Composer } from "./composer";
+import { ScheduledList, type ScheduledMessage } from "./scheduled-list";
 import { MarkReadOnMount } from "./mark-read";
 
 export const metadata: Metadata = { title: "Conversa" };
@@ -78,8 +79,13 @@ export default async function ConversationPage({
 
   if (!conversation) notFound();
 
-  const [{ data: messages }, { data: connection }, { data: todas }, { data: lead }] =
-    await Promise.all([
+  const [
+    { data: messages },
+    { data: connection },
+    { data: todas },
+    { data: lead },
+    { data: scheduled },
+  ] = await Promise.all([
       supabase
         .from("messages")
         .select("id, direction, status, body, media_type, sent_at")
@@ -111,6 +117,13 @@ export default async function ConversationPage({
             .eq("id", conversation.lead_id)
             .maybeSingle<LeadContext>()
         : Promise.resolve({ data: null }),
+      supabase
+        .from("scheduled_messages")
+        .select("id, body, scheduled_for, status, error")
+        .eq("conversation_id", id)
+        .eq("status", "pending")
+        .order("scheduled_for")
+        .returns<ScheduledMessage[]>(),
     ]);
 
   const withinWindow = isWithinServiceWindow(conversation.last_inbound_at);
@@ -213,6 +226,8 @@ export default async function ConversationPage({
             </li>
           ) : null}
         </ol>
+
+        <ScheduledList conversationId={id} scheduled={scheduled ?? []} />
 
         <Composer
           conversationId={id}

@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { channelLabel, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Composer } from "@/app/(app)/conversas/[id]/composer";
+import {
+  ScheduledList,
+  type ScheduledMessage,
+} from "@/app/(app)/conversas/[id]/scheduled-list";
 
 /**
  * A conversa dentro da página do lead.
@@ -63,7 +67,8 @@ export async function ConversationPanel({
     );
   }
 
-  const [{ data: messages }, { data: connection }] = await Promise.all([
+  const [{ data: messages }, { data: connection }, { data: scheduled }] =
+    await Promise.all([
     supabase
       .from("messages")
       .select("id, direction, status, body, media_type, sent_at")
@@ -77,6 +82,13 @@ export async function ConversationPanel({
       .eq("workspace_id", workspaceId)
       .eq("provider", conversation.provider)
       .maybeSingle(),
+    supabase
+      .from("scheduled_messages")
+      .select("id, body, scheduled_for, status, error")
+      .eq("conversation_id", conversation.id)
+      .eq("status", "pending")
+      .order("scheduled_for")
+      .returns<ScheduledMessage[]>(),
   ]);
 
   return (
@@ -133,6 +145,11 @@ export async function ConversationPanel({
           </li>
         ) : null}
       </ol>
+
+      <ScheduledList
+        conversationId={conversation.id}
+        scheduled={scheduled ?? []}
+      />
 
       <Composer
         conversationId={conversation.id}

@@ -56,6 +56,10 @@ export interface OutboxResult {
 
 export async function processOutbox(): Promise<OutboxResult> {
   const admin = createAdminClient();
+
+  // Antes de despachar a fila, promove os agendamentos que venceram: assim
+  // uma mensagem marcada para agora sai nesta mesma rodada.
+  await admin.rpc("dispatch_due_messages", { p_limit: 20 });
   const result: OutboxResult = {
     processed: 0,
     sent: 0,
