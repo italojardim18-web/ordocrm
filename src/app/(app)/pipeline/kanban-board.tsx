@@ -24,6 +24,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { moveLead } from "./actions";
 import type { LeadCard, Member, Stage } from "@/lib/crm/types";
+import { NewStageColumn } from "./new-stage-column";
 import { channelLabel, formatBRL } from "@/lib/format";
 import { positionBetween } from "@/lib/positions";
 import { initials } from "@/lib/validation";
@@ -224,10 +225,14 @@ export function KanbanBoard({
   stages,
   leads,
   members,
+  pipelineId,
+  isAdmin,
 }: {
   stages: Stage[];
   leads: LeadCard[];
   members: Member[];
+  pipelineId: string;
+  isAdmin: boolean;
 }) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() =>
@@ -373,6 +378,7 @@ export function KanbanBoard({
             onMoveTo={moveToStage}
           />
         ))}
+        <NewStageColumn pipelineId={pipelineId} isAdmin={isAdmin} />
       </div>
       <DragOverlay>
         {activeLead ? (

@@ -56,6 +56,7 @@ export async function getBoardLeads(pipelineId: string): Promise<LeadCard[]> {
     )
     .eq("pipeline_id", pipelineId)
     .is("deleted_at", null)
+    .is("archived_at", null)
     .order("position", { ascending: true })
     .limit(500)
     .returns<LeadCard[]>();

@@ -3,6 +3,8 @@
 import { useActionState, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
+  archiveLead,
+  unarchiveLead,
   markEngaged,
   markLost,
   moveLead,
@@ -35,6 +37,9 @@ export function LeadActions({
 }) {
   const [stageId, setStageId] = useState(lead.stage_id);
   const [lostOpen, setLostOpen] = useState(false);
+  const [arquivarOpen, setArquivarOpen] = useState(false);
+  const [naoComercial, setNaoComercial] = useState(false);
+  const [motivoArquivo, setMotivoArquivo] = useState("");
   const [reactivateStage, setReactivateStage] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -163,15 +168,103 @@ export function LeadActions({
           </Button>
         </div>
       ) : (
+        <div className="ml-auto flex items-center gap-2">
         <Button
           variant="destructive"
           size="sm"
-          className="ml-auto"
           onClick={() => setLostOpen(true)}
         >
           Marcar como perdido
         </Button>
+        {lead.archived_at ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              startTransition(async () => {
+                const r = await unarchiveLead(lead.id);
+                if (r.error) toast.error(r.error);
+                else toast.success("Lead de volta ao pipeline.");
+              })
+            }
+          >
+            Desarquivar
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setArquivarOpen(true)}
+          >
+            Arquivar
+          </Button>
+        )}
+        </div>
       )}
+
+      <Dialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Arquivar lead</DialogTitle>
+            <DialogDescription>
+              Sai do pipeline; conversa e histórico continuam acessíveis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="motivoArquivo">Motivo (opcional)</Label>
+              <Input
+                id="motivoArquivo"
+                value={motivoArquivo}
+                onChange={(e) => setMotivoArquivo(e.target.value)}
+                placeholder="Colega de profissão, fornecedor, pessoal…"
+                maxLength={200}
+              />
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={naoComercial}
+                onChange={(e) => setNaoComercial(e.target.checked)}
+              />
+              <span>
+                <strong>Não é contato comercial.</strong> Mensagens futuras
+                desse número não criam lead — a conversa continua no inbox.
+                Evita rearquivar a mesma pessoa toda semana.
+              </span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setArquivarOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const r = await archiveLead(
+                      lead.id,
+                      motivoArquivo.trim() || null,
+                      naoComercial,
+                    );
+                    if (r.error) toast.error(r.error);
+                    else {
+                      toast.success(
+                        naoComercial
+                          ? "Arquivado. Esse contato não vira mais lead."
+                          : "Lead arquivado.",
+                      );
+                      setArquivarOpen(false);
+                    }
+                  })
+                }
+              >
+                Arquivar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={lostOpen} onOpenChange={setLostOpen}>
         <DialogContent>

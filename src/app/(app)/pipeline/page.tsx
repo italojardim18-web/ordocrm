@@ -42,6 +42,8 @@ export default async function PipelinePage() {
   return (
     <PipelineView
       workspaceId={context.workspace.id}
+      pipelineId={pipeline.id}
+      isAdmin={context.membership.role === "admin"}
       stages={stages}
       leads={leads}
       products={products}

@@ -33,12 +33,16 @@ export interface BoardFilters {
 
 export function PipelineView({
   workspaceId,
+  pipelineId,
+  isAdmin,
   stages,
   leads,
   products,
   members,
 }: {
   workspaceId: string;
+  pipelineId: string;
+  isAdmin: boolean;
   stages: Stage[];
   leads: LeadCard[];
   products: Product[];
@@ -236,7 +240,13 @@ export function PipelineView({
       </div>
 
       {effectiveView === "kanban" ? (
-        <KanbanBoard stages={stages} leads={filtered} members={members} />
+        <KanbanBoard
+          stages={stages}
+          leads={filtered}
+          members={members}
+          pipelineId={pipelineId}
+          isAdmin={isAdmin}
+        />
       ) : (
         <LeadList stages={stages} leads={filtered} members={members} />
       )}

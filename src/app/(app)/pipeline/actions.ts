@@ -431,3 +431,85 @@ export async function reactivateLead(
   revalidatePath("/pipeline");
   return {};
 }
+
+/**
+ * Arquiva o lead: sai do pipeline, conversa e histórico ficam.
+ *
+ * Marcando como não comercial, o contato deixa de gerar lead em mensagens
+ * futuras — resolve de vez o parente que escreve toda semana.
+ */
+export async function archiveLead(
+  leadId: string,
+  reason: string | null,
+  markNonCommercial: boolean,
+): Promise<SimpleState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("archive_lead", {
+    p_lead_id: leadId,
+    p_reason: reason,
+    p_mark_non_commercial: markNonCommercial,
+  });
+
+  if (error) return { error: "Não foi possível arquivar." };
+
+  revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  return {};
+}
+
+export async function unarchiveLead(leadId: string): Promise<SimpleState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("unarchive_lead", { p_lead_id: leadId });
+  if (error) return { error: "Não foi possível desarquivar." };
+  revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  return {};
+}
+
+/**
+ * Cria uma etapa no fim do quadro.
+ *
+ * Ficava só em Configurações → Pipeline, longe de onde a necessidade aparece.
+ * A etapa nasce como `custom`: não recebe significado nos relatórios, porque
+ * os tipos semânticos (novo, qualificação, venda, perda) são fixos e é o que
+ * mantém o funil comparável ao longo do tempo.
+ */
+export async function createStageAtEnd(
+  pipelineId: string,
+  name: string,
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+  if (context.membership.role !== "admin") {
+    return { error: "Só administradores criam etapas." };
+  }
+
+  const limpo = name.trim();
+  if (limpo.length < 1 || limpo.length > 80) {
+    return { error: "O nome precisa ter entre 1 e 80 caracteres." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: ultima } = await supabase
+    .from("pipeline_stages")
+    .select("position")
+    .eq("pipeline_id", pipelineId)
+    .is("archived_at", null)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase.from("pipeline_stages").insert({
+    workspace_id: context.workspace.id,
+    pipeline_id: pipelineId,
+    name: limpo,
+    stage_type: "custom",
+    position: (ultima?.position ?? 0) + 1000,
+  });
+
+  if (error) return { error: "Não foi possível criar a etapa." };
+
+  revalidatePath("/pipeline");
+  return {};
+}

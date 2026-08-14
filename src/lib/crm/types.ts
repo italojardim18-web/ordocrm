@@ -61,6 +61,8 @@ export interface LeadCard {
 }
 
 export interface LeadDetail {
+  archived_at: string | null;
+  archived_reason: string | null;
   id: string;
   workspace_id: string;
   pipeline_id: string;
