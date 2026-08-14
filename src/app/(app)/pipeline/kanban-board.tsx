@@ -263,7 +263,7 @@ function StageColumn({
   const total = leads.reduce((sum, l) => sum + (l.potential_value ?? 0), 0);
 
   return (
-    <div className="flex w-80 shrink-0 flex-col rounded-3xl bg-muted/45 p-3 border border-border/60 shadow-2xs">
+    <div className="flex w-72 sm:w-76 xl:w-80 shrink-0 flex-col rounded-3xl bg-muted/45 p-3 border border-border/60 shadow-2xs">
       {/* Cabeçalho da Coluna em Pílula */}
       <div className="flex items-center justify-between gap-2 px-2 pb-3 pt-1">
         <div className="flex items-center gap-2 min-w-0">

@@ -56,21 +56,14 @@ export default async function PipelinePage({
   }));
 
   return (
-    <div className="flex flex-col gap-3">
-      {channelOptions.length > 0 ? (
-        <div className="flex items-center justify-end">
-          <ChannelSelector channels={channelOptions} />
-        </div>
-      ) : null}
-      <PipelineView
-        workspaceId={context.workspace.id}
-        pipelineId={pipeline.id}
-        isAdmin={context.membership.role === "admin"}
-        stages={stages}
-        leads={leads}
-        products={products}
-        members={members}
-      />
-    </div>
+    <PipelineView
+      workspaceId={context.workspace.id}
+      pipelineId={pipeline.id}
+      isAdmin={context.membership.role === "admin"}
+      stages={stages}
+      leads={leads}
+      products={products}
+      members={members}
+    />
   );
 }

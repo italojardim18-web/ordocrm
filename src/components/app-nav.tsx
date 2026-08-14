@@ -39,43 +39,43 @@ export function AppNav({
   const pathname = usePathname();
 
   return (
-    <header className="bg-background/90 backdrop-blur-md text-foreground sticky top-0 z-40 py-3 px-4 sm:px-8 border-b border-border/50 shadow-2xs transition-colors print:hidden">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4">
+    <header className="bg-background/90 backdrop-blur-md text-foreground sticky top-0 z-40 py-2.5 px-3 sm:px-6 border-b border-border/50 shadow-2xs transition-colors print:hidden">
+      <div className="w-full flex h-13 items-center justify-between gap-2 sm:gap-4">
         {/* Logo ORDO Ampliado e Destacado à Esquerda */}
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3 shrink-0">
           <Link
             href="/pipeline"
-            className="flex shrink-0 items-center gap-3 rounded-2xl p-1 transition-transform hover:scale-102 group"
+            className="flex shrink-0 items-center gap-2 sm:gap-2.5 rounded-2xl p-1 transition-transform hover:scale-102 group"
           >
-            <OrdoSymbol className="size-8 text-primary transition-transform group-hover:scale-105" title="ORDO" />
+            <OrdoSymbol className="size-7 sm:size-8 text-primary transition-transform group-hover:scale-105" title="ORDO" />
             <div className="flex flex-col items-center justify-center text-center">
-              <div className="flex items-baseline gap-1.5 leading-none">
-                <span className="font-heading text-2xl tracking-[0.22em] font-bold text-primary">
+              <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none">
+                <span className="font-heading text-xl sm:text-2xl tracking-[0.20em] sm:tracking-[0.22em] font-bold text-primary">
                   ORDO
                 </span>
-                <span className="font-heading text-xs tracking-[0.14em] font-semibold text-primary/75">
+                <span className="font-heading text-[10px] sm:text-xs tracking-[0.10em] sm:tracking-[0.14em] font-semibold text-primary/75">
                   CRM
                 </span>
               </div>
-              <span className="text-[9px] tracking-wider text-muted-foreground font-sans mt-0.5 font-medium text-center w-full">
+              <span className="text-[8px] sm:text-[9px] tracking-wider text-muted-foreground font-sans mt-0.5 font-medium text-center w-full">
                 by Práxis mentis
               </span>
             </div>
           </Link>
 
-          <span aria-hidden className="hidden sm:inline-block h-5 w-px bg-border/80 ml-2" />
+          <span aria-hidden className="hidden md:inline-block h-5 w-px bg-border/80" />
 
           {/* Nome do Workspace */}
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1 border border-border/80 text-xs font-medium text-foreground shadow-xs">
-            <span className="size-2 rounded-full bg-emerald-600" />
-            <span className="truncate max-w-40">{workspaceName}</span>
+          <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-card px-3 py-1 border border-border/80 text-xs font-medium text-foreground shadow-xs">
+            <span className="size-2 rounded-full bg-emerald-600 shrink-0" />
+            <span className="truncate max-w-28 xl:max-w-44">{workspaceName}</span>
           </div>
         </div>
 
         {/* Botões Flutuantes Centrais na cor Burgundy */}
         <nav
           aria-label="Navegação superior"
-          className="flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-md p-1 border border-border/80 shadow-sm"
+          className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-card/90 backdrop-blur-md p-1 border border-border/80 shadow-xs shrink-0"
         >
           {TOP_LINKS.map((link) => {
             const active =
@@ -89,7 +89,7 @@ export function AppNav({
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-5 py-2 text-xs font-semibold transition-all duration-150 shadow-2xs",
+                  "rounded-full px-3.5 sm:px-5 py-1.5 text-xs font-semibold transition-all duration-150 shadow-2xs whitespace-nowrap",
                   active
                     ? "bg-primary text-primary-foreground shadow-xs font-bold"
                     : "text-primary hover:bg-primary/10",
@@ -102,7 +102,7 @@ export function AppNav({
         </nav>
 
         {/* Lado Direito: Seletor de Linha WhatsApp + Avatar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Seletor de Linha WhatsApp em Pílula Flutuante Burgundy */}
           <div className="flex items-center">
             <NavChannelSelector channels={channels} />
@@ -115,9 +115,9 @@ export function AppNav({
                 variant="ghost"
                 size="icon"
                 aria-label="Menu do usuário"
-                className="rounded-full bg-card border border-border/80 shadow-xs hover:bg-muted text-primary transition-transform hover:scale-105 size-10"
+                className="rounded-full bg-card border border-border/80 shadow-xs hover:bg-muted text-primary transition-transform hover:scale-105 size-9 sm:size-10"
               >
-                <Avatar className="size-8">
+                <Avatar className="size-7 sm:size-8">
                   <AvatarFallback className="bg-primary text-xs text-primary-foreground font-bold">
                     {initials(userName || userEmail)}
                   </AvatarFallback>

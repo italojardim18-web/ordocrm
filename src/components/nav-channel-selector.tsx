@@ -50,7 +50,7 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
         onClick={() => handleChange("todas")}
         disabled={pending}
         className={cn(
-          "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all shadow-2xs",
+          "rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs font-semibold transition-all shadow-2xs whitespace-nowrap",
           current === "todas"
             ? "bg-primary text-primary-foreground shadow-xs font-bold"
             : "text-primary hover:bg-primary/10",
@@ -65,13 +65,13 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
           onClick={() => handleChange(ch.id)}
           disabled={pending}
           className={cn(
-            "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs",
+            "rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs font-semibold transition-all flex items-center gap-1 shadow-2xs whitespace-nowrap",
             current === ch.id
               ? "bg-primary text-primary-foreground shadow-xs font-bold"
               : "text-primary hover:bg-primary/10",
           )}
         >
-          <span className="text-[11px]">📱</span>
+          <span className="hidden sm:inline-block text-[11px]">📱</span>
           <span>{ch.label}</span>
         </button>
       ))}
