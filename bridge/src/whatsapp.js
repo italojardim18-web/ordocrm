@@ -36,18 +36,52 @@ const sessoes = new Map();
 // ─────────────────────────────────────────────────────────────────────────────
 
 function registrarContato(sessao, contato) {
-  if (!contato?.lid || !contato?.jid) return;
-  const lid = contato.lid.split("@")[0].split(":")[0];
-  const telefone = contato.jid.split("@")[0].split(":")[0];
-  if (lid && telefone && /^[0-9]{8,13}$/.test(telefone)) {
+  if (!contato) return;
+  const jid = contato.id || contato.jid;
+  const lid = contato.lid ? contato.lid.split("@")[0].split(":")[0] : null;
+  const telefone = jid ? jid.split("@")[0].split(":")[0] : null;
+
+  const nomeSalvo = contato.name || contato.notify || contato.verifiedName || null;
+
+  if (lid && telefone && /^[0-9]{8,15}$/.test(telefone)) {
     sessao.lidMap.set(lid, telefone);
+  }
+
+  if (nomeSalvo) {
+    if (telefone) sessao.contactMap.set(telefone, nomeSalvo);
+    if (lid) sessao.contactMap.set(lid, nomeSalvo);
+    if (jid) sessao.contactMap.set(jid, nomeSalvo);
   }
 }
 
 function resolverTelefone(sessao, jid) {
+  if (!jid) return null;
   const usuario = jid.split("@")[0].split(":")[0];
   if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@c.us")) return usuario;
-  return sessao.lidMap.get(usuario) ?? null;
+  return sessao.lidMap.get(usuario) ?? (jid.includes("@") ? usuario : null);
+}
+
+function resolverNomeContato(sessao, jid, telefone, message, fromMe) {
+  if (!jid) return null;
+  const usuario = jid.split("@")[0].split(":")[0];
+
+  // 1. Nome salvo na agenda do WhatsApp
+  const nomeAgenda =
+    sessao.contactMap.get(usuario) ||
+    (telefone ? sessao.contactMap.get(telefone) : null) ||
+    sessao.contactMap.get(jid);
+
+  if (nomeAgenda && nomeAgenda.trim()) {
+    return nomeAgenda.trim();
+  }
+
+  // 2. Se a mensagem veio do cliente (fromMe: false), usa o pushName configurado pelo cliente no WhatsApp
+  if (!fromMe && message.pushName && message.pushName.trim()) {
+    return message.pushName.trim();
+  }
+
+  // 3. Se for fromMe: true (mensagem enviada pelo médico/secretária), NUNCA usar pushName da própria conta
+  return null;
 }
 
 function extrairTexto(message) {
@@ -169,6 +203,7 @@ export async function iniciarSessao(sessionId) {
     socket: null,
     estado: "iniciando",
     lidMap: new Map(),
+    contactMap: new Map(),
     qrData: null,
   };
   sessoes.set(sessionId, sessao);
@@ -297,16 +332,20 @@ export async function iniciarSessao(sessionId) {
         registrarContato(sessao, { lid: jid, jid: alternativo });
       }
 
+      const fromMe = Boolean(message.key.fromMe);
+      const phone = resolverTelefone(sessao, jid);
+      const nomeContato = resolverNomeContato(sessao, jid, phone, message, fromMe);
+
       normalizadas.push({
         id: message.key.id,
         from: jid,
-        phone: resolverTelefone(sessao, jid),
-        pushName: message.pushName ?? null,
+        phone,
+        pushName: nomeContato,
         text: texto,
         mediaType: midia,
         media: anexo,
         timestamp: Number(message.messageTimestamp ?? 0) || null,
-        fromMe: Boolean(message.key.fromMe),
+        fromMe,
         isGroup: false,
       });
     }

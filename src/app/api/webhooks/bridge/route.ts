@@ -108,7 +108,21 @@ export async function POST(request: NextRequest) {
       payload: { ...message, media: message.media ? "[arquivo]" : null } as unknown as Record<string, unknown>,
     });
 
-    if (duplicate) continue; // evento repetido
+    // Se a mensagem for outbound ou senderName for o nome da própria conta,
+    // o nome do lead deve ser o telefone do contato ou o nome salvo na agenda.
+    let nomeSender = message.senderName?.trim() || null;
+    const phoneContato = message.phone || message.externalConversationId || null;
+
+    if (
+      !nomeSender ||
+      message.outbound ||
+      nomeSender.toLowerCase().includes("neuropsicologo") ||
+      nomeSender.toLowerCase().includes("ítalo p jardim") ||
+      nomeSender.toLowerCase().includes("italo jardim")
+    ) {
+      // Se não tem nome do cliente, usa o telefone do contato
+      nomeSender = phoneContato ? `+${phoneContato}` : null;
+    }
 
     const { data: ingested, error: ingestError } = await admin.rpc("ingest_channel_message", {
       p_workspace_id: connection.workspace_id,
@@ -116,31 +130,49 @@ export async function POST(request: NextRequest) {
       p_external_conversation_id: message.externalConversationId,
       p_external_message_id: message.externalMessageId,
       p_sender_external_id: message.senderExternalId,
-      p_sender_name: message.senderName,
+      p_sender_name: nomeSender,
       p_body: message.body,
       p_sent_at: message.sentAt,
       p_media_type: message.mediaType,
       p_media_url: null,
       p_direction: message.outbound ? "outbound" : "inbound",
-      p_phone: message.phone,
+      p_phone: phoneContato,
     });
 
     const outMessageId = ingested?.[0]?.out_message_id;
     const outConversationId = ingested?.[0]?.out_conversation_id;
     const outLeadId = ingested?.[0]?.out_lead_id;
 
-    // Vincula a conversa e o lead à linha de WhatsApp correspondente
+    // Se o lead já existia mas estava com nome genérico/médico e agora recebemos o nome real do cliente
+    if (outLeadId) {
+      const updateLead: Record<string, any> = {};
+      if (phoneContato) {
+        updateLead.phone = phoneContato;
+      }
+      if (
+        !message.outbound &&
+        message.senderName &&
+        !message.senderName.toLowerCase().includes("neuropsicologo") &&
+        !message.senderName.toLowerCase().includes("ítalo p jardim")
+      ) {
+        updateLead.name = message.senderName.trim();
+      }
+
+      if (specificConnectionId) {
+        updateLead.channel_connection_id = specificConnectionId;
+      }
+
+      if (Object.keys(updateLead).length > 0) {
+        await admin.from("leads").update(updateLead).eq("id", outLeadId);
+      }
+    }
+
+    // Vincula a conversa à linha de WhatsApp correspondente
     if (outConversationId && specificConnectionId) {
       await admin
         .from("conversations")
         .update({ channel_connection_id: specificConnectionId })
         .eq("id", outConversationId);
-    }
-    if (outLeadId && specificConnectionId) {
-      await admin
-        .from("leads")
-        .update({ channel_connection_id: specificConnectionId })
-        .eq("id", outLeadId);
     }
 
     // Se a mensagem trouxe mídia (áudio, foto, documento, vídeo), salva no Storage
