@@ -54,21 +54,50 @@ function registrarContato(sessao, contato) {
   }
 }
 
-function resolverTelefone(sessao, jid) {
-  if (!jid) return null;
-  const usuario = jid.split("@")[0].split(":")[0];
-  if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@c.us")) return usuario;
-  return sessao.lidMap.get(usuario) ?? (jid.includes("@") ? usuario : null);
+function ehTelefoneValido(numero) {
+  if (!numero) return false;
+  const clean = String(numero).replace(/\D/g, "");
+  // Telefones válidos (com DDI e DDD) têm entre 10 e 13 dígitos
+  // LIDs do WhatsApp têm 14 ou mais dígitos e não são números discáveis
+  return clean.length >= 10 && clean.length <= 13;
 }
 
-function resolverNomeContato(sessao, jid, telefone, message, fromMe) {
+function resolverTelefone(sessao, jid, alternativo) {
+  if (!jid) return null;
+
+  // Se veio JID alternativo (muitas vezes Baileys passa o JID real em remoteJidAlt)
+  if (alternativo && (alternativo.endsWith("@s.whatsapp.net") || alternativo.endsWith("@c.us"))) {
+    const telAlt = alternativo.split("@")[0].split(":")[0];
+    if (ehTelefoneValido(telAlt)) return telAlt;
+  }
+
+  const usuario = jid.split("@")[0].split(":")[0];
+
+  // Se já é um JID de usuário padrão (@s.whatsapp.net) e tem tamanho de telefone
+  if ((jid.endsWith("@s.whatsapp.net") || jid.endsWith("@c.us")) && ehTelefoneValido(usuario)) {
+    return usuario;
+  }
+
+  // Tenta resolver o LID no mapa de contatos
+  const resolvido = sessao.lidMap.get(usuario);
+  if (resolvido && ehTelefoneValido(resolvido)) {
+    return resolvido;
+  }
+
+  // Se for LID e não foi resolvido ainda, NUNCA retorna o número do LID como telefone
+  return null;
+}
+
+function resolverNomeContato(sessao, jid, telefone, message, fromMe, alternativo) {
   if (!jid) return null;
   const usuario = jid.split("@")[0].split(":")[0];
+  const altUsuario = alternativo ? alternativo.split("@")[0].split(":")[0] : null;
 
   // 1. Nome salvo na agenda do WhatsApp
   const nomeAgenda =
     sessao.contactMap.get(usuario) ||
     (telefone ? sessao.contactMap.get(telefone) : null) ||
+    (altUsuario ? sessao.contactMap.get(altUsuario) : null) ||
     sessao.contactMap.get(jid);
 
   if (nomeAgenda && nomeAgenda.trim()) {
@@ -333,8 +362,8 @@ export async function iniciarSessao(sessionId) {
       }
 
       const fromMe = Boolean(message.key.fromMe);
-      const phone = resolverTelefone(sessao, jid);
-      const nomeContato = resolverNomeContato(sessao, jid, phone, message, fromMe);
+      const phone = resolverTelefone(sessao, jid, alternativo);
+      const nomeContato = resolverNomeContato(sessao, jid, phone, message, fromMe, alternativo);
 
       normalizadas.push({
         id: message.key.id,
