@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { getAnalyticsData } from "@/lib/crm/stats-queries";
 import { formatBRL, channelLabel } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { StatsClient } from "./stats-client";
 
 export const metadata: Metadata = { title: "Estatísticas & Relatórios" };
 
@@ -11,12 +13,30 @@ export default async function StatisticsPage() {
   const context = await getSessionContext();
   if (!context) redirect("/login");
 
-  const data = await getAnalyticsData(context.workspace.id);
+  const supabase = await createClient();
+
+  const [{ data: wsData }, data] = await Promise.all([
+    supabase
+      .from("workspaces")
+      .select("monthly_revenue_goal, monthly_clients_goal")
+      .eq("id", context.workspace.id)
+      .maybeSingle<{ monthly_revenue_goal: number; monthly_clients_goal: number }>(),
+    getAnalyticsData(context.workspace.id),
+  ]);
+
+  const currentRevenueGoal = wsData?.monthly_revenue_goal ? Number(wsData.monthly_revenue_goal) : data.metas.metaFaturamentoMensal;
+  const currentClientsGoal = wsData?.monthly_clients_goal ? Number(wsData.monthly_clients_goal) : data.metas.metaNovosPacientes;
+
+  // Recalcula percentuais com base nas metas salvas pelo usuário
+  const percentualAtingido = Math.min(100, Math.round((data.vendas.receitaTotal / currentRevenueGoal) * 100));
+  const percentualPacientes = Math.min(100, Math.round((data.vendas.oportunidadesGanhas / currentClientsGoal) * 100));
+
+  const isAdmin = context.membership.role === "admin";
 
   return (
     <section className="flex flex-col gap-6">
       {/* Cabeçalho */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="font-heading text-2xl font-bold text-primary tracking-tight">
@@ -27,9 +47,17 @@ export default async function StatisticsPage() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Visão consolidada de vendas, ROI, atividades, produtos, metas e origens de leads.
+            Visão consolidada de vendas, ROI, atividades, produtos, metas personalizadas e origens de leads.
           </p>
         </div>
+
+        {/* Botões de Ação Personalizados (Definir Metas e Confeccionar Relatório) */}
+        <StatsClient
+          data={data}
+          isAdmin={isAdmin}
+          currentRevenueGoal={currentRevenueGoal}
+          currentClientsGoal={currentClientsGoal}
+        />
       </div>
 
       {/* 1. Análise de Vendas & Relatório Consolidado (Cards Principais) */}
@@ -95,19 +123,19 @@ export default async function StatisticsPage() {
         </div>
       </div>
 
-      {/* Grid: Relatório de Metas + Vendas por Produtos */}
+      {/* Grid: Relatório de Metas Personalizadas + Vendas por Produtos */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Relatório de Metas */}
+        {/* Relatório de Metas Personalizadas */}
         <div className="ordo-card p-6 lg:col-span-6 flex flex-col justify-between gap-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">🎯</span>
               <h2 className="font-heading text-base font-bold text-primary">
-                Relatório de Metas do Mês
+                Relatório de Metas Personalizadas
               </h2>
             </div>
             <Badge variant="secondary" className="rounded-full text-xs">
-              {data.metas.percentualAtingido}% Atingido
+              {percentualAtingido}% Atingido
             </Badge>
           </div>
 
@@ -115,15 +143,15 @@ export default async function StatisticsPage() {
             {/* Meta 1: Faturamento */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-xs font-medium">
-                <span className="text-foreground">Meta de Faturamento</span>
+                <span className="text-foreground">Meta de Faturamento Mensal</span>
                 <span className="text-primary font-bold">
-                  {formatBRL(data.metas.faturamentoAtual)} / {formatBRL(data.metas.metaFaturamentoMensal)}
+                  {formatBRL(data.vendas.receitaTotal)} / {formatBRL(currentRevenueGoal)}
                 </span>
               </div>
               <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-500"
-                  style={{ width: `${data.metas.percentualAtingido}%` }}
+                  style={{ width: `${percentualAtingido}%` }}
                 />
               </div>
             </div>
@@ -133,20 +161,20 @@ export default async function StatisticsPage() {
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-foreground">Meta de Novos Pacientes</span>
                 <span className="text-primary font-bold">
-                  {data.metas.novosPacientesAtual} / {data.metas.metaNovosPacientes} pacientes
+                  {data.vendas.oportunidadesGanhas} / {currentClientsGoal} pacientes
                 </span>
               </div>
               <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-[#b2966f] transition-all duration-500"
-                  style={{ width: `${data.metas.percentualPacientes}%` }}
+                  style={{ width: `${percentualPacientes}%` }}
                 />
               </div>
             </div>
           </div>
 
           <p className="text-[11px] text-muted-foreground bg-muted/30 p-3 rounded-xl border border-border/50">
-            💡 Faltam <strong>{formatBRL(Math.max(0, data.metas.metaFaturamentoMensal - data.metas.faturamentoAtual))}</strong> para bater 100% da meta mensal de faturamento.
+            💡 Faltam <strong>{formatBRL(Math.max(0, currentRevenueGoal - data.vendas.receitaTotal))}</strong> para bater 100% da meta de faturamento.
           </p>
         </div>
 

@@ -12,12 +12,13 @@ interface SidebarProps {
 export function AppSidebar({ isAdmin }: SidebarProps) {
   const pathname = usePathname();
 
-  // Itens da barra lateral solicitados pelo usuário
+  // Itens da barra lateral solicitados pelo usuário (incluindo Origens do Lead)
   const sidebarItems = [
     { href: "/conversas", label: "Conversas", icon: "💬" },
     { href: "/agenda", label: "Agenda", icon: "📅" },
     { href: "/agente-ia", label: "Agente de IA", icon: "🤖" },
     { href: "/contatos", label: "Lista de Contatos", icon: "👥" },
+    { href: "/origens", label: "Origens do Lead", icon: "🌐" },
     { href: "/estatisticas", label: "Estatísticas & Relatórios", icon: "📈" },
   ];
 
@@ -83,7 +84,7 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
                     "group relative flex size-10 items-center justify-center rounded-xl text-base transition-all duration-150",
                     isActive
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs font-bold"
-                      : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground hover:scale-105",
+                      : "text-sidebar-foreground/65 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:scale-105",
                   )}
                   title={item.label}
                 >
