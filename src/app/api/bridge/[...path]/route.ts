@@ -58,6 +58,38 @@ export async function POST(
       signal: AbortSignal.timeout(10_000),
     });
     const data = await res.json();
+
+    // Sincroniza channel_connections no Supabase quando uma sessão é iniciada
+    if (res.ok && path[0] === "sessions" && path[2] === "start") {
+      const sessionId = path[1];
+      const displayName =
+        sessionId === "principal"
+          ? "Dr. Ítalo"
+          : sessionId === "secretaria"
+            ? "Secretária"
+            : sessionId.charAt(0).toUpperCase() + sessionId.slice(1);
+
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const admin = createAdminClient();
+      
+      const { data: existing } = await admin
+        .from("channel_connections")
+        .select("id")
+        .eq("workspace_id", context.workspace.id)
+        .eq("display_name", displayName)
+        .maybeSingle();
+
+      if (!existing) {
+        await admin.from("channel_connections").insert({
+          workspace_id: context.workspace.id,
+          provider: "whatsapp",
+          display_name: displayName,
+          transport: "bridge",
+          status: "connected",
+        });
+      }
+    }
+
     return NextResponse.json(data, { status: res.status });
   } catch (e) {
     return NextResponse.json(

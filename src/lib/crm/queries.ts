@@ -47,21 +47,31 @@ export async function getStages(pipelineId: string): Promise<Stage[]> {
  * Limite alto o suficiente para a operação atual; paginação server-side
  * completa entra quando o volume justificar (registrado em decisões).
  */
-export async function getBoardLeads(pipelineId: string): Promise<LeadCard[]> {
+export async function getBoardLeads(
+  pipelineId: string,
+  channelConnectionId?: string | null,
+): Promise<LeadCard[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("leads")
     .select(
       `id, name, stage_id, position, channel, phone, email, potential_value,
        owner_id, engaged_at, created_at,
        follow_up_at, follow_up_note, last_interaction_at,
        temperature_override, temperature_override_at,
+       channel_connection_id,
        lead_product_interests (product_id),
        tasks (id, due_at, completed_at)`,
     )
     .eq("pipeline_id", pipelineId)
     .is("deleted_at", null)
-    .is("archived_at", null)
+    .is("archived_at", null);
+
+  if (channelConnectionId) {
+    query = query.eq("channel_connection_id", channelConnectionId);
+  }
+
+  const { data } = await query
     .order("position", { ascending: true })
     .limit(500)
     .returns<LeadCard[]>();
