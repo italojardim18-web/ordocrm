@@ -88,10 +88,10 @@ export function OrdoLockup({
     <span className={`inline-flex items-center gap-2.5 ${className ?? ""}`}>
       <OrdoSymbol className="size-7 shrink-0" title="" />
       <span className="flex flex-col leading-none">
-        <span className="font-heading text-xl tracking-[0.22em]">ORDO</span>
+        <span className="font-heading text-xl tracking-[0.16em] font-bold">ORDO CRM</span>
         {!compact ? (
-          <span className="mt-1 text-[0.5rem] tracking-[0.14em] opacity-70">
-            by Práxis Mentis
+          <span className="mt-1 text-[0.5rem] tracking-[0.12em] opacity-80 font-medium">
+            by Práxis mentis
           </span>
         ) : null}
       </span>

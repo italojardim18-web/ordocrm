@@ -49,11 +49,11 @@ export function AppNav({
           >
             <OrdoSymbol className="size-8 text-primary transition-transform group-hover:scale-105" title="ORDO" />
             <div className="flex flex-col">
-              <span className="font-heading text-2xl tracking-[0.28em] font-bold text-primary leading-none">
-                ORDO
+              <span className="font-heading text-xl tracking-[0.16em] font-bold text-primary leading-none">
+                ORDO CRM
               </span>
-              <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans mt-0.5 font-medium">
-                by Práxis Mentis
+              <span className="text-[10px] tracking-wider text-muted-foreground font-sans mt-0.5 font-medium">
+                by Práxis mentis
               </span>
             </div>
           </Link>
