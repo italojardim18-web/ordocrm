@@ -18,11 +18,9 @@ import { cn } from "@/lib/utils";
 import { OrdoSymbol } from "@/components/ordo-mark";
 import { NavChannelSelector, type ChannelItem } from "./nav-channel-selector";
 
-const MAIN_LINKS = [
-  { href: "/dashboard", label: "📊 Dashboard" },
+const TOP_LINKS = [
   { href: "/pipeline", label: "⚡ Pipeline" },
-  { href: "/agenda", label: "📅 Agenda" },
-  { href: "/conversas", label: "💬 Conversas" },
+  { href: "/dashboard", label: "📊 Dashboard" },
 ];
 
 export function AppNav({
@@ -41,40 +39,40 @@ export function AppNav({
   const pathname = usePathname();
 
   return (
-    <header className="bg-sidebar text-sidebar-foreground border-b border-sidebar-border/30 backdrop-blur-md sticky top-0 z-20 shadow-xs">
-      <div className="mx-auto flex h-18 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        {/* Marca do produto à esquerda — MAIOR e mais DESTACADA */}
-        <div className="flex min-w-0 items-center gap-4">
+    <header className="bg-transparent text-foreground sticky top-0 z-20 py-3 px-4 sm:px-8">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4">
+        {/* Logo ORDO Ampliado e Destacado à Esquerda */}
+        <div className="flex min-w-0 items-center gap-3">
           <Link
             href="/pipeline"
-            className="flex shrink-0 items-center gap-3 rounded-2xl px-3 py-1.5 transition-all hover:opacity-90 group"
+            className="flex shrink-0 items-center gap-3 rounded-2xl p-1 transition-transform hover:scale-102 group"
           >
-            <OrdoSymbol className="size-8 text-sidebar-foreground transition-transform group-hover:scale-105" title="ORDO" />
+            <OrdoSymbol className="size-8 text-primary transition-transform group-hover:scale-105" title="ORDO" />
             <div className="flex flex-col">
-              <span className="font-heading text-xl tracking-[0.26em] font-bold text-sidebar-foreground leading-none">
+              <span className="font-heading text-2xl tracking-[0.28em] font-bold text-primary leading-none">
                 ORDO
               </span>
-              <span className="text-[10px] tracking-widest text-sidebar-foreground/60 uppercase font-sans mt-0.5">
+              <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans mt-0.5 font-medium">
                 by Práxis Mentis
               </span>
             </div>
           </Link>
 
-          <span aria-hidden className="hidden sm:inline-block h-6 w-px bg-sidebar-border/60" />
+          <span aria-hidden className="hidden sm:inline-block h-5 w-px bg-border/80 ml-2" />
 
-          {/* Nome do Workspace em Pílula Flutuante */}
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-sidebar-accent/40 px-3.5 py-1 border border-sidebar-border/30 text-xs text-sidebar-foreground/80 font-medium shadow-2xs">
-            <span className="size-2 rounded-full bg-emerald-500" />
-            <span className="truncate max-w-44">{workspaceName}</span>
+          {/* Nome do Workspace */}
+          <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1 border border-border/80 text-xs font-medium text-foreground shadow-xs">
+            <span className="size-2 rounded-full bg-emerald-600" />
+            <span className="truncate max-w-40">{workspaceName}</span>
           </div>
         </div>
 
-        {/* Botões Flutuantes Centrais (Pill Navigation) */}
+        {/* Botões Flutuantes Centrais na cor Burgundy */}
         <nav
-          aria-label="Navegação rápida"
-          className="hidden md:flex items-center gap-1.5 rounded-full bg-sidebar-accent/50 p-1.5 border border-sidebar-border/40 shadow-xs"
+          aria-label="Navegação superior"
+          className="flex items-center gap-2 rounded-full bg-card/90 backdrop-blur-md p-1 border border-border/80 shadow-sm"
         >
-          {MAIN_LINKS.map((link) => {
+          {TOP_LINKS.map((link) => {
             const active =
               link.href === "/dashboard"
                 ? pathname === "/dashboard"
@@ -86,10 +84,10 @@ export function AppNav({
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-150",
+                  "rounded-full px-5 py-2 text-xs font-semibold transition-all duration-150 shadow-2xs",
                   active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm scale-102"
-                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                    : "text-primary hover:bg-primary/10",
                 )}
               >
                 {link.label}
@@ -100,28 +98,28 @@ export function AppNav({
 
         {/* Lado Direito: Seletor de Linha WhatsApp + Avatar */}
         <div className="flex items-center gap-3">
-          {/* Seletor de Linha WhatsApp em Pílula Flutuante */}
+          {/* Seletor de Linha WhatsApp em Pílula Flutuante Burgundy */}
           <div className="flex items-center">
             <NavChannelSelector channels={channels} />
           </div>
 
-          {/* Menu do Usuário */}
+          {/* Avatar do Usuário com Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Menu do usuário"
-                className="rounded-full text-sidebar-foreground hover:bg-sidebar-accent ring-2 ring-sidebar-border/60 transition-transform hover:scale-105 size-9"
+                className="rounded-full bg-card border border-border/80 shadow-xs hover:bg-muted text-primary transition-transform hover:scale-105 size-10"
               >
-                <Avatar className="size-9">
-                  <AvatarFallback className="bg-sidebar-primary text-xs text-sidebar-primary-foreground font-bold">
+                <Avatar className="size-8">
+                  <AvatarFallback className="bg-primary text-xs text-primary-foreground font-bold">
                     {initials(userName || userEmail)}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60 rounded-2xl p-2 shadow-2xl border-border/80 bg-card">
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-2xl border-border bg-card">
               <DropdownMenuLabel className="flex flex-col px-3 py-2">
                 <span className="font-bold text-sm text-foreground">{userName || "Sem nome"}</span>
                 <span className="text-xs font-normal text-muted-foreground">
@@ -133,21 +131,21 @@ export function AppNav({
                 <Link href="/configuracoes/perfil">👤 Meu Perfil</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2">
-                <Link href="/configuracoes/integracoes">🔗 Conexões & WhatsApp</Link>
+                <Link href="/configuracoes/integracoes">🔗 Conexões WhatsApp</Link>
               </DropdownMenuItem>
               {isAdmin ? (
                 <>
                   <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2">
-                    <Link href="/configuracoes/produtos">📦 Produtos & Serviços</Link>
+                    <Link href="/configuracoes/produtos">📦 Produtos & Preços</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2">
                     <Link href="/configuracoes/pipeline">⚡ Funil de Vendas</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2">
-                    <Link href="/configuracoes/usuarios">👥 Equipe & Membros</Link>
+                    <Link href="/configuracoes/usuarios">👥 Equipe</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2">
-                    <Link href="/configuracoes/workspace">🏢 Dados da Empresa</Link>
+                    <Link href="/configuracoes/workspace">🏢 Empresa</Link>
                   </DropdownMenuItem>
                 </>
               ) : null}
@@ -157,7 +155,7 @@ export function AppNav({
                 className="rounded-xl cursor-pointer py-2"
                 onSelect={() => logout()}
               >
-                🚪 Sair do sistema
+                🚪 Sair
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -43,17 +43,17 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
     <div
       role="group"
       aria-label="Filtro de linha de WhatsApp"
-      className="flex items-center gap-1 rounded-full bg-sidebar-accent/50 p-1 border border-sidebar-border/40 text-xs text-sidebar-foreground"
+      className="flex items-center gap-1 rounded-full bg-card/90 backdrop-blur-md p-1 border border-border/80 text-xs shadow-sm"
     >
       <button
         type="button"
         onClick={() => handleChange("todas")}
         disabled={pending}
         className={cn(
-          "rounded-full px-3 py-1 text-xs font-medium transition-all",
+          "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all shadow-2xs",
           current === "todas"
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs font-semibold"
-            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            ? "bg-primary text-primary-foreground shadow-xs font-bold"
+            : "text-primary hover:bg-primary/10",
         )}
       >
         Todas
@@ -65,13 +65,13 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
           onClick={() => handleChange(ch.id)}
           disabled={pending}
           className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium transition-all flex items-center gap-1.5",
+            "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs",
             current === ch.id
-              ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs font-semibold"
-              : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-primary hover:bg-primary/10",
           )}
         >
-          <span className="text-[10px]">📱</span>
+          <span className="text-[11px]">📱</span>
           <span>{ch.label}</span>
         </button>
       ))}
