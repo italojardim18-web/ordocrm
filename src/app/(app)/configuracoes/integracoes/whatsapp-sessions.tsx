@@ -12,7 +12,7 @@ interface SessionInfo {
   hasQr: boolean;
 }
 
-const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL ?? "http://localhost:8787";
+const BRIDGE_BASE = "/api/bridge";
 
 const ESTADO_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   conectado: { label: "Conectado", variant: "default" },
@@ -33,7 +33,7 @@ export function WhatsAppSessions() {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch(`${BRIDGE_URL}/sessions`);
+      const res = await fetch(`${BRIDGE_BASE}/sessions`);
       if (!res.ok) throw new Error(`Ponte retornou ${res.status}`);
       const data = await res.json();
       setSessions(data.sessions ?? []);
@@ -55,7 +55,7 @@ export function WhatsAppSessions() {
   useEffect(() => {
     for (const s of sessions) {
       if (s.hasQr && !qrMap[s.sessionId]) {
-        fetch(`${BRIDGE_URL}/sessions/${s.sessionId}/qr`)
+        fetch(`${BRIDGE_BASE}/sessions/${s.sessionId}/qr`)
           .then((r) => r.json())
           .then((d) => {
             if (d.qr) {
@@ -80,7 +80,7 @@ export function WhatsAppSessions() {
 
     startAdding(async () => {
       try {
-        await fetch(`${BRIDGE_URL}/sessions/${id}/start`, { method: "POST" });
+        await fetch(`${BRIDGE_BASE}/sessions/${id}/start`, { method: "POST" });
         setNewSessionId("");
         await fetchSessions();
       } catch (e: unknown) {
@@ -91,7 +91,7 @@ export function WhatsAppSessions() {
 
   async function handleStop(sessionId: string) {
     try {
-      await fetch(`${BRIDGE_URL}/sessions/${sessionId}/stop`, { method: "POST" });
+      await fetch(`${BRIDGE_BASE}/sessions/${sessionId}/stop`, { method: "POST" });
       await fetchSessions();
     } catch { /* silent */ }
   }
@@ -107,7 +107,7 @@ export function WhatsAppSessions() {
           Não foi possível conectar à ponte: {error}
         </p>
         <p className="text-xs text-muted-foreground">
-          Verifique se a ponte está rodando em <code>{BRIDGE_URL}</code>.
+          Verifique se a ponte está rodando.
         </p>
       </div>
     );
