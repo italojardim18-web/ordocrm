@@ -1,13 +1,62 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { getChannelConnections } from "@/lib/crm/queries";
 import { Badge } from "@/components/ui/badge";
+import { ReactivationPanel, type LostLeadItem } from "./reactivation-panel";
 
 export const metadata: Metadata = { title: "Agente de IA & Automações" };
 
 export default async function AIAgentPage() {
   const context = await getSessionContext();
   if (!context) redirect("/login");
+
+  const supabase = await createClient();
+
+  const [
+    { data: ws },
+    channelConnections,
+    { data: lostLeadsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("workspaces")
+      .select("reactivation_enabled, reactivation_days, reactivation_template, reactivation_channel_connection_id")
+      .eq("id", context.workspace.id)
+      .single(),
+    getChannelConnections(context.workspace.id),
+    supabase
+      .from("leads")
+      .select("id, name, phone, lost_at, lost_reason_id, reactivated_at, reactivation_status, lost_reasons (label)")
+      .eq("workspace_id", context.workspace.id)
+      .not("lost_at", "is", null)
+      .is("deleted_at", null)
+      .order("lost_at", { ascending: false }),
+  ]);
+
+  const channels = channelConnections.map((ch) => ({
+    id: ch.id,
+    label: ch.display_name ?? ch.provider,
+  }));
+
+  const now = Date.now();
+  const lostLeads: LostLeadItem[] = (lostLeadsRaw ?? []).map((l: any) => {
+    const lostTime = l.lost_at ? new Date(l.lost_at).getTime() : now;
+    const daysPassed = Math.max(0, Math.floor((now - lostTime) / (1000 * 60 * 60 * 24)));
+
+    return {
+      id: l.id,
+      name: l.name,
+      phone: l.phone,
+      lost_at: l.lost_at,
+      lost_reason: l.lost_reasons?.label || null,
+      daysPassed,
+      reactivated_at: l.reactivated_at,
+      reactivation_status: l.reactivation_status,
+    };
+  });
+
+  const isAdmin = context.membership.role === "admin";
 
   return (
     <section className="flex flex-col gap-6">
@@ -23,10 +72,24 @@ export default async function AIAgentPage() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Inteligência artificial para transcrição de áudios, resumos clínicos e assistência operacional.
+            Inteligência artificial para transcrição de áudios, resumos clínicos e automações de reativação de pacientes.
           </p>
         </div>
       </div>
+
+      {/* Automação de Reativação de Leads Perdidos (NOVO) */}
+      <ReactivationPanel
+        initialEnabled={Boolean(ws?.reactivation_enabled)}
+        initialDays={ws?.reactivation_days || 30}
+        initialTemplate={
+          ws?.reactivation_template ||
+          "Olá [Nome], tudo bem? Como você tem passado desde nosso último contato? Lembrei de você hoje e queria saber se podemos retomar seu acompanhamento ou se ficou alguma dúvida."
+        }
+        initialChannelId={ws?.reactivation_channel_connection_id}
+        channels={channels}
+        lostLeads={lostLeads}
+        isAdmin={isAdmin}
+      />
 
       {/* Grid de Funcionalidades de IA */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
