@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getLeadFull,
   getLostReasons,
@@ -45,6 +46,23 @@ export default async function LeadPage({
 
   const full = await getLeadFull(id);
   if (!full) notFound();
+
+  // Registro de Auditoria LGPD de acesso a dados de saúde
+  try {
+    await createAdminClient().from("audit_logs").insert({
+      workspace_id: context.workspace.id,
+      actor_id: context.user.id,
+      action: "lead_viewed",
+      entity_type: "lead",
+      entity_id: id,
+      details: {
+        visualizado_por: context.user.email,
+        nome_titular: full.lead.name,
+      },
+    });
+  } catch (err) {
+    console.error("Erro ao registrar auditoria de visualização:", err);
+  }
 
   const {
     lead,
