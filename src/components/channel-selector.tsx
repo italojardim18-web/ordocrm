@@ -37,7 +37,7 @@ export function ChannelSelector({ channels }: { channels: ChannelOption[] }) {
     });
   }
 
-  if (channels.length <= 1) return null;
+  if (channels.length === 0) return null;
 
   return (
     <div className="flex items-center gap-1.5 rounded-lg border bg-card p-1">

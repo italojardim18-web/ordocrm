@@ -57,7 +57,7 @@ export default async function PipelinePage({
 
   return (
     <div className="flex flex-col gap-3">
-      {channelOptions.length > 1 ? (
+      {channelOptions.length > 0 ? (
         <div className="flex items-center justify-end">
           <ChannelSelector channels={channelOptions} />
         </div>
