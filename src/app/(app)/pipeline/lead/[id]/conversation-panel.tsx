@@ -3,6 +3,7 @@ import { isWithinServiceWindow } from "@/lib/channels/meta";
 import { createClient } from "@/lib/supabase/server";
 import { channelLabel, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { MessageMedia } from "@/components/message-media";
 import { Composer } from "@/app/(app)/conversas/[id]/composer";
 import {
   ScheduledList,
@@ -23,6 +24,11 @@ interface MessageRow {
   status: string;
   body: string | null;
   media_type: string | null;
+  media_path: string | null;
+  media_mime: string | null;
+  media_filename: string | null;
+  media_size: number | null;
+  media_duration_seconds: number | null;
   sent_at: string;
 }
 
@@ -71,7 +77,7 @@ export async function ConversationPanel({
     await Promise.all([
     supabase
       .from("messages")
-      .select("id, direction, status, body, media_type, sent_at")
+      .select("id, direction, status, body, media_type, media_path, media_mime, media_filename, media_size, media_duration_seconds, sent_at")
       .eq("conversation_id", conversation.id)
       .order("sent_at", { ascending: true })
       .limit(200)
@@ -121,9 +127,21 @@ export async function ConversationPanel({
                   : "bg-muted"
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">
-                {message.body ?? `[${message.media_type ?? "mídia"} recebida]`}
-              </p>
+              {message.media_type ? (
+                <div className="mb-1">
+                  <MessageMedia
+                    path={message.media_path}
+                    mime={message.media_mime}
+                    filename={message.media_filename}
+                    size={message.media_size}
+                    duration={message.media_duration_seconds}
+                    legenda={message.body}
+                  />
+                </div>
+              ) : null}
+              {message.body ? (
+                <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+              ) : null}
               <p
                 className={`mt-1 text-[10px] ${
                   message.direction === "outbound"

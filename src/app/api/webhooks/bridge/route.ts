@@ -6,6 +6,7 @@ import {
 } from "@/lib/channels/bridge";
 import { decryptToken } from "@/lib/crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { salvarMidia } from "@/lib/channels/media";
 
 /**
  * Entrada da ponte de dispositivo conectado.
@@ -82,12 +83,14 @@ export async function POST(request: NextRequest) {
       workspace_id: connection.workspace_id,
       provider: "whatsapp",
       external_event_id: message.externalEventId,
-      payload: message as unknown as Record<string, unknown>,
+      // Sem o base64: o registro de eventos é para auditoria e idempotência,
+      // não para guardar arquivo.
+      payload: { ...message, media: message.media ? "[arquivo]" : null } as unknown as Record<string, unknown>,
     });
 
     if (duplicate) continue; // evento repetido
 
-    const { error: ingestError } = await admin.rpc("ingest_channel_message", {
+    const { data: ingested, error: ingestError } = await admin.rpc("ingest_channel_message", {
       p_workspace_id: connection.workspace_id,
       p_provider: "whatsapp",
       p_external_conversation_id: message.externalConversationId,

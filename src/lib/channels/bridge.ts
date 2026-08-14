@@ -9,6 +9,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * modo que a ingestão, o inbox e os relatórios não saibam a diferença.
  */
 
+export interface BridgeMedia {
+  /** Conteúdo do arquivo em base64 (a ponte já baixou do WhatsApp). */
+  base64: string;
+  mime?: string | null;
+  filename?: string | null;
+  size?: number | null;
+  duration?: number | null;
+}
+
 export interface BridgeMessage {
   /** ID da mensagem no WhatsApp — chave de idempotência. */
   id: string;
@@ -20,6 +29,7 @@ export interface BridgeMessage {
   pushName?: string | null;
   text?: string | null;
   mediaType?: string | null;
+  media?: BridgeMedia | null;
   /** Epoch em segundos, como o WhatsApp entrega. */
   timestamp?: number | string | null;
   /** true quando a mensagem foi enviada pelo próprio número (eco do celular). */
@@ -47,6 +57,7 @@ export interface NormalizedBridgeMessage {
   phone: string | null;
   body: string | null;
   mediaType: string | null;
+  media: BridgeMedia | null;
   sentAt: string;
   /** Eco do celular: a mensagem é nossa, entra na conversa como saída. */
   outbound: boolean;
@@ -97,6 +108,9 @@ export function normalizeBridgeEvent(
         phone: message.phone?.trim() || null,
         body: message.text?.trim() || null,
         mediaType: message.mediaType ?? null,
+        // O arquivo em si não vai para webhook_events: base64 de 20MB no
+        // registro de eventos inflaria o banco sem serventia.
+        media: message.media ?? null,
         sentAt: toIso(message.timestamp),
         outbound: Boolean(message.fromMe),
       },

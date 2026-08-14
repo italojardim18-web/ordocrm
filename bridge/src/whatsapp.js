@@ -1,4 +1,5 @@
 import {
+  downloadMediaMessage,
   makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
@@ -74,7 +75,24 @@ function extrairTexto(message) {
   );
 }
 
-/** Identifica mídia sem baixar o arquivo (anexos ficam para depois). */
+/** Mime e nome do arquivo, quando a mensagem carrega mídia. */
+function extrairMetadadosMidia(message) {
+  const m = message?.message;
+  if (!m) return null;
+  const node =
+    m.imageMessage ?? m.videoMessage ?? m.audioMessage ??
+    m.documentMessage ?? m.stickerMessage;
+  if (!node) return null;
+  return {
+    mime: node.mimetype ?? null,
+    filename: node.fileName ?? null,
+    size: node.fileLength ? Number(node.fileLength) : null,
+    // Áudio de WhatsApp vale mais com a duração à vista.
+    duration: node.seconds ?? null,
+  };
+}
+
+/** Identifica o tipo de mídia. */
 function extrairTipoMidia(message) {
   const m = message?.message;
   if (!m) return null;
@@ -174,6 +192,33 @@ export async function iniciarWhatsapp() {
       const midia = extrairTipoMidia(message);
       if (!texto && !midia) continue;
 
+      // Baixa o arquivo agora: a mídia do WhatsApp expira e não dá para
+      // buscar depois. Falha no download não descarta a mensagem — o texto
+      // (ou ao menos o registro de que houve mídia) ainda vale.
+      let anexo = null;
+      if (midia && midia !== "location") {
+        const meta = extrairMetadadosMidia(message);
+        const tamanho = meta?.size ?? 0;
+        if (tamanho > config.maxMediaBytes) {
+          console.warn(
+            `[whatsapp] mídia de ${Math.round(tamanho / 1048576)}MB acima do limite; não baixada`,
+          );
+        } else {
+          try {
+            const buffer = await downloadMediaMessage(message, "buffer", {});
+            anexo = {
+              base64: buffer.toString("base64"),
+              mime: meta?.mime ?? null,
+              filename: meta?.filename ?? null,
+              size: buffer.length,
+              duration: meta?.duration ?? null,
+            };
+          } catch (erro) {
+            console.warn("[whatsapp] não consegui baixar a mídia:", erro.message);
+          }
+        }
+      }
+
       // Algumas versões trazem o telefone junto da mensagem quando o
       // endereçamento é por LID.
       const alternativo = message.key.remoteJidAlt ?? message.key.participantAlt;
@@ -188,6 +233,7 @@ export async function iniciarWhatsapp() {
         pushName: message.pushName ?? null,
         text: texto,
         mediaType: midia,
+        media: anexo,
         timestamp: Number(message.messageTimestamp ?? 0) || null,
         // Eco: mensagem que você mesmo mandou pelo celular.
         fromMe: Boolean(message.key.fromMe),
