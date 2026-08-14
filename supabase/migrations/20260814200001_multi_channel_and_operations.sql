@@ -29,6 +29,21 @@ alter table public.leads
 create index if not exists leads_channel_conn_idx
   on public.leads (workspace_id, channel_connection_id);
 
+-- Backfill: associa conversas e leads pré-existentes à conexão de WhatsApp ativa
+update public.conversations c
+set channel_connection_id = cc.id
+from public.channel_connections cc
+where c.channel_connection_id is null
+  and cc.workspace_id = c.workspace_id
+  and cc.provider = 'whatsapp';
+
+update public.leads l
+set channel_connection_id = cc.id
+from public.channel_connections cc
+where l.channel_connection_id is null
+  and cc.workspace_id = l.workspace_id
+  and cc.provider = 'whatsapp';
+
 -- -----------------------------------------------------------------------------
 -- 2. Lembretes e autor de tarefas (Secretária ➔ Dr. Ítalo)
 -- -----------------------------------------------------------------------------
