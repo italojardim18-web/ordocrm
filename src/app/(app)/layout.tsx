@@ -1,5 +1,6 @@
 import { AppNav } from "@/components/app-nav";
 import { getSessionContext } from "@/lib/auth";
+import { getChannelConnections } from "@/lib/crm/queries";
 import { Button } from "@/components/ui/button";
 import { logout } from "./actions";
 
@@ -23,6 +24,13 @@ export default async function AppLayout({
     );
   }
 
+  const channelConnections = await getChannelConnections(context.workspace.id);
+  const channels = channelConnections.map((ch) => ({
+    id: ch.id,
+    label: ch.display_name ?? ch.provider,
+    phoneNumber: ch.phone_number,
+  }));
+
   return (
     <div className="flex min-h-svh flex-col">
       <AppNav
@@ -30,6 +38,7 @@ export default async function AppLayout({
         userName={context.profile.fullName}
         userEmail={context.user.email}
         isAdmin={context.membership.role === "admin"}
+        channels={channels}
       />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         {children}
