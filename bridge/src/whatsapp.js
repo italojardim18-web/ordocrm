@@ -5,7 +5,9 @@ import {
   fetchLatestBaileysVersion,
   DisconnectReason,
 } from "@whiskeysockets/baileys";
-import { writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import qrcode from "qrcode-terminal";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -13,55 +15,41 @@ import { config } from "./config.js";
 import { sendToOrdo } from "./ordo-client.js";
 
 /**
- * Sessão do WhatsApp como dispositivo conectado (mesmo mecanismo do WhatsApp
- * Web). O celular continua funcionando normalmente: esta é apenas mais uma
- * "aparelho conectado" na conta.
+ * Gerenciador de sessões WhatsApp multi-dispositivo.
+ *
+ * Cada sessão é um "aparelho conectado" independente — permite conectar
+ * o número do Dr. Ítalo e o número da Secretária ao mesmo CRM.
+ *
+ * Cada sessão tem:
+ * - Seu próprio diretório de autenticação (dentro de config.sessionDir)
+ * - Seu próprio socket Baileys
+ * - Seu próprio estado e QR code
  */
 
 const logger = pino({ level: "silent" });
 
-let socket = null;
-let estado = "iniciando";
+/** @type {Map<string, { socket: any, estado: string, lidMap: Map<string, string>, qrData: string|null }>} */
+const sessoes = new Map();
 
-/**
- * Mapa LID → telefone.
- *
- * O WhatsApp passou a endereçar contatos por LID (`@lid`), um identificador
- * interno que não é telefone. O evento de contatos traz os dois campos
- * juntos, então montamos a correspondência conforme ela aparece. Enquanto o
- * telefone não for conhecido, o lead fica sem telefone — melhor vazio do que
- * com um número que não disca.
- */
-const lidParaTelefone = new Map();
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers (compartilhados entre sessões)
+// ─────────────────────────────────────────────────────────────────────────────
 
-function registrarContato(contato) {
+function registrarContato(sessao, contato) {
   if (!contato?.lid || !contato?.jid) return;
   const lid = contato.lid.split("@")[0].split(":")[0];
   const telefone = contato.jid.split("@")[0].split(":")[0];
   if (lid && telefone && /^[0-9]{8,13}$/.test(telefone)) {
-    lidParaTelefone.set(lid, telefone);
+    sessao.lidMap.set(lid, telefone);
   }
 }
 
-/** Telefone real do JID, quando dá para saber. */
-function resolverTelefone(jid) {
+function resolverTelefone(sessao, jid) {
   const usuario = jid.split("@")[0].split(":")[0];
   if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@c.us")) return usuario;
-  return lidParaTelefone.get(usuario) ?? null;
+  return sessao.lidMap.get(usuario) ?? null;
 }
 
-export function estadoAtual() {
-  return estado;
-}
-
-async function anunciarEstado(novo) {
-  if (estado === novo) return;
-  estado = novo;
-  console.log(`[whatsapp] estado: ${novo}`);
-  await sendToOrdo({ event: "state", state: novo }, { attempts: 2 });
-}
-
-/** Extrai o texto de qualquer um dos formatos que o WhatsApp usa. */
 function extrairTexto(message) {
   const m = message?.message;
   if (!m) return null;
@@ -75,7 +63,6 @@ function extrairTexto(message) {
   );
 }
 
-/** Mime e nome do arquivo, quando a mensagem carrega mídia. */
 function extrairMetadadosMidia(message) {
   const m = message?.message;
   if (!m) return null;
@@ -87,12 +74,10 @@ function extrairMetadadosMidia(message) {
     mime: node.mimetype ?? null,
     filename: node.fileName ?? null,
     size: node.fileLength ? Number(node.fileLength) : null,
-    // Áudio de WhatsApp vale mais com a duração à vista.
     duration: node.seconds ?? null,
   };
 }
 
-/** Identifica o tipo de mídia. */
 function extrairTipoMidia(message) {
   const m = message?.message;
   if (!m) return null;
@@ -105,51 +90,144 @@ function extrairTipoMidia(message) {
   return null;
 }
 
-export async function iniciarWhatsapp() {
-  const { state, saveCreds } = await useMultiFileAuthState(config.sessionDir);
+// ─────────────────────────────────────────────────────────────────────────────
+// Gerenciamento de sessões
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Lista todas as sessões e seus estados.
+ */
+export function listarSessoes() {
+  const resultado = [];
+  for (const [sessionId, sessao] of sessoes) {
+    resultado.push({
+      sessionId,
+      estado: sessao.estado,
+      hasQr: !!sessao.qrData,
+    });
+  }
+  return resultado;
+}
+
+/**
+ * Retorna o estado de uma sessão específica.
+ */
+export function estadoSessao(sessionId) {
+  const sessao = sessoes.get(sessionId);
+  if (!sessao) return null;
+  return {
+    sessionId,
+    estado: sessao.estado,
+    hasQr: !!sessao.qrData,
+  };
+}
+
+/**
+ * Estado geral: retorna "conectado" se qualquer sessão está conectada.
+ * Compatibilidade com o endpoint /health existente.
+ */
+export function estadoAtual() {
+  for (const sessao of sessoes.values()) {
+    if (sessao.estado === "conectado") return "conectado";
+  }
+  if (sessoes.size === 0) return "sem_sessao";
+  return "desconectado";
+}
+
+/**
+ * Retorna o QR code de uma sessão como base64 data URL para exibição no CRM.
+ */
+export async function obterQrBase64(sessionId) {
+  const sessao = sessoes.get(sessionId);
+  if (!sessao?.qrData) return null;
+  try {
+    return await QRCode.toDataURL(sessao.qrData, { width: 512, margin: 2 });
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iniciar / parar sessões
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inicia uma sessão do WhatsApp.
+ *
+ * @param {string} sessionId - Identificador único da sessão (ex: "principal", "secretaria")
+ */
+export async function iniciarSessao(sessionId) {
+  if (sessoes.has(sessionId)) {
+    console.log(`[whatsapp:${sessionId}] sessão já ativa, ignorando`);
+    return sessoes.get(sessionId);
+  }
+
+  const sessionDir = join(config.sessionDir, sessionId);
+  await mkdir(sessionDir, { recursive: true });
+
+  const sessao = {
+    socket: null,
+    estado: "iniciando",
+    lidMap: new Map(),
+    qrData: null,
+  };
+  sessoes.set(sessionId, sessao);
+
+  async function anunciarEstado(novo) {
+    if (sessao.estado === novo) return;
+    sessao.estado = novo;
+    console.log(`[whatsapp:${sessionId}] estado: ${novo}`);
+    await sendToOrdo({ event: "state", state: novo, sessionId }, { attempts: 2 });
+  }
+
+  const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
-  socket = makeWASocket({
+  const socket = makeWASocket({
     version,
     auth: state,
     logger,
-    // Sem "online" permanente: reduz consumo e não rouba notificação do celular.
     markOnlineOnConnect: false,
     syncFullHistory: false,
   });
 
+  sessao.socket = socket;
+
   socket.ev.on("creds.update", saveCreds);
 
-  // O WhatsApp entrega a correspondência LID ↔ telefone por aqui.
-  socket.ev.on("contacts.upsert", (contatos) => contatos.forEach(registrarContato));
-  socket.ev.on("contacts.update", (contatos) => contatos.forEach(registrarContato));
+  socket.ev.on("contacts.upsert", (contatos) =>
+    contatos.forEach((c) => registrarContato(sessao, c)),
+  );
+  socket.ev.on("contacts.update", (contatos) =>
+    contatos.forEach((c) => registrarContato(sessao, c)),
+  );
   socket.ev.on("messaging-history.set", ({ contacts }) =>
-    (contacts ?? []).forEach(registrarContato),
+    (contacts ?? []).forEach((c) => registrarContato(sessao, c)),
   );
 
   socket.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
+      sessao.qrData = qr;
       await anunciarEstado("aguardando_qr");
       console.log(
-        "\nEscaneie o QR no WhatsApp do celular:\n" +
+        `\n[whatsapp:${sessionId}] Escaneie o QR no WhatsApp do celular:\n` +
           "  Configurações → Aparelhos conectados → Conectar aparelho\n",
       );
       qrcode.generate(qr, { small: true });
 
-      // Também salva como imagem: mais fácil de escanear que o ASCII do
-      // terminal. O arquivo é sobrescrito a cada QR novo e perde a validade
-      // em segundos — não é segredo persistente.
       try {
-        await QRCode.toFile(config.qrFile, qr, { width: 512, margin: 2 });
-        console.log(`[whatsapp] QR também salvo em ${config.qrFile}`);
+        const qrFile = join(config.sessionDir, `qr-${sessionId}.png`);
+        await QRCode.toFile(qrFile, qr, { width: 512, margin: 2 });
+        console.log(`[whatsapp:${sessionId}] QR salvo em ${qrFile}`);
       } catch (erro) {
-        console.warn("[whatsapp] não consegui salvar o QR como imagem:", erro.message);
+        console.warn(`[whatsapp:${sessionId}] não consegui salvar o QR:`, erro.message);
       }
     }
 
     if (connection === "open") {
+      sessao.qrData = null; // QR não é mais necessário
       await anunciarEstado("conectado");
     }
 
@@ -161,22 +239,22 @@ export async function iniciarWhatsapp() {
 
       if (deslogado) {
         console.error(
-          "[whatsapp] sessão encerrada no celular. Apague a pasta da sessão e pareie de novo.",
+          `[whatsapp:${sessionId}] sessão encerrada no celular. Remova e pareie de novo.`,
         );
         return;
       }
 
-      console.warn("[whatsapp] conexão caiu, reconectando em 3s…");
+      console.warn(`[whatsapp:${sessionId}] conexão caiu, reconectando em 3s…`);
+      sessoes.delete(sessionId);
       setTimeout(() => {
-        iniciarWhatsapp().catch((erro) =>
-          console.error("[whatsapp] falha ao reconectar:", erro.message),
+        iniciarSessao(sessionId).catch((erro) =>
+          console.error(`[whatsapp:${sessionId}] falha ao reconectar:`, erro.message),
         );
       }, 3000);
     }
   });
 
   socket.ev.on("messages.upsert", async ({ messages, type }) => {
-    // `notify` = mensagem nova de verdade; `append` costuma ser histórico.
     if (type !== "notify") return;
 
     const normalizadas = [];
@@ -184,24 +262,19 @@ export async function iniciarWhatsapp() {
     for (const message of messages) {
       const jid = message.key?.remoteJid;
       if (!jid) continue;
-
-      // Grupos, status e transmissões não fazem parte do fluxo comercial.
       if (jid.endsWith("@g.us") || jid === "status@broadcast") continue;
 
       const texto = extrairTexto(message);
       const midia = extrairTipoMidia(message);
       if (!texto && !midia) continue;
 
-      // Baixa o arquivo agora: a mídia do WhatsApp expira e não dá para
-      // buscar depois. Falha no download não descarta a mensagem — o texto
-      // (ou ao menos o registro de que houve mídia) ainda vale.
       let anexo = null;
       if (midia && midia !== "location") {
         const meta = extrairMetadadosMidia(message);
         const tamanho = meta?.size ?? 0;
         if (tamanho > config.maxMediaBytes) {
           console.warn(
-            `[whatsapp] mídia de ${Math.round(tamanho / 1048576)}MB acima do limite; não baixada`,
+            `[whatsapp:${sessionId}] mídia de ${Math.round(tamanho / 1048576)}MB acima do limite`,
           );
         } else {
           try {
@@ -214,28 +287,25 @@ export async function iniciarWhatsapp() {
               duration: meta?.duration ?? null,
             };
           } catch (erro) {
-            console.warn("[whatsapp] não consegui baixar a mídia:", erro.message);
+            console.warn(`[whatsapp:${sessionId}] não consegui baixar a mídia:`, erro.message);
           }
         }
       }
 
-      // Algumas versões trazem o telefone junto da mensagem quando o
-      // endereçamento é por LID.
       const alternativo = message.key.remoteJidAlt ?? message.key.participantAlt;
       if (alternativo) {
-        registrarContato({ lid: jid, jid: alternativo });
+        registrarContato(sessao, { lid: jid, jid: alternativo });
       }
 
       normalizadas.push({
         id: message.key.id,
         from: jid,
-        phone: resolverTelefone(jid),
+        phone: resolverTelefone(sessao, jid),
         pushName: message.pushName ?? null,
         text: texto,
         mediaType: midia,
         media: anexo,
         timestamp: Number(message.messageTimestamp ?? 0) || null,
-        // Eco: mensagem que você mesmo mandou pelo celular.
         fromMe: Boolean(message.key.fromMe),
         isGroup: false,
       });
@@ -243,30 +313,97 @@ export async function iniciarWhatsapp() {
 
     if (normalizadas.length === 0) return;
 
-    await sendToOrdo({ event: "message", messages: normalizadas });
+    // Inclui o sessionId no envelope para o ORDO saber de qual linha veio
+    await sendToOrdo({ event: "message", messages: normalizadas, sessionId });
   });
 
-  return socket;
+  return sessao;
 }
 
 /**
- * Envia uma mensagem de texto. Usado pelo ORDO ao processar a fila de saída.
- *
- * O identificador vem da conversa e pode ser telefone ou LID — desde que o
- * WhatsApp passou a endereçar por LID, montar sempre `@s.whatsapp.net`
- * entregaria no vazio.
+ * Para uma sessão e desconecta o socket.
  */
-export async function enviarTexto(identificador, texto) {
-  if (!socket || estado !== "conectado") {
-    throw new Error(`sessão indisponível (estado: ${estado})`);
+export async function pararSessao(sessionId) {
+  const sessao = sessoes.get(sessionId);
+  if (!sessao) return;
+  try {
+    sessao.socket?.end();
+  } catch { /* ignorar */ }
+  sessoes.delete(sessionId);
+  console.log(`[whatsapp:${sessionId}] sessão encerrada`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Compatibilidade: iniciarWhatsapp() sobe todas as sessões existentes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inicia todas as sessões encontradas em disco + a sessão padrão.
+ * Chamada no boot da ponte.
+ */
+export async function iniciarWhatsapp() {
+  await mkdir(config.sessionDir, { recursive: true });
+
+  // Detecta sessões existentes em disco
+  const entradas = existsSync(config.sessionDir)
+    ? readdirSync(config.sessionDir, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+    : [];
+
+  // Se não há nenhuma sessão em disco, cria a padrão ("principal")
+  if (entradas.length === 0) {
+    // Migra a sessão antiga (sem subpasta) para o novo formato
+    const authOldFile = join(config.sessionDir, "creds.json");
+    if (existsSync(authOldFile)) {
+      console.log("[whatsapp] migrando sessão legada para formato multi-sessão…");
+      const destDir = join(config.sessionDir, "principal");
+      await mkdir(destDir, { recursive: true });
+      // Move todos os arquivos da pasta de sessão antiga para a subpasta "principal"
+      const { rename } = await import("node:fs/promises");
+      const files = readdirSync(config.sessionDir, { withFileTypes: true })
+        .filter((e) => e.isFile());
+      for (const f of files) {
+        await rename(join(config.sessionDir, f.name), join(destDir, f.name));
+      }
+      entradas.push("principal");
+    } else {
+      entradas.push("principal");
+    }
   }
 
+  console.log(`[whatsapp] iniciando ${entradas.length} sessão(ões): ${entradas.join(", ")}`);
+
+  // Inicia todas as sessões em paralelo
+  await Promise.all(entradas.map((id) => iniciarSessao(id)));
+}
+
+/**
+ * Envia uma mensagem de texto por uma sessão específica.
+ *
+ * @param {string} identificador - Telefone ou LID do destinatário
+ * @param {string} texto - Conteúdo da mensagem
+ * @param {string} [sessionId] - Qual sessão usar (padrão: "principal")
+ */
+export async function enviarTexto(identificador, texto, sessionId = "principal") {
+  const sessao = sessoes.get(sessionId);
+  if (!sessao?.socket || sessao.estado !== "conectado") {
+    // Fallback: tenta qualquer sessão conectada
+    for (const [id, s] of sessoes) {
+      if (s.estado === "conectado" && s.socket) {
+        console.log(`[whatsapp] sessão "${sessionId}" indisponível, usando "${id}"`);
+        return enviarTexto(identificador, texto, id);
+      }
+    }
+    throw new Error(`nenhuma sessão disponível (sessão pedida: ${sessionId})`);
+  }
+
+  const socket = sessao.socket;
   const limpo = String(identificador).replace(/\D/g, "");
   if (!limpo) throw new Error("destinatário vazio");
 
   let destino;
 
-  // Até 13 dígitos é telefone (E.164 no Brasil); acima disso, LID.
   if (limpo.length <= 13) {
     const [existe] = await socket.onWhatsApp(`${limpo}@s.whatsapp.net`);
     if (!existe?.exists) {
@@ -277,7 +414,6 @@ export async function enviarTexto(identificador, texto) {
     destino = `${limpo}@lid`;
   }
 
-  // Pequena pausa entre envios: rajada é o que mais chama atenção.
   await new Promise((resolve) => setTimeout(resolve, config.sendDelayMs));
 
   const resultado = await socket.sendMessage(destino, { text: texto });

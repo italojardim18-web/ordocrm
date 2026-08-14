@@ -52,7 +52,7 @@ export function OperationsPanel({
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-primary">
-              Visão da operação
+              Painel operacional
             </h2>
             <Badge variant="outline" className="text-[10px] text-muted-foreground">
               Semana atual

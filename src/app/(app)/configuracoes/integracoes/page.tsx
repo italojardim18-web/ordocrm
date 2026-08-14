@@ -18,6 +18,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { CalendarPicker, DisconnectButton } from "./calendar-controls";
 import { MessageSimulator } from "./health";
+import { WhatsAppSessions } from "./whatsapp-sessions";
 
 export const metadata: Metadata = { title: "Integrações" };
 
@@ -169,20 +170,22 @@ export default async function IntegrationsPage({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle>WhatsApp Business (Cloud API)</CardTitle>
+            <CardTitle>Linhas de WhatsApp</CardTitle>
             <Badge variant="outline">
               {whatsapp?.status === "connected"
-                ? "Conectado"
-                : "Aguardando configuração"}
+                ? "Ponte ativa"
+                : "Ponte desconectada"}
             </Badge>
           </div>
           <CardDescription>
-            Recebimento e envio de mensagens pela API oficial da Meta. Depende
-            de conta Meta Business verificada e número registrado na Cloud API.
-            O webhook do CRM já está pronto em{" "}
-            <code>/api/webhooks/meta</code>.
+            Gerencie as linhas de WhatsApp conectadas ao CRM. Cada linha é um
+            número que pode receber e enviar mensagens. A secretária pode ter
+            seu próprio número conectado ao lado do número principal.
           </CardDescription>
         </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <WhatsAppSessions />
+        </CardContent>
       </Card>
 
       <Card>
