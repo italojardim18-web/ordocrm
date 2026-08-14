@@ -19,6 +19,12 @@ export type LeadTemperature = "hot" | "warm" | "cold";
 
 export type TranscriptStatus = "pending" | "done" | "failed" | "skipped";
 
+export interface Pipeline {
+  id: string;
+  name: string;
+  is_default?: boolean;
+}
+
 export interface Stage {
   id: string;
   name: string;

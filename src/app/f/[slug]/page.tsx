@@ -13,7 +13,7 @@ async function getEndpoint(slug: string) {
   const { data } = await admin
     .from("form_endpoints")
     .select(
-      "id, workspace_id, name, headline, description, success_message, is_active",
+      "id, workspace_id, name, headline, description, success_message, is_active, schema, theme, settings",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -61,7 +61,9 @@ export default async function PublicFormPage({
 
         <PublicForm
           slug={slug}
-          successMessage={endpoint.success_message ?? "Recebemos seu contato!"}
+          endpoint={endpoint as any}
+          brandName={brandName}
+          successMessage={endpoint.success_message ?? endpoint.schema?.thankyou?.title ?? "Recebemos seu contato!"}
         />
       </main>
     </div>

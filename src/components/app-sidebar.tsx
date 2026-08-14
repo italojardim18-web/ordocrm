@@ -16,6 +16,7 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
   const sidebarItems = [
     { href: "/conversas", label: "Conversas", icon: "💬" },
     { href: "/agenda", label: "Agenda", icon: "📅" },
+    { href: "/formularios", label: "ORDO Forms", icon: "📝" },
     { href: "/agente-ia", label: "Agente de IA", icon: "🤖" },
     { href: "/contatos", label: "Lista de Contatos", icon: "👥" },
     { href: "/origens", label: "Origens do Lead", icon: "🌐" },

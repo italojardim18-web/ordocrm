@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compartilhar · ORDO Forms</title>
+<link rel="stylesheet" href="assets/ordo.css">
+<link rel="stylesheet" href="assets/forms.css">
+</head>
+<body class="forms-full">
+<div id="topo"></div>
+
+<main style="max-width:900px; margin:0 auto; padding:var(--s5) var(--s3)">
+  <div class="painel mb3">
+    <div class="f-rotulo" style="margin-top:0">Compartilhe seu formulário</div>
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+      <div class="f-url" style="flex:1; min-width:260px"><span id="url"></span></div>
+      <button class="btn btn-sm btn-ghost" id="btnCopiar">Copiar link</button>
+      <button class="btn btn-sm btn-outline" id="btnAbrir">Testar</button>
+    </div>
+    <div class="muted" id="avisoRascunho" style="font-size:12.5px; margin-top:12px" hidden>
+      Este formulário ainda é um rascunho — o link só responde depois de publicado.
+      <button class="btn btn-sm btn-primary" id="btnPublicarAqui" style="margin-left:10px">Publicar agora</button>
+    </div>
+
+    <div class="f-rotulo">Incorporar no seu site</div>
+    <div class="f-embed" id="embeds"></div>
+    <div class="f-campo" style="margin-top:18px" id="caixaCodigo" hidden>
+      <label>Código para colar no seu site</label>
+      <textarea class="f-textarea" id="codigo" readonly style="font-family:ui-monospace,monospace; font-size:12px; min-height:110px"></textarea>
+      <button class="btn btn-sm btn-ghost" id="btnCopiarCodigo" style="margin-top:10px">Copiar código</button>
+    </div>
+  </div>
+
+  <div class="painel mb3">
+    <div class="f-rotulo" style="margin-top:0">Campos ocultos</div>
+    <div class="muted" style="font-size:13px; line-height:1.6; margin-bottom:14px">
+      Acrescente parâmetros ao link para saber de onde veio cada resposta. Eles são
+      gravados junto com o envio, sem aparecer para quem responde.
+      Exemplo: <code id="exemploOculto"></code>
+    </div>
+    <div id="listaOcultos"></div>
+    <button class="f-add" id="addOculto" style="max-width:260px">+ Adicionar campo oculto</button>
+  </div>
+
+  <div class="painel">
+    <div class="f-rotulo" style="margin-top:0">Parâmetros UTM</div>
+    <div class="f-linha" style="padding-top:0">
+      <span class="rot">Aceitar parâmetros UTM no link<br>
+        <span class="muted" style="font-size:11.5px">utm_source, utm_medium, utm_campaign, utm_term, utm_content</span></span>
+      <button class="f-toggle" id="tgUtm"></button>
+    </div>
+    <div class="f-url" style="margin-top:8px"><span id="exemploUtm"></span></div>
+  </div>
+</main>
+
+<script src="assets/forms.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const FORM_ID = Number(new URLSearchParams(location.search).get("id"));
+let FORM = null, LINK = "";
+
+const EMBEDS = [
+  ["standard", "Padrão", (l) => `<iframe src="${l}" width="100%" height="640" frameborder="0" style="border:0"></iframe>`],
+  ["full", "Tela cheia", (l) => `<iframe src="${l}" style="position:fixed;inset:0;width:100%;height:100%;border:0"></iframe>`],
+  ["popup", "Pop-up", (l) => `<button onclick="window.open('${l}','_blank','width=680,height=760')">Responder ao formulário</button>`],
+  ["slider", "Painel lateral", (l) => `<a href="${l}" target="_blank" style="position:fixed;right:0;top:40%;padding:12px 18px;background:#521D2A;color:#fff;text-decoration:none;border-radius:8px 0 0 8px">Formulário</a>`],
+  ["link", "Botão simples", (l) => `<a href="${l}" target="_blank" style="display:inline-block;padding:12px 22px;background:#521D2A;color:#fff;border-radius:10px;text-decoration:none;font-family:sans-serif">Responder</a>`],
+];
+
+async function carregar() {
+  if (!FORM_ID) { location.href = "formularios.html"; return; }
+  FORM = await FormsAPI.obter(FORM_ID);
+  LINK = `${location.origin}/f.html?f=${FORM.slug}`;
+  document.title = `Compartilhar · ${FORM.nome}`;
+
+  $("#topo").innerHTML = fTopbar(FORM, "compartilhar");
+  $("#fTitulo").readOnly = true;
+  $("#url").textContent = LINK;
+  $("#exemploOculto").textContent = `${LINK}&origem=instagram`;
+  $("#avisoRascunho").hidden = FORM.status === "publicado";
+  atualizarUtm();
+
+  $("#embeds").innerHTML = EMBEDS.map(([k, rot]) =>
+    `<button data-embed="${k}"><span class="fig"></span>${rot}</button>`).join("");
+  $("#embeds").querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click", () => {
+    const item = EMBEDS.find(e => e[0] === b.dataset.embed);
+    $("#codigo").value = item[2](LINK);
+    $("#caixaCodigo").hidden = false;
+    $("#codigo").scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
+
+  renderOcultos();
+}
+
+function atualizarUtm() {
+  $("#tgUtm").classList.toggle("on", !!FORM.config.utm);
+  $("#exemploUtm").textContent = FORM.config.utm
+    ? `${LINK}&utm_source=instagram&utm_medium=bio&utm_campaign=supervisao`
+    : "Desligado — os parâmetros são ignorados.";
+}
+
+$("#tgUtm").addEventListener("click", async () => {
+  FORM.config.utm = !FORM.config.utm;
+  await FormsAPI.salvar(FORM.id, { config: FORM.config });
+  atualizarUtm();
+});
+
+function renderOcultos() {
+  const ocultos = FORM.config.ocultos || [];
+  $("#listaOcultos").innerHTML = ocultos.length
+    ? ocultos.map((o, i) => `<div class="f-opcao" style="max-width:420px">
+        <input class="f-input" value="${fEsc(o)}" readonly>
+        <button class="f-x" data-rem="${i}">&times;</button></div>`).join("")
+    : '<div class="muted" style="font-size:12.5px; margin-bottom:10px">Nenhum campo oculto ainda.</div>';
+  $("#listaOcultos").querySelectorAll("[data-rem]").forEach(b => b.addEventListener("click", async () => {
+    FORM.config.ocultos.splice(Number(b.dataset.rem), 1);
+    await FormsAPI.salvar(FORM.id, { config: FORM.config });
+    renderOcultos();
+  }));
+}
+
+$("#addOculto").addEventListener("click", async () => {
+  const nome = prompt("Nome do campo oculto (só letras, números e _):");
+  if (!nome) return;
+  const limpo = nome.trim().replace(/[^\w]/g, "");
+  if (!limpo) return fToast("Nome inválido.");
+  FORM.config.ocultos = FORM.config.ocultos || [];
+  if (FORM.config.ocultos.includes(limpo)) return fToast("Esse campo já existe.");
+  FORM.config.ocultos.push(limpo);
+  await FormsAPI.salvar(FORM.id, { config: FORM.config });
+  renderOcultos();
+  fToast("Campo oculto adicionado.");
+});
+
+$("#btnCopiar").addEventListener("click", async () => {
+  await navigator.clipboard.writeText(LINK);
+  fToast("Link copiado.");
+});
+$("#btnAbrir").addEventListener("click", () => {
+  if (FORM.status !== "publicado") return fToast("Publique o formulário antes de testar o link.");
+  window.open(LINK, "_blank");
+});
+$("#btnCopiarCodigo").addEventListener("click", async () => {
+  await navigator.clipboard.writeText($("#codigo").value);
+  fToast("Código copiado.");
+});
+$("#btnPublicarAqui").addEventListener("click", async () => {
+  FORM = await FormsAPI.salvar(FORM.id, { status: "publicado" });
+  $("#avisoRascunho").hidden = true;
+  $("#fStatus").className = "f-chip-status publicado";
+  $("#fStatus").textContent = "Publicado";
+  fToast("Formulário publicado.");
+});
+
+carregar();
+</script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formulários · ORDO</title>
+<link rel="stylesheet" href="assets/ordo.css">
+<link rel="stylesheet" href="assets/forms.css">
+</head>
+<body data-page="formularios">
+<div id="ordo-app"></div>
+
+<main class="main">
+  <div class="topo">
+    <div>
+      <h1>ORDO Forms</h1>
+      <div class="sub">Formulários de aplicação, triagem e acompanhamento — tudo em seu lugar.</div>
+    </div>
+    <div class="topo-acoes">
+      <button class="btn btn-primary" id="btnCriar">+ Criar formulário</button>
+    </div>
+  </div>
+
+  <div class="grid-23" style="grid-template-columns:236px 1fr; align-items:start">
+    <!-- pastas -->
+    <div class="painel">
+      <div class="f-rotulo" style="margin-top:0">Pastas</div>
+      <div class="f-pastas" id="listaPastas"></div>
+      <button class="f-add" id="btnNovaPasta" style="margin-top:14px">+ Nova pasta</button>
+    </div>
+
+    <!-- lista -->
+    <div>
+      <div style="display:flex; gap:12px; margin-bottom:18px; align-items:center">
+        <input class="input" id="busca" placeholder="Pesquisar por nome ou ID…" style="max-width:320px">
+        <select class="input" id="ordem" style="max-width:210px">
+          <option value="atualizado">Data de última alteração</option>
+          <option value="nome">Nome</option>
+          <option value="respostas">Nº de respostas</option>
+        </select>
+        <span class="muted" id="contador" style="font-size:12.5px; margin-left:auto"></span>
+      </div>
+      <div id="lista"></div>
+    </div>
+  </div>
+</main>
+
+<!-- modal: criar formulário -->
+<div class="modal-bg" id="modalCriar">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-head">
+      <h3>Criar um formulário</h3>
+      <button class="modal-x" data-fechar>&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="campo">
+        <label for="novoNome">Nome do formulário</label>
+        <input class="input" id="novoNome" placeholder="Ex.: Aplicação para Supervisão">
+      </div>
+      <div class="campo" style="margin-bottom:0">
+        <label for="novaPasta">Pasta</label>
+        <select class="input" id="novaPasta"><option value="">Sem pasta</option></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-fechar>Cancelar</button>
+      <button class="btn btn-primary" id="confirmarCriar">Criar do zero</button>
+    </div>
+  </div>
+</div>
+
+<div class="f-menu" id="menuForm"></div>
+
+<script src="assets/ordo.js"></script>
+<script src="assets/forms.js"></script>
+<script>
+let PASTAS = [], FORMS = [], pastaAtiva = "todos";
+
+const $ = (s) => document.querySelector(s);
+
+function abrirModal(el) { el.classList.add("aberto"); }
+function fecharModal(el) { el.classList.remove("aberto"); }
+
+document.querySelectorAll("[data-fechar]").forEach(b =>
+  b.addEventListener("click", () => fecharModal($("#modalCriar"))));
+
+/* ---------------------------------------------------------------- pastas */
+async function carregarPastas() {
+  PASTAS = await FormsAPI.pastas();
+  const sel = $("#novaPasta");
+  sel.innerHTML = '<option value="">Sem pasta</option>' +
+    PASTAS.map(p => `<option value="${p.id}">${fEsc(p.nome)}</option>`).join("");
+
+  $("#listaPastas").innerHTML = `
+    <a href="#" data-pasta="todos" class="${pastaAtiva === "todos" ? "active" : ""}">
+      Todos os formulários</a>
+    <a href="#" data-pasta="sem" class="${pastaAtiva === "sem" ? "active" : ""}">Sem pasta</a>
+    ${PASTAS.length ? '<div class="divider" style="margin:10px 0"></div>' : ""}
+    ${PASTAS.map(p => `<a href="#" data-pasta="${p.id}" class="${pastaAtiva == p.id ? "active" : ""}">
+        <span>${fEsc(p.nome)}</span>
+        <span class="n">${p.total}</span></a>`).join("")}`;
+
+  $("#listaPastas").querySelectorAll("a").forEach(a => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    pastaAtiva = a.dataset.pasta;
+    carregarPastas();
+    carregar();
+  }));
+}
+
+$("#btnNovaPasta").addEventListener("click", async () => {
+  const nome = prompt("Nome da nova pasta:");
+  if (!nome || !nome.trim()) return;
+  await FormsAPI.criarPasta(nome.trim());
+  await carregarPastas();
+  fToast("Pasta criada.");
+});
+
+/* ---------------------------------------------------------------- lista */
+async function carregar() {
+  const params = {};
+  if (pastaAtiva !== "todos") params.pasta = pastaAtiva;
+  const q = $("#busca").value.trim();
+  if (q) params.q = q;
+  FORMS = await FormsAPI.listar(params);
+  render();
+}
+
+function render() {
+  const ordem = $("#ordem").value;
+  const itens = [...FORMS].sort((a, b) => {
+    if (ordem === "nome") return a.nome.localeCompare(b.nome, "pt-BR");
+    if (ordem === "respostas") return b.respostas - a.respostas;
+    return (b.atualizado_em || "").localeCompare(a.atualizado_em || "");
+  });
+
+  $("#contador").textContent = itens.length
+    ? `${itens.length} formulário${itens.length > 1 ? "s" : ""}` : "";
+
+  if (!itens.length) {
+    $("#lista").innerHTML = `<div class="painel vazio">
+      <div class="hint">Nenhum formulário por aqui ainda.</div>
+      <div style="margin-top:8px">Crie o primeiro e comece a receber respostas.</div>
+    </div>`;
+    return;
+  }
+
+  $("#lista").innerHTML = itens.map(f => {
+    const tema = f.tema || {};
+    return `<div class="f-lista-linha" data-id="${f.id}">
+      <span class="f-thumb" style="background:${fEsc(tema.fundo || "#F2EEE7")};
+        color:${fEsc(tema.corTitulo || "#2A2320")}"><i></i><i></i><i></i></span>
+      <a href="form-editor.html?id=${f.id}" style="flex:1; text-decoration:none; min-width:0">
+        <div style="font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${fEsc(f.nome)}</div>
+        <div class="muted" style="font-size:12px; margin-top:2px">${f.questoes} questõe${f.questoes === 1 ? "m" : "s"} · ${fEsc(f.slug)}</div>
+      </a>
+      <span class="muted" style="font-size:12.5px; white-space:nowrap">
+        ${f.respostas ? `${f.respostas} resposta${f.respostas > 1 ? "s" : ""}` : "Sem respostas"}</span>
+      <span class="f-chip-status ${f.status}">${f.status === "publicado" ? "Publicado" : "Rascunho"}</span>
+      <button class="f-kebab" data-menu="${f.id}">⋮</button>
+    </div>`;
+  }).join("");
+
+  $("#lista").querySelectorAll("[data-menu]").forEach(b =>
+    b.addEventListener("click", (e) => { e.stopPropagation(); abrirMenu(b, Number(b.dataset.menu)); }));
+}
+
+/* ---------------------------------------------------------------- menu */
+const menu = $("#menuForm");
+
+function abrirMenu(botao, id) {
+  const f = FORMS.find(x => x.id === id);
+  menu.innerHTML = `
+    <button data-a="editar">Editar</button>
+    <button data-a="respostas">Ver respostas</button>
+    <button data-a="compartilhar">Compartilhar</button>
+    <div class="div"></div>
+    <button data-a="duplicar">Duplicar</button>
+    <button data-a="mover">Mover para pasta…</button>
+    <button data-a="exportar">Exportar respostas (CSV)</button>
+    <div class="div"></div>
+    <button data-a="excluir" class="perigo">Excluir</button>`;
+  const r = botao.getBoundingClientRect();
+  menu.style.top = Math.min(r.bottom + 6, window.innerHeight - 320) + "px";
+  menu.style.left = Math.max(12, r.right - 200) + "px";
+  menu.classList.add("aberto");
+
+  menu.querySelectorAll("button").forEach(b => b.addEventListener("click", async () => {
+    menu.classList.remove("aberto");
+    const a = b.dataset.a;
+    if (a === "editar") location.href = `form-editor.html?id=${id}`;
+    else if (a === "respostas") location.href = `form-resultados.html?id=${id}`;
+    else if (a === "compartilhar") location.href = `form-compartilhar.html?id=${id}`;
+    else if (a === "duplicar") { await FormsAPI.duplicar(id); fToast("Formulário duplicado."); carregar(); }
+    else if (a === "mover") await mover(f);
+    else if (a === "exportar") exportarCSV(id, f.nome);
+    else if (a === "excluir") {
+      if (!confirm(`Excluir "${f.nome}" e todas as suas respostas? Esta ação não pode ser desfeita.`)) return;
+      await FormsAPI.excluir(id);
+      fToast("Formulário excluído.");
+      carregar(); carregarPastas();
+    }
+  }));
+}
+
+document.addEventListener("click", () => menu.classList.remove("aberto"));
+
+async function mover(f) {
+  const opcoes = ["0 — Sem pasta", ...PASTAS.map((p, i) => `${i + 1} — ${p.nome}`)].join("\n");
+  const escolha = prompt(`Mover "${f.nome}" para:\n\n${opcoes}\n\nDigite o número:`);
+  if (escolha === null) return;
+  const n = Number(escolha);
+  const destino = n === 0 ? null : (PASTAS[n - 1] ? PASTAS[n - 1].id : undefined);
+  if (destino === undefined) return fToast("Opção inválida.");
+  await FormsAPI.salvar(f.id, { pasta_id: destino });
+  fToast("Formulário movido.");
+  carregar(); carregarPastas();
+}
+
+async function exportarCSV(id, nome) {
+  const [form, respostas] = await Promise.all([FormsAPI.obter(id), FormsAPI.respostas(id)]);
+  if (!respostas.length) return fToast("Este formulário ainda não tem respostas.");
+  const questoes = [];
+  (form.estrutura.grupos || []).forEach(g => (g.questoes || []).forEach(q => questoes.push(q)));
+  const cel = (v) => {
+    if (v == null) return "";
+    const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const linhas = [
+    ["Começou em", "Enviado em", "Status", ...questoes.map(q => q.titulo)].map(cel).join(";"),
+    ...respostas.map(r => [r.comecou_em, r.enviado_em || "", r.status,
+      ...questoes.map(q => r.dados[q.id])].map(cel).join(";")),
+  ];
+  const blob = new Blob(["﻿" + linhas.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${nome.replace(/[^\wÀ-ÿ -]/g, "")}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------------------------------------------------------------- criar */
+$("#btnCriar").addEventListener("click", () => {
+  $("#novoNome").value = "";
+  $("#novaPasta").value = pastaAtiva !== "todos" && pastaAtiva !== "sem" ? pastaAtiva : "";
+  abrirModal($("#modalCriar"));
+  setTimeout(() => $("#novoNome").focus(), 60);
+});
+
+$("#confirmarCriar").addEventListener("click", async () => {
+  const nome = $("#novoNome").value.trim() || "Formulário sem título";
+  const pasta = $("#novaPasta").value;
+  const f = await FormsAPI.criar({ nome, pasta_id: pasta ? Number(pasta) : null });
+  location.href = `form-editor.html?id=${f.id}`;
+});
+
+$("#novoNome").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#confirmarCriar").click();
+});
+
+$("#busca").addEventListener("input", () => { clearTimeout(window._bt); window._bt = setTimeout(carregar, 220); });
+$("#ordem").addEventListener("change", render);
+
+carregarPastas().then(carregar);
+</script>
+</body>
+</html>

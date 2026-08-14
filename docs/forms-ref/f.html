@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formulário · ORDO Forms</title>
+<style>
+  html, body { height:100%; margin:0; }
+  body { background:#F2EEE7; }
+  #app { min-height:100vh; display:flex; flex-direction:column; }
+  #app > .fp { flex:1; }
+  .carregando { display:flex; align-items:center; justify-content:center; height:100vh;
+    font-family:-apple-system, "Inter", sans-serif; color:#7C726A; font-size:14px; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="app"><div class="carregando">Carregando o formulário…</div></div>
+
+<script src="assets/forms.js"></script>
+<script>
+const app = document.getElementById("app");
+const SLUG = new URLSearchParams(location.search).get("f");
+
+let FORM = null, TELAS = [], i = 0;
+let valores = {}, respostaId = null, comecouEm = null, iniciou = false;
+
+const CHAVE = () => `ordo-form-${SLUG}`;
+
+/* ---------------------------------------------------------------- carga */
+async function iniciar() {
+  if (!SLUG) return erroFatal("Link inválido.");
+  let dados;
+  try {
+    const r = await fetch(`/api/publico/forms/${encodeURIComponent(SLUG)}`);
+    dados = await r.json();
+    if (!r.ok) return erroFatal(dados.erro || "Formulário indisponível.");
+  } catch (e) {
+    return erroFatal("Não foi possível carregar o formulário.");
+  }
+
+  FORM = dados;
+  document.title = FORM.config.metaTitulo || FORM.nome;
+  if (FORM.config.metaDescricao) {
+    const m = document.createElement("meta");
+    m.name = "description";
+    m.content = FORM.config.metaDescricao;
+    document.head.appendChild(m);
+  }
+
+  TELAS = fTelas(FORM.estrutura);
+  fInjetarCSS();
+  fAplicarTema(document.documentElement, FORM.tema);
+  fAplicarTema(app, FORM.tema);
+
+  if (FORM.config.salvarProgresso) restaurar();
+  registrar("visualizacao");
+  render();
+}
+
+function erroFatal(msg) {
+  app.innerHTML = `<div class="carregando">${fEsc(msg)}</div>`;
+}
+
+function restaurar() {
+  try {
+    const bruto = localStorage.getItem(CHAVE());
+    if (!bruto) return;
+    const salvo = JSON.parse(bruto);
+    valores = salvo.valores || {};
+    respostaId = salvo.respostaId || null;
+    comecouEm = salvo.comecouEm || null;
+    if (salvo.i && salvo.i < TELAS.length) i = salvo.i;
+  } catch (_) { /* progresso corrompido: recomeça */ }
+}
+
+function guardar() {
+  if (!FORM.config.salvarProgresso) return;
+  try {
+    localStorage.setItem(CHAVE(), JSON.stringify({ valores, respostaId, comecouEm, i }));
+  } catch (_) { /* sem espaço: segue sem salvar */ }
+}
+
+async function registrar(tipo) {
+  try {
+    await fetch(`/api/publico/forms/${encodeURIComponent(SLUG)}/visualizacao`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo }),
+    });
+  } catch (_) { /* métrica é secundária */ }
+}
+
+/* ---------------------------------------------------------------- render */
+function render() {
+  const tela = TELAS[i];
+  const gruposTotal = TELAS.filter(t => t.tipo === "grupo").length;
+  const feitos = TELAS.slice(0, i).filter(t => t.tipo === "grupo").length;
+  const pct = tela.tipo === "final" ? 100
+    : (gruposTotal ? Math.round(feitos / gruposTotal * 100) : 0);
+
+  const progresso = (FORM.config.ocultarProgresso || tela.tipo === "boasVindas") ? ""
+    : `<div class="fp-progresso"><i style="width:${pct}%"></i></div>`;
+  const marca = FORM.config.ocultarMarca ? ""
+    : '<span class="fp-marca">Feito com <b>ORDO Forms</b></span>';
+  const setas = tela.tipo === "final" ? "" : `
+    <button class="fp-seta" data-nav="-1" ${i === 0 ? "disabled" : ""} aria-label="Voltar">‹</button>
+    <button class="fp-seta" data-nav="1" aria-label="Avançar">›</button>`;
+
+  app.innerHTML = `<div class="fp">
+    ${progresso}
+    <div class="fp-corpo">${fRenderTela(tela, { modo: "responder", valores })}</div>
+    <div class="fp-rodape">${setas}${marca}</div>
+  </div>`;
+
+  ligarInteracoes();
+  guardar();
+
+  const primeiro = app.querySelector(".fp-in");
+  if (primeiro && tela.tipo === "grupo") primeiro.focus();
+}
+
+function ligarInteracoes() {
+  // campos de texto / select / data
+  app.querySelectorAll(".fp-q").forEach(bloco => {
+    const qid = bloco.dataset.q;
+    const campo = bloco.querySelector("input.fp-in, textarea.fp-in, select.fp-in");
+    if (campo) campo.addEventListener("input", () => { valores[qid] = campo.value; guardar(); });
+
+    // opções (múltipla escolha, sim/não, imagem)
+    bloco.querySelectorAll(".fp-op").forEach(b => b.addEventListener("click", () => {
+      const q = acharQuestao(qid);
+      const multi = q && q.config && q.config.multiplas;
+      const op = b.dataset.op;
+      if (multi) {
+        const atual = Array.isArray(valores[qid]) ? valores[qid] : [];
+        valores[qid] = atual.includes(op) ? atual.filter(x => x !== op) : [...atual, op];
+        b.classList.toggle("sel", valores[qid].includes(op));
+      } else {
+        valores[qid] = op;
+        bloco.querySelectorAll(".fp-op").forEach(x => x.classList.remove("sel"));
+        b.classList.add("sel");
+      }
+      guardar();
+    }));
+
+    // notas (estrelas, escala, NPS)
+    bloco.querySelectorAll("[data-nota]").forEach(b => b.addEventListener("click", () => {
+      valores[qid] = Number(b.dataset.nota);
+      if (bloco.querySelector(".fp-estrelas")) {
+        bloco.querySelectorAll("[data-nota]").forEach(x =>
+          x.classList.toggle("on", Number(x.dataset.nota) <= valores[qid]));
+      } else {
+        bloco.querySelectorAll("[data-nota]").forEach(x =>
+          x.classList.toggle("sel", Number(x.dataset.nota) === valores[qid]));
+      }
+      guardar();
+    }));
+
+    // matriz
+    bloco.querySelectorAll('input[type="radio"]').forEach(r => r.addEventListener("change", () => {
+      valores[qid] = Object.assign({}, valores[qid]);
+      valores[qid][r.dataset.linha] = r.dataset.col;
+      guardar();
+    }));
+
+    // upload: guardamos o nome do arquivo (o arquivo em si fica com quem responde)
+    const arquivo = bloco.querySelector('input[type="file"]');
+    if (arquivo) arquivo.addEventListener("change", () => {
+      const f = arquivo.files[0];
+      if (!f) return;
+      if (f.size > 15 * 1024 * 1024) return alert("O arquivo excede 15 MB.");
+      valores[qid] = f.name;
+      bloco.querySelector(".fp-arquivo").firstChild.textContent = f.name;
+      guardar();
+    });
+  });
+
+  const iniciarBtn = app.querySelector('[data-acao="iniciar"]');
+  if (iniciarBtn) iniciarBtn.addEventListener("click", avancar);
+  const avancarBtn = app.querySelector('[data-acao="avancar"]');
+  if (avancarBtn) avancarBtn.addEventListener("click", avancar);
+
+  app.querySelectorAll("[data-nav]").forEach(b => b.addEventListener("click", () => {
+    const d = Number(b.dataset.nav);
+    if (d < 0) { if (i > 0) { i--; render(); } }
+    else avancar();
+  }));
+}
+
+function acharQuestao(qid) {
+  for (const g of (FORM.estrutura.grupos || [])) {
+    const q = (g.questoes || []).find(x => x.id === qid);
+    if (q) return q;
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------------- navegação */
+function validar(tela) {
+  if (tela.tipo !== "grupo") return null;
+  for (const q of (tela.dados.questoes || [])) {
+    if (!q.obrigatoria || q.tipo === "declaracao") continue;
+    const v = valores[q.id];
+    const vazio = v == null || v === "" ||
+      (Array.isArray(v) && !v.length) ||
+      (typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length);
+    if (vazio) return `“${q.titulo}” é obrigatória.`;
+    if (q.tipo === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) {
+      return "Informe um e-mail válido.";
+    }
+  }
+  return null;
+}
+
+function proximoIndice(tela) {
+  // lógica de salto: a primeira regra satisfeita manda para o destino dela
+  if (tela.tipo === "grupo") {
+    for (const q of (tela.dados.questoes || [])) {
+      const regras = (q.logica && q.logica.condicoes) || [];
+      const v = valores[q.id];
+      for (const c of regras) {
+        if (c.valor && String(v ?? "").trim().toLowerCase() === String(c.valor).trim().toLowerCase()) {
+          const alvo = TELAS.findIndex(t => t.dados && t.dados.id === c.destino);
+          if (alvo >= 0) return alvo;
+        }
+      }
+    }
+  }
+  return i + 1;
+}
+
+async function avancar() {
+  const tela = TELAS[i];
+
+  const erro = validar(tela);
+  const caixaErro = app.querySelector("[data-erro]");
+  if (erro) {
+    if (caixaErro) { caixaErro.textContent = erro; caixaErro.hidden = false; }
+    return;
+  }
+  if (caixaErro) caixaErro.hidden = true;
+
+  if (!iniciou && tela.tipo === "boasVindas") {
+    iniciou = true;
+    comecouEm = comecouEm || new Date().toISOString();
+    registrar("inicio");
+  }
+  if (!comecouEm) comecouEm = new Date().toISOString();
+
+  const proximo = proximoIndice(tela);
+  const acabou = proximo >= TELAS.length || TELAS[proximo].tipo === "final";
+
+  if (tela.tipo === "grupo") await enviar(acabou ? "completa" : "parcial");
+
+  if (proximo >= TELAS.length) {
+    // sem tela final cadastrada: mostra uma padrão
+    TELAS.push({ tipo: "final", dados: { titulo: "Obrigado pela sua resposta", descricao: "" } });
+  }
+  i = Math.min(proximo, TELAS.length - 1);
+
+  if (TELAS[i].tipo === "final" && FORM.config.salvarProgresso) {
+    try { localStorage.removeItem(CHAVE()); } catch (_) {}
+  }
+  render();
+}
+
+async function enviar(status) {
+  try {
+    const r = await fetch(`/api/publico/forms/${encodeURIComponent(SLUG)}/respostas`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dados: valores, status, resposta_id: respostaId, comecou_em: comecouEm }),
+    });
+    const dados = await r.json();
+    if (r.ok && dados.resposta_id) respostaId = dados.resposta_id;
+  } catch (_) {
+    // rede indisponível: o progresso local segue guardado e será reenviado na próxima ação
+  }
+}
+
+/* Enter avança; Shift+Enter quebra linha nos textos longos */
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.shiftKey) return;
+  if (TELAS.length && TELAS[i] && TELAS[i].tipo !== "final") {
+    e.preventDefault();
+    avancar();
+  }
+});
+
+iniciar();
+</script>
+</body>
+</html>

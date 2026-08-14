@@ -65,7 +65,7 @@ export async function POST(
   const { data: endpoint } = await admin
     .from("form_endpoints")
     .select(
-      "id, workspace_id, pipeline_id, product_id, owner_id, is_active, success_message",
+      "id, workspace_id, name, pipeline_id, product_id, owner_id, is_active, success_message, submissions_count",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -172,13 +172,27 @@ export async function POST(
     });
   }
 
-  if (data.message) {
-    await admin.from("activities").insert({
+  const rawObj = (typeof raw === "object" && raw !== null) ? (raw as Record<string, any>) : {};
+  const answers = rawObj.answers || {};
+
+  // Formatar resumo das respostas para anotação no prontuário do Lead
+  let responsesSummary = "";
+  if (typeof answers === "object" && Object.keys(answers).length > 0) {
+    responsesSummary = Object.entries(answers)
+      .map(([k, v]) => `• ${k}: ${v}`)
+      .join("\n");
+  }
+
+  if (data.message || responsesSummary) {
+    const noteContent = [
+      data.message ? `Mensagem: ${data.message}` : null,
+      responsesSummary ? `Respostas do Formulário (${endpoint.name || "ORDO Forms"}):\n${responsesSummary}` : null,
+    ].filter(Boolean).join("\n\n");
+
+    await admin.from("notes").insert({
       workspace_id: endpoint.workspace_id,
       lead_id: lead.id,
-      type: "message",
-      content: data.message.slice(0, 300),
-      meta: { provider: "form", direction: "inbound" },
+      content: noteContent,
     });
   }
 
@@ -186,12 +200,12 @@ export async function POST(
     workspace_id: endpoint.workspace_id,
     form_endpoint_id: endpoint.id,
     lead_id: lead.id,
-    // Payload sem o honeypot nem métricas de tempo.
     payload: {
       name: data.name,
       phone: data.phone || null,
       email: data.email || null,
       message: data.message || null,
+      answers: answers,
       utm_source: data.utm_source || null,
       utm_medium: data.utm_medium || null,
       utm_campaign: data.utm_campaign || null,
@@ -199,6 +213,19 @@ export async function POST(
     dedupe_hash: hash,
     ip_hash: hashIp(ip),
   });
+
+  // Atualizar contador de submissões
+  try {
+    await admin
+      .from("form_endpoints")
+      .update({
+        submissions_count: ((endpoint as any).submissions_count || 0) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", endpoint.id);
+  } catch (err) {
+    console.error("Erro ao incrementar submissions_count:", err);
+  }
 
   return NextResponse.json({
     ok: true,

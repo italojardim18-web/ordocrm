@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resultados · ORDO Forms</title>
+<link rel="stylesheet" href="assets/ordo.css">
+<link rel="stylesheet" href="assets/forms.css">
+</head>
+<body class="forms-full">
+<div id="topo"></div>
+
+<main style="max-width:1100px; margin:0 auto; padding:var(--s4) var(--s3)">
+  <div class="f-dispositivos" id="abas" style="margin-bottom:var(--s3)">
+    <button data-aba="resumo" class="active">Resumo</button>
+    <button data-aba="respostas">Respostas</button>
+  </div>
+  <div id="conteudo"></div>
+</main>
+
+<script src="assets/forms.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const FORM_ID = Number(new URLSearchParams(location.search).get("id"));
+let FORM = null, RESUMO = null, RESPOSTAS = [], aba = "resumo";
+
+async function carregar() {
+  if (!FORM_ID) { location.href = "formularios.html"; return; }
+  FORM = await FormsAPI.obter(FORM_ID);
+  document.title = `Resultados · ${FORM.nome}`;
+  $("#topo").innerHTML = fTopbar(FORM, "resultados");
+  $("#fTitulo").readOnly = true;
+  $("#fAcoes").innerHTML =
+    '<button class="btn btn-sm btn-escuro" id="btnCSV">Baixar CSV</button>';
+  $("#btnCSV").addEventListener("click", baixarCSV);
+  await Promise.all([carregarResumo(), carregarRespostas()]);
+  render();
+}
+
+async function carregarResumo() { RESUMO = await FormsAPI.resumo(FORM_ID); }
+async function carregarRespostas(q) { RESPOSTAS = await FormsAPI.respostas(FORM_ID, q); }
+
+function tempo(seg) {
+  if (seg == null) return "–";
+  if (seg < 60) return `${seg}s`;
+  return `${Math.floor(seg / 60)}min ${seg % 60}s`;
+}
+
+function render() { aba === "resumo" ? renderResumo() : renderRespostas(); }
+
+/* ---------------------------------------------------------------- resumo */
+function renderResumo() {
+  const r = RESUMO;
+  const kpis = [
+    [r.visualizacoes, "Visualizações"],
+    [r.inicios, "Inícios"],
+    [r.respostas, "Respostas"],
+    [`${r.taxa_conclusao}%`, "Taxa de conclusão"],
+    [tempo(r.tempo_medio), "Tempo para concluir"],
+  ];
+
+  const blocos = r.questoes.map(q => {
+    if (q.tipo === "grupo") {
+      return `<div class="f-q-resumo" style="background:var(--card-2)">
+        <div class="cab"><span class="f-selo grupo">B</span>
+          <span class="tit" style="font-weight:600">${fEsc(q.titulo)}</span>
+          <span class="met">${q.respostas} resposta${q.respostas === 1 ? "" : "s"}</span></div>
+      </div>`;
+    }
+    let detalhe = "";
+    if (q.distribuicao && q.distribuicao.length) {
+      const max = Math.max(...q.distribuicao.map(d => d.total)) || 1;
+      detalhe = q.distribuicao.map(d => `<div class="f-barra-dist">
+        <span class="rot">${fEsc(d.rotulo)}</span>
+        <span class="trilho"><span class="preenche" style="width:${d.total / max * 100}%"></span></span>
+        <span class="n">${d.total}</span></div>`).join("");
+    } else if (q.media != null) {
+      detalhe = `<div class="f-barra-dist" style="margin-top:12px">
+        <span class="rot">Média</span>
+        <span class="big-num" style="font-size:22px">${q.media}</span></div>`;
+    } else if (q.exemplos && q.exemplos.length) {
+      detalhe = q.exemplos.map(e => `<div class="muted"
+        style="font-size:12.5px; margin-top:8px; padding-left:12px; border-left:2px solid var(--line)">
+        ${fEsc(e)}</div>`).join("");
+    }
+    return `<div class="f-q-resumo">
+      <div class="cab">${fSelo(q.tipo)}
+        <span class="tit">${fEsc(q.titulo)}</span>
+        <span class="met">${q.respostas} resposta${q.respostas === 1 ? "" : "s"}</span></div>
+      ${detalhe}
+    </div>`;
+  }).join('<div class="f-seta">↓</div>');
+
+  $("#conteudo").innerHTML = `
+    <div class="f-kpis-faixa mb3">
+      ${kpis.map(([v, rot]) => `<div><div class="v">${v}</div><div class="r">${rot}</div></div>`).join("")}
+    </div>
+    ${r.parciais ? `<div class="muted" style="font-size:12.5px; margin-bottom:14px">
+      ${r.parciais} resposta${r.parciais === 1 ? "" : "s"} parcia${r.parciais === 1 ? "l" : "is"}
+      (alguém começou e não terminou) — aparecem na aba Respostas.</div>` : ""}
+    <div class="f-rotulo">Resumo das respostas</div>
+    ${blocos || '<div class="painel vazio">Este formulário ainda não tem questões.</div>'}`;
+}
+
+/* ---------------------------------------------------------------- respostas */
+function questoesLineares() {
+  const out = [];
+  (FORM.estrutura.grupos || []).forEach(g => (g.questoes || []).forEach(q => {
+    if (q.tipo !== "declaracao") out.push(q);
+  }));
+  return out;
+}
+
+function celula(v) {
+  if (v == null || v === "") return "–";
+  if (Array.isArray(v)) return fEsc(v.join(", "));
+  if (typeof v === "object") return fEsc(Object.entries(v).map(([k, x]) => `${k}: ${x}`).join(" · "));
+  return fEsc(v);
+}
+
+function renderRespostas() {
+  const questoes = questoesLineares();
+  $("#conteudo").innerHTML = `
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px">
+      <input class="input" id="buscaResp" placeholder="Pesquisar nas respostas…" style="max-width:320px">
+      <span class="muted" style="font-size:12.5px">${RESPOSTAS.length} resposta${RESPOSTAS.length === 1 ? "" : "s"}</span>
+    </div>
+    ${RESPOSTAS.length ? `<div class="f-tabela-wrap"><table class="f-tabela">
+      <thead><tr>
+        <th>Começou às</th><th>Enviado às</th><th>Status</th>
+        ${questoes.map(q => `<th>${fEsc(q.titulo)}</th>`).join("")}
+        <th></th>
+      </tr></thead>
+      <tbody>${RESPOSTAS.map(r => `<tr>
+        <td>${fEsc(dataHora(r.comecou_em))}</td>
+        <td>${r.enviado_em ? fEsc(dataHora(r.enviado_em)) : "–"}</td>
+        <td><span class="chip ${r.status === "completa" ? "ok" : "warn"}">
+          ${r.status === "completa" ? "Completa" : "Parcial"}</span></td>
+        ${questoes.map(q => `<td title="${fEsc(String(r.dados[q.id] ?? ""))}">${celula(r.dados[q.id])}</td>`).join("")}
+        <td><button class="f-kebab" data-excluir="${r.id}" title="Excluir resposta">🗑</button></td>
+      </tr>`).join("")}</tbody>
+    </table></div>`
+    : `<div class="painel vazio">
+        <div class="hint">Nenhuma resposta ainda.</div>
+        <div style="margin-top:8px">Compartilhe o link e as respostas aparecem aqui.</div>
+      </div>`}`;
+
+  const busca = $("#buscaResp");
+  if (busca) busca.addEventListener("input", () => {
+    clearTimeout(window._bt);
+    window._bt = setTimeout(async () => {
+      await carregarRespostas(busca.value.trim());
+      renderRespostas();
+      const novo = $("#buscaResp");
+      novo.value = busca.value;
+      novo.focus();
+    }, 250);
+  });
+
+  document.querySelectorAll("[data-excluir]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("Excluir esta resposta? A ação não pode ser desfeita.")) return;
+    await FormsAPI.excluirResposta(Number(b.dataset.excluir));
+    await Promise.all([carregarResumo(), carregarRespostas()]);
+    renderRespostas();
+    fToast("Resposta excluída.");
+  }));
+}
+
+function dataHora(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit" });
+}
+
+function baixarCSV() {
+  if (!RESPOSTAS.length) return fToast("Ainda não há respostas para exportar.");
+  const questoes = questoesLineares();
+  const cel = (v) => {
+    if (v == null) return '""';
+    const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const linhas = [
+    ["Começou em", "Enviado em", "Status", ...questoes.map(q => q.titulo)].map(cel).join(";"),
+    ...RESPOSTAS.map(r => [r.comecou_em, r.enviado_em || "", r.status,
+      ...questoes.map(q => r.dados[q.id])].map(cel).join(";")),
+  ];
+  const blob = new Blob(["﻿" + linhas.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${FORM.nome.replace(/[^\wÀ-ÿ -]/g, "")}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-aba]").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  aba = b.dataset.aba;
+  render();
+}));
+
+carregar();
+</script>
+</body>
+</html>

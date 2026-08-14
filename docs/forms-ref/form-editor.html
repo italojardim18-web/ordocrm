@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor · ORDO Forms</title>
+<link rel="stylesheet" href="assets/ordo.css">
+<link rel="stylesheet" href="assets/forms.css">
+</head>
+<body class="forms-full">
+<div id="topo"></div>
+
+<div class="f-editor">
+  <!-- ============================ COLUNA ESQUERDA ============================ -->
+  <div class="f-col esq">
+    <div class="f-tabs">
+      <button data-aba="conteudo" class="active">Conteúdo</button>
+      <button data-aba="design">Design</button>
+      <button data-aba="config">Configurações</button>
+    </div>
+    <div class="f-col-pad" id="painelEsq"></div>
+  </div>
+
+  <!-- ============================ CANVAS ============================ -->
+  <div class="f-canvas">
+    <div class="f-dispositivos" id="dispositivos">
+      <button data-d="desktop" class="active">Desktop</button>
+      <button data-d="tablet">Tablet</button>
+      <button data-d="celular">Celular</button>
+    </div>
+    <div class="f-moldura" id="moldura" data-disp="desktop">
+      <div class="barra"><i></i><i></i><i></i></div>
+      <div class="f-tela" id="preview"></div>
+    </div>
+  </div>
+
+  <!-- ============================ COLUNA DIREITA ============================ -->
+  <div class="f-col dir">
+    <div class="f-tabs">
+      <button data-abad="questao" class="active">Questão</button>
+      <button data-abad="logica">Lógica</button>
+    </div>
+    <div class="f-col-pad" id="painelDir"></div>
+  </div>
+</div>
+
+<div class="f-tipos" id="seletorTipos"></div>
+
+<script src="assets/forms.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const FORM_ID = Number(params.get("id"));
+
+let FORM = null;          // formulário carregado do servidor
+let sel = null;           // { tipo: 'boasVindas' | 'grupo' | 'questao' | 'final', gid, qid }
+let abaEsq = "conteudo", abaDir = "questao";
+let sujo = false, salvando = false;
+
+/* ================================================================ carga */
+async function carregar() {
+  if (!FORM_ID) { location.href = "formularios.html"; return; }
+  FORM = await FormsAPI.obter(FORM_ID);
+  if (!FORM.estrutura.grupos) FORM.estrutura.grupos = [];
+  sel = { tipo: "boasVindas" };
+  document.title = `${FORM.nome} · ORDO Forms`;
+  montarTopo();
+  renderTudo();
+}
+
+function montarTopo() {
+  $("#topo").innerHTML = fTopbar(FORM, "editar");
+  $("#fAcoes").innerHTML = `
+    <span class="muted" id="estadoSalvo" style="font-size:11.5px; color:#8b7d74"></span>
+    <button class="btn btn-sm btn-escuro" id="btnPrever">Testar</button>
+    <button class="btn btn-sm btn-brass" id="btnPublicar">
+      ${FORM.status === "publicado" ? "Publicar alterações" : "Publicar"}</button>`;
+
+  $("#fTitulo").addEventListener("input", (e) => { FORM.nome = e.target.value; marcarSujo(); });
+  $("#btnPrever").addEventListener("click", () => {
+    if (FORM.status !== "publicado") return fToast("Publique o formulário para abrir o link público.");
+    window.open(`f.html?f=${FORM.slug}`, "_blank");
+  });
+  $("#btnPublicar").addEventListener("click", publicar);
+}
+
+function marcarSujo() {
+  sujo = true;
+  $("#estadoSalvo").textContent = "Alterações não salvas";
+  clearTimeout(window._salvarTmr);
+  window._salvarTmr = setTimeout(salvar, 900);
+}
+
+async function salvar() {
+  if (!sujo || salvando) return;
+  salvando = true;
+  $("#estadoSalvo").textContent = "Salvando…";
+  try {
+    await FormsAPI.salvar(FORM.id, {
+      nome: FORM.nome, estrutura: FORM.estrutura, tema: FORM.tema, config: FORM.config,
+    });
+    sujo = false;
+    $("#estadoSalvo").textContent = "Salvo";
+    setTimeout(() => { if (!sujo) $("#estadoSalvo").textContent = ""; }, 2200);
+  } catch (e) {
+    $("#estadoSalvo").textContent = "Erro ao salvar";
+    fToast(e.message);
+  }
+  salvando = false;
+}
+
+async function publicar() {
+  await salvar();
+  FORM = await FormsAPI.salvar(FORM.id, { status: "publicado" });
+  $("#fStatus").className = "f-chip-status publicado";
+  $("#fStatus").textContent = "Publicado";
+  $("#btnPublicar").textContent = "Publicar alterações";
+  fToast("Formulário publicado. O link já está no ar.");
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (sujo) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ================================================================ render */
+function renderTudo() {
+  renderEsq();
+  renderDir();
+  renderPreview();
+}
+
+/* ---------------------------------------------------------------- esquerda */
+function renderEsq() {
+  if (abaEsq === "conteudo") return renderConteudo();
+  if (abaEsq === "design") return renderDesign();
+  return renderConfig();
+}
+
+function renderConteudo() {
+  const e = FORM.estrutura;
+  let n = 0;
+  const grupos = (e.grupos || []).map((g, gi) => {
+    n++;
+    const cabecalho = `<div class="f-bloco grupo ${ehSel("grupo", g.id) ? "sel" : ""}"
+      data-sel-grupo="${g.id}">
+      <span class="f-selo grupo">${n}</span>
+      <span class="txt">${fEsc(g.titulo || "Bloco sem título")}</span>
+      <span class="arrasta" data-mover-grupo="${gi}" title="Reordenar">⇅</span>
+    </div>`;
+    const questoes = (g.questoes || []).map((q, qi) => {
+      n++;
+      return `<div class="f-bloco ${ehSel("questao", q.id) ? "sel" : ""}"
+        data-sel-questao="${q.id}" data-gid="${g.id}">
+        ${fSelo(q.tipo, n)}
+        <span class="txt">${fEsc(q.titulo || "Sem título")}</span>
+        <span class="arrasta" data-mover-questao="${gi}:${qi}" title="Reordenar">⇅</span>
+      </div>`;
+    }).join("");
+    return cabecalho + questoes +
+      `<button class="f-add" data-add-questao="${g.id}">+ Adicionar questão</button>`;
+  }).join("");
+
+  $("#painelEsq").innerHTML = `
+    <div class="f-rotulo">Tela de boas-vindas</div>
+    <div class="f-bloco ${ehSel("boasVindas") ? "sel" : ""}" data-sel-bv="1">
+      <span class="f-selo grupo">★</span>
+      <span class="txt">${fEsc(e.boasVindas ? e.boasVindas.titulo : "Sem tela de boas-vindas")}</span>
+    </div>
+
+    <div class="f-rotulo">Questões</div>
+    ${grupos || '<div class="muted" style="font-size:12.5px; padding:6px 2px">Nenhum bloco ainda.</div>'}
+    <button class="f-add" data-add-grupo="1">+ Adicionar bloco</button>
+
+    <div class="f-rotulo">Telas finais</div>
+    ${(e.telasFinais || []).map(t => `<div class="f-bloco ${ehSel("final", t.id) ? "sel" : ""}"
+        data-sel-final="${t.id}">
+        <span class="f-selo estrutura">TF</span>
+        <span class="txt">${fEsc(t.titulo || "Tela final")}</span>
+      </div>`).join("")}
+    <button class="f-add" data-add-final="1">+ Adicionar tela final</button>`;
+
+  // seleção
+  $("#painelEsq").querySelectorAll("[data-sel-bv]").forEach(el =>
+    el.addEventListener("click", () => selecionar({ tipo: "boasVindas" })));
+  $("#painelEsq").querySelectorAll("[data-sel-grupo]").forEach(el =>
+    el.addEventListener("click", (ev) => {
+      if (ev.target.dataset.moverGrupo !== undefined) return;
+      selecionar({ tipo: "grupo", gid: el.dataset.selGrupo });
+    }));
+  $("#painelEsq").querySelectorAll("[data-sel-questao]").forEach(el =>
+    el.addEventListener("click", (ev) => {
+      if (ev.target.dataset.moverQuestao !== undefined) return;
+      selecionar({ tipo: "questao", gid: el.dataset.gid, qid: el.dataset.selQuestao });
+    }));
+  $("#painelEsq").querySelectorAll("[data-sel-final]").forEach(el =>
+    el.addEventListener("click", () => selecionar({ tipo: "final", fid: el.dataset.selFinal })));
+
+  // adicionar
+  $("#painelEsq").querySelectorAll("[data-add-questao]").forEach(b =>
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); abrirSeletorTipos(b, b.dataset.addQuestao); }));
+  $("#painelEsq").querySelector("[data-add-grupo]").addEventListener("click", addGrupo);
+  $("#painelEsq").querySelector("[data-add-final]").addEventListener("click", addFinal);
+
+  // reordenar (clique move para baixo, shift+clique move para cima)
+  $("#painelEsq").querySelectorAll("[data-mover-grupo]").forEach(el =>
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      moverArray(FORM.estrutura.grupos, Number(el.dataset.moverGrupo), ev.shiftKey ? -1 : 1);
+    }));
+  $("#painelEsq").querySelectorAll("[data-mover-questao]").forEach(el =>
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const [gi, qi] = el.dataset.moverQuestao.split(":").map(Number);
+      moverArray(FORM.estrutura.grupos[gi].questoes, qi, ev.shiftKey ? -1 : 1);
+    }));
+}
+
+function moverArray(arr, i, delta) {
+  const j = i + delta;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  marcarSujo();
+  renderTudo();
+}
+
+function ehSel(tipo, id) {
+  if (!sel || sel.tipo !== tipo) return false;
+  if (tipo === "boasVindas") return true;
+  if (tipo === "grupo") return sel.gid === id;
+  if (tipo === "questao") return sel.qid === id;
+  if (tipo === "final") return sel.fid === id;
+  return false;
+}
+
+function selecionar(novo) { sel = novo; renderTudo(); }
+
+/* ---------------------------------------------------------------- design */
+function renderDesign() {
+  const t = FORM.tema;
+  const cor = (rot, chave) => `<div class="f-linha">
+    <span class="rot">${rot}</span>
+    <span class="f-cor"><input type="color" value="${t[chave] || "#000000"}" data-cor="${chave}"></span>
+  </div>`;
+
+  $("#painelEsq").innerHTML = `
+    <div class="f-rotulo">Página</div>
+    ${cor("Fundo", "fundo")}
+    <div class="f-campo" style="margin-top:14px">
+      <label>Nome da fonte</label>
+      <select class="f-select" data-tema="fonte">
+        ${["Inter", "Bodoni", "Arial", "Georgia", "Helvetica"].map(f =>
+          `<option ${t.fonte === f ? "selected" : ""}>${f}</option>`).join("")}
+      </select>
+    </div>
+    <div class="f-linha">
+      <span class="rot">Tamanho da fonte</span>
+      <span class="f-tam">${["P", "M", "G"].map(x =>
+        `<button class="${t.tamanho === x ? "active" : ""}" data-tam="${x}">${x}</button>`).join("")}</span>
+    </div>
+    <div class="f-linha">
+      <span class="rot">Títulos com serifa<br><span class="muted" style="font-size:11px">Bodoni, como na marca</span></span>
+      <button class="f-toggle ${t.serifTitulos ? "on" : ""}" data-tema-bool="serifTitulos"></button>
+    </div>
+
+    <div class="f-rotulo">Questão</div>
+    ${cor("Títulos e textos", "corTitulo")}
+    ${cor("Respostas", "corResposta")}
+
+    <div class="f-rotulo">Botão</div>
+    ${cor("Fundo", "botaoFundo")}
+    ${cor("Texto", "botaoTexto")}
+    <div class="f-campo" style="margin-top:14px">
+      <label>Cantos</label>
+      <div class="f-cantos">
+        ${["reto", "medio", "redondo"].map(c =>
+          `<button class="${t.cantos === c ? "active" : ""}" data-canto="${c}"></button>`).join("")}
+      </div>
+    </div>
+
+    <div class="f-rotulo">Predefinições</div>
+    <button class="f-add" data-preset="ordo">Aplicar identidade ORDO</button>
+    <button class="f-add" data-preset="escuro">Aplicar tema escuro</button>`;
+
+  $("#painelEsq").querySelectorAll("[data-cor]").forEach(i =>
+    i.addEventListener("input", () => { FORM.tema[i.dataset.cor] = i.value; marcarSujo(); renderPreview(); }));
+  $("#painelEsq").querySelector("[data-tema=fonte]").addEventListener("change", (e) => {
+    FORM.tema.fonte = e.target.value; marcarSujo(); renderPreview();
+  });
+  $("#painelEsq").querySelectorAll("[data-tam]").forEach(b =>
+    b.addEventListener("click", () => { FORM.tema.tamanho = b.dataset.tam; marcarSujo(); renderEsq(); renderPreview(); }));
+  $("#painelEsq").querySelectorAll("[data-canto]").forEach(b =>
+    b.addEventListener("click", () => { FORM.tema.cantos = b.dataset.canto; marcarSujo(); renderEsq(); renderPreview(); }));
+  $("#painelEsq").querySelector("[data-tema-bool]").addEventListener("click", (e) => {
+    FORM.tema.serifTitulos = !FORM.tema.serifTitulos;
+    e.currentTarget.classList.toggle("on", FORM.tema.serifTitulos);
+    marcarSujo(); renderPreview();
+  });
+  $("#painelEsq").querySelectorAll("[data-preset]").forEach(b =>
+    b.addEventListener("click", () => {
+      FORM.tema = b.dataset.preset === "ordo"
+        ? { fundo: "#F2EEE7", fonte: "Inter", tamanho: "M", corTitulo: "#2A2320",
+            corResposta: "#7C726A", botaoFundo: "#521D2A", botaoTexto: "#FFFFFF",
+            cantos: "medio", serifTitulos: true }
+        : { fundo: "#291015", fonte: "Inter", tamanho: "M", corTitulo: "#F2EEE7",
+            corResposta: "#B6AEA4", botaoFundo: "#B2966F", botaoTexto: "#291015",
+            cantos: "medio", serifTitulos: true };
+      marcarSujo(); renderEsq(); renderPreview();
+    }));
+}
+
+/* ---------------------------------------------------------------- config */
+function renderConfig() {
+  const c = FORM.config;
+  const alterna = (rot, chave, dica) => `<div class="f-linha">
+    <span class="rot">${rot}${dica ? `<br><span class="muted" style="font-size:11px">${dica}</span>` : ""}</span>
+    <button class="f-toggle ${c[chave] ? "on" : ""}" data-cfg="${chave}"></button>
+  </div>`;
+
+  $("#painelEsq").innerHTML = `
+    <div class="f-rotulo">Configurações do formulário</div>
+    <div class="f-campo">
+      <label>Idioma</label>
+      <select class="f-select" data-cfg-txt="idioma">
+        <option value="pt-BR" ${c.idioma === "pt-BR" ? "selected" : ""}>Português (Brasil)</option>
+        <option value="en" ${c.idioma === "en" ? "selected" : ""}>English</option>
+        <option value="es" ${c.idioma === "es" ? "selected" : ""}>Español</option>
+      </select>
+    </div>
+    ${alterna("Ocultar barra de progresso", "ocultarProgresso")}
+    ${alterna("Salvar progresso automaticamente", "salvarProgresso", "Mantém as respostas se a pessoa sair no meio")}
+    ${alterna("Ocultar “Feito com ORDO Forms”", "ocultarMarca")}
+
+    <div class="f-rotulo">Acesso</div>
+    ${alterna("Fechar para novas respostas", "fechado", "O link continua no ar, mas não aceita envios")}
+
+    <div class="f-rotulo">Meta tags</div>
+    <div class="f-campo">
+      <label>Título</label>
+      <input class="f-input" data-cfg-txt="metaTitulo" value="${fEsc(c.metaTitulo || "")}"
+        placeholder="Insira o título">
+    </div>
+    <div class="f-campo">
+      <label>Descrição</label>
+      <textarea class="f-textarea" data-cfg-txt="metaDescricao"
+        placeholder="Insira a descrição">${fEsc(c.metaDescricao || "")}</textarea>
+    </div>`;
+
+  $("#painelEsq").querySelectorAll("[data-cfg]").forEach(b =>
+    b.addEventListener("click", () => {
+      FORM.config[b.dataset.cfg] = !FORM.config[b.dataset.cfg];
+      b.classList.toggle("on", FORM.config[b.dataset.cfg]);
+      marcarSujo(); renderPreview();
+    }));
+  $("#painelEsq").querySelectorAll("[data-cfg-txt]").forEach(i =>
+    i.addEventListener("input", () => { FORM.config[i.dataset.cfgTxt] = i.value; marcarSujo(); }));
+}
+
+/* ---------------------------------------------------------------- direita */
+function acharGrupo(gid) { return (FORM.estrutura.grupos || []).find(g => g.id === gid); }
+function acharQuestao(gid, qid) {
+  const g = acharGrupo(gid);
+  return g ? (g.questoes || []).find(q => q.id === qid) : null;
+}
+
+function renderDir() {
+  if (abaDir === "logica") return renderLogica();
+  if (!sel) { $("#painelDir").innerHTML = ""; return; }
+
+  if (sel.tipo === "boasVindas") return renderDirBoasVindas();
+  if (sel.tipo === "final") return renderDirFinal();
+  if (sel.tipo === "grupo") return renderDirGrupo();
+  return renderDirQuestao();
+}
+
+function campoTexto(rot, valor, ref, multi) {
+  return `<div class="f-campo"><label>${rot}</label>
+    ${multi ? `<textarea class="f-textarea" data-ref="${ref}">${fEsc(valor || "")}</textarea>`
+            : `<input class="f-input" data-ref="${ref}" value="${fEsc(valor || "")}">`}</div>`;
+}
+
+function ligarCampos(alvo) {
+  $("#painelDir").querySelectorAll("[data-ref]").forEach(i =>
+    i.addEventListener("input", () => {
+      alvo[i.dataset.ref] = i.value;
+      marcarSujo(); renderPreview(); renderEsq();
+    }));
+}
+
+function renderDirBoasVindas() {
+  const bv = FORM.estrutura.boasVindas || (FORM.estrutura.boasVindas = { titulo: "", descricao: "", botao: "Começar" });
+  $("#painelDir").innerHTML = `
+    <div class="f-rotulo">Tela de boas-vindas</div>
+    ${campoTexto("Título", bv.titulo, "titulo")}
+    ${campoTexto("Descrição", bv.descricao, "descricao", true)}
+    ${campoTexto("Texto do botão", bv.botao, "botao")}`;
+  ligarCampos(bv);
+}
+
+function renderDirFinal() {
+  const tf = (FORM.estrutura.telasFinais || []).find(t => t.id === sel.fid);
+  if (!tf) return ($("#painelDir").innerHTML = "");
+  $("#painelDir").innerHTML = `
+    <div class="f-rotulo">Tela final</div>
+    <div class="f-campo"><label>ID</label>
+      <input class="f-input readonly" value="${fEsc(tf.id)}" readonly></div>
+    ${campoTexto("Título", tf.titulo, "titulo")}
+    ${campoTexto("Descrição", tf.descricao, "descricao", true)}
+    <button class="f-add" style="border-color:var(--danger-bg); color:var(--danger-fg)"
+      id="excluirBloco">Excluir tela final</button>`;
+  ligarCampos(tf);
+  $("#excluirBloco").addEventListener("click", () => {
+    FORM.estrutura.telasFinais = FORM.estrutura.telasFinais.filter(t => t.id !== tf.id);
+    sel = { tipo: "boasVindas" };
+    marcarSujo(); renderTudo();
+  });
+}
+
+function renderDirGrupo() {
+  const g = acharGrupo(sel.gid);
+  if (!g) return ($("#painelDir").innerHTML = "");
+  $("#painelDir").innerHTML = `
+    <div class="f-rotulo">Bloco de questões</div>
+    <div class="f-campo"><label>ID</label>
+      <input class="f-input readonly" value="${fEsc(g.id)}" readonly></div>
+    ${campoTexto("Título do bloco", g.titulo, "titulo")}
+    ${campoTexto("Descrição", g.descricao, "descricao", true)}
+    <div class="muted" style="font-size:12px; line-height:1.5; margin-bottom:14px">
+      As questões deste bloco aparecem juntas, em uma única tela.</div>
+    <button class="f-add" style="border-color:var(--danger-bg); color:var(--danger-fg)"
+      id="excluirBloco">Excluir bloco e suas questões</button>`;
+  ligarCampos(g);
+  $("#excluirBloco").addEventListener("click", () => {
+    if (!confirm(`Excluir o bloco "${g.titulo}" e suas ${(g.questoes || []).length} questões?`)) return;
+    FORM.estrutura.grupos = FORM.estrutura.grupos.filter(x => x.id !== g.id);
+    sel = { tipo: "boasVindas" };
+    marcarSujo(); renderTudo();
+  });
+}
+
+function renderDirQuestao() {
+  const q = acharQuestao(sel.gid, sel.qid);
+  if (!q) return ($("#painelDir").innerHTML = "");
+  const t = F_TIPOS[q.tipo] || {};
+  q.config = q.config || {};
+
+  let extras = "";
+  if (t.opcoes && q.tipo !== "matriz") {
+    extras += `<div class="f-rotulo">Opções</div>
+      <div id="listaOpcoes">${(q.opcoes || []).map((op, i) => `
+        <div class="f-opcao">
+          <input class="f-input" data-opcao="${i}" value="${fEsc(typeof op === "string" ? op : op.rotulo)}">
+          <button class="f-x" data-remove-opcao="${i}">&times;</button>
+        </div>`).join("")}</div>
+      <button class="f-add" id="addOpcao">+ Adicionar opção</button>`;
+  }
+  if (q.tipo === "multipla_escolha") {
+    extras += `<div class="f-linha"><span class="rot">Permitir várias respostas</span>
+      <button class="f-toggle ${q.config.multiplas ? "on" : ""}" data-qcfg="multiplas"></button></div>`;
+  }
+  if (q.tipo === "matriz") {
+    extras += `<div class="f-rotulo">Linhas</div>
+      <div class="f-campo"><textarea class="f-textarea" data-qcfg-lista="linhas"
+        placeholder="Uma por linha">${fEsc((q.config.linhas || []).join("\n"))}</textarea></div>
+      <div class="f-rotulo">Colunas</div>
+      <div class="f-campo"><textarea class="f-textarea" data-qopcoes-lista="1"
+        placeholder="Uma por linha">${fEsc((q.opcoes || []).join("\n"))}</textarea></div>`;
+  }
+  if (q.tipo === "avaliacao") {
+    extras += `<div class="f-campo"><label>Número de estrelas</label>
+      <select class="f-select" data-qcfg-num="max">
+        ${[3, 4, 5, 7, 10].map(n => `<option ${Number(q.config.max || 5) === n ? "selected" : ""}>${n}</option>`).join("")}
+      </select></div>`;
+  }
+  if (q.tipo === "escala_opiniao") {
+    extras += `<div class="grid-2" style="gap:10px">
+        <div class="f-campo"><label>De</label>
+          <input class="f-input" type="number" data-qcfg-num="de" value="${q.config.de ?? 1}"></div>
+        <div class="f-campo"><label>Até</label>
+          <input class="f-input" type="number" data-qcfg-num="ate" value="${q.config.ate ?? 10}"></div>
+      </div>
+      <div class="f-campo"><label>Rótulo à esquerda</label>
+        <input class="f-input" data-qcfg="rotuloEsq" value="${fEsc(q.config.rotuloEsq || "")}"></div>
+      <div class="f-campo"><label>Rótulo à direita</label>
+        <input class="f-input" data-qcfg="rotuloDir" value="${fEsc(q.config.rotuloDir || "")}"></div>`;
+  }
+  if (q.tipo === "numero") {
+    extras += `<div class="f-campo"><label>Prefixo (ex.: R$)</label>
+      <input class="f-input" data-qcfg="prefixo" value="${fEsc(q.config.prefixo || "")}"></div>`;
+  }
+
+  $("#painelDir").innerHTML = `
+    <div class="f-campo"><label>Tipo</label>
+      <select class="f-select" id="tipoQuestao">
+        ${F_CATEGORIAS.map(([cat, tipos]) => `<optgroup label="${cat}">
+          ${tipos.map(k => `<option value="${k}" ${q.tipo === k ? "selected" : ""}>${F_TIPOS[k].rot}</option>`).join("")}
+        </optgroup>`).join("")}
+      </select></div>
+    <div class="f-campo"><label>ID</label>
+      <input class="f-input readonly" value="${fEsc(q.id)}" readonly></div>
+    ${campoTexto("Pergunta", q.titulo, "titulo")}
+    ${campoTexto("Descrição", q.descricao, "descricao", true)}
+
+    <div class="f-rotulo">Configurações</div>
+    <div class="f-linha"><span class="rot">Preenchimento obrigatório</span>
+      <button class="f-toggle ${q.obrigatoria ? "on" : ""}" data-obrig="1"></button></div>
+    ${extras}
+
+    <div style="margin-top:22px">
+      <button class="f-add" id="duplicarQuestao">Duplicar questão</button>
+      <button class="f-add" style="border-color:var(--danger-bg); color:var(--danger-fg)"
+        id="excluirQuestao">Excluir questão</button>
+    </div>`;
+
+  ligarCampos(q);
+
+  $("#tipoQuestao").addEventListener("change", (e) => {
+    q.tipo = e.target.value;
+    if (F_TIPOS[q.tipo].opcoes && !(q.opcoes || []).length) q.opcoes = ["Opção 1", "Opção 2"];
+    marcarSujo(); renderTudo();
+  });
+  $("#painelDir").querySelector("[data-obrig]").addEventListener("click", (e) => {
+    q.obrigatoria = !q.obrigatoria;
+    e.currentTarget.classList.toggle("on", q.obrigatoria);
+    marcarSujo(); renderPreview();
+  });
+  $("#painelDir").querySelectorAll("[data-qcfg]").forEach(i =>
+    i.addEventListener("input", () => { q.config[i.dataset.qcfg] = i.value; marcarSujo(); renderPreview(); }));
+  $("#painelDir").querySelectorAll("[data-qcfg-num]").forEach(i =>
+    i.addEventListener("input", () => { q.config[i.dataset.qcfgNum] = Number(i.value); marcarSujo(); renderPreview(); }));
+  $("#painelDir").querySelectorAll("[data-qcfg-lista]").forEach(i =>
+    i.addEventListener("input", () => {
+      q.config[i.dataset.qcfgLista] = i.value.split("\n").filter(x => x.trim());
+      marcarSujo(); renderPreview();
+    }));
+  const colunas = $("#painelDir").querySelector("[data-qopcoes-lista]");
+  if (colunas) colunas.addEventListener("input", () => {
+    q.opcoes = colunas.value.split("\n").filter(x => x.trim());
+    marcarSujo(); renderPreview();
+  });
+  const multiplas = $("#painelDir").querySelector("[data-qcfg=multiplas]");
+  if (multiplas) multiplas.addEventListener("click", (e) => {
+    q.config.multiplas = !q.config.multiplas;
+    e.currentTarget.classList.toggle("on", q.config.multiplas);
+    marcarSujo(); renderPreview();
+  });
+  $("#painelDir").querySelectorAll("[data-opcao]").forEach(i =>
+    i.addEventListener("input", () => {
+      q.opcoes[Number(i.dataset.opcao)] = i.value;
+      marcarSujo(); renderPreview();
+    }));
+  $("#painelDir").querySelectorAll("[data-remove-opcao]").forEach(b =>
+    b.addEventListener("click", () => {
+      q.opcoes.splice(Number(b.dataset.removeOpcao), 1);
+      marcarSujo(); renderDir(); renderPreview();
+    }));
+  const addOp = $("#addOpcao");
+  if (addOp) addOp.addEventListener("click", () => {
+    q.opcoes = q.opcoes || [];
+    q.opcoes.push(`Opção ${q.opcoes.length + 1}`);
+    marcarSujo(); renderDir(); renderPreview();
+  });
+  $("#duplicarQuestao").addEventListener("click", () => {
+    const g = acharGrupo(sel.gid);
+    const copia = JSON.parse(JSON.stringify(q));
+    copia.id = fNovoId("q");
+    g.questoes.splice(g.questoes.indexOf(q) + 1, 0, copia);
+    sel = { tipo: "questao", gid: g.id, qid: copia.id };
+    marcarSujo(); renderTudo();
+  });
+  $("#excluirQuestao").addEventListener("click", () => {
+    const g = acharGrupo(sel.gid);
+    g.questoes = g.questoes.filter(x => x.id !== q.id);
+    sel = { tipo: "grupo", gid: g.id };
+    marcarSujo(); renderTudo();
+  });
+}
+
+function renderLogica() {
+  const q = sel && sel.tipo === "questao" ? acharQuestao(sel.gid, sel.qid) : null;
+  if (!q) {
+    $("#painelDir").innerHTML = `<div class="muted" style="font-size:13px; line-height:1.6; padding:8px 2px">
+      Selecione uma questão para definir uma regra de salto.</div>`;
+    return;
+  }
+  q.logica = q.logica || { condicoes: [] };
+  const destinos = [
+    ...(FORM.estrutura.grupos || []).map(g => ({ id: g.id, rot: `Bloco · ${g.titulo || g.id}` })),
+    ...(FORM.estrutura.telasFinais || []).map(t => ({ id: t.id, rot: `Final · ${t.titulo || t.id}` })),
+  ];
+
+  $("#painelDir").innerHTML = `
+    <div class="f-rotulo">Lógica de salto</div>
+    <div class="muted" style="font-size:12px; line-height:1.55; margin-bottom:14px">
+      Quando esta questão for respondida com o valor abaixo, quem responde vai direto
+      para a tela escolhida.</div>
+    <div id="regras">${(q.logica.condicoes || []).map((c, i) => `
+      <div class="painel" style="padding:12px; margin-bottom:10px; border-radius:10px">
+        <div class="f-campo" style="margin-bottom:8px"><label>Se a resposta for</label>
+          <input class="f-input" data-regra-valor="${i}" value="${fEsc(c.valor || "")}"></div>
+        <div class="f-campo" style="margin-bottom:8px"><label>Ir para</label>
+          <select class="f-select" data-regra-destino="${i}">
+            ${destinos.map(d => `<option value="${d.id}" ${c.destino === d.id ? "selected" : ""}>${fEsc(d.rot)}</option>`).join("")}
+          </select></div>
+        <button class="f-x" data-regra-remove="${i}" style="font-size:12px">Remover regra</button>
+      </div>`).join("") || '<div class="muted" style="font-size:12.5px">Nenhuma regra ainda.</div>'}</div>
+    <button class="f-add" id="addRegra">+ Adicionar regra</button>`;
+
+  $("#addRegra").addEventListener("click", () => {
+    q.logica.condicoes.push({ valor: "", destino: destinos[0] ? destinos[0].id : "" });
+    marcarSujo(); renderLogica();
+  });
+  $("#painelDir").querySelectorAll("[data-regra-valor]").forEach(i =>
+    i.addEventListener("input", () => { q.logica.condicoes[Number(i.dataset.regraValor)].valor = i.value; marcarSujo(); }));
+  $("#painelDir").querySelectorAll("[data-regra-destino]").forEach(s =>
+    s.addEventListener("change", () => { q.logica.condicoes[Number(s.dataset.regraDestino)].destino = s.value; marcarSujo(); }));
+  $("#painelDir").querySelectorAll("[data-regra-remove]").forEach(b =>
+    b.addEventListener("click", () => {
+      q.logica.condicoes.splice(Number(b.dataset.regraRemove), 1);
+      marcarSujo(); renderLogica();
+    }));
+}
+
+/* ---------------------------------------------------------------- preview */
+function renderPreview() {
+  fInjetarCSS();
+  const alvo = $("#preview");
+  fAplicarTema(alvo, FORM.tema);
+
+  let tela;
+  if (sel && sel.tipo === "boasVindas") tela = { tipo: "boasVindas", dados: FORM.estrutura.boasVindas || {} };
+  else if (sel && sel.tipo === "final") {
+    const tf = (FORM.estrutura.telasFinais || []).find(t => t.id === sel.fid);
+    tela = { tipo: "final", dados: tf || {} };
+  } else {
+    const gid = sel ? sel.gid : null;
+    const g = acharGrupo(gid) || (FORM.estrutura.grupos || [])[0];
+    tela = g ? { tipo: "grupo", dados: g } : { tipo: "boasVindas", dados: FORM.estrutura.boasVindas || {} };
+  }
+
+  const progresso = FORM.config.ocultarProgresso ? "" :
+    '<div class="fp-progresso"><i style="width:35%"></i></div>';
+  const marca = FORM.config.ocultarMarca ? "" :
+    '<span class="fp-marca">Feito com <b>ORDO Forms</b></span>';
+
+  alvo.innerHTML = `<div class="fp" style="min-height:100%">
+    ${progresso}
+    <div class="fp-corpo">${fRenderTela(tela, { modo: "preview" })}</div>
+    <div class="fp-rodape">${marca}</div>
+  </div>`;
+
+  // no preview a questão selecionada ganha um realce discreto
+  if (sel && sel.tipo === "questao") {
+    const el = alvo.querySelector(`[data-q="${sel.qid}"]`);
+    if (el) {
+      el.style.boxShadow = "-14px 0 0 -11px var(--fp-btn-bg)";
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+}
+
+/* ---------------------------------------------------------------- adicionar */
+function addGrupo() {
+  const g = { id: fNovoId("g"), titulo: "Novo bloco", descricao: "", questoes: [] };
+  FORM.estrutura.grupos.push(g);
+  sel = { tipo: "grupo", gid: g.id };
+  marcarSujo(); renderTudo();
+}
+
+function addFinal() {
+  FORM.estrutura.telasFinais = FORM.estrutura.telasFinais || [];
+  const t = { id: fNovoId("t"), titulo: "Obrigado!", descricao: "", botao: false };
+  FORM.estrutura.telasFinais.push(t);
+  sel = { tipo: "final", fid: t.id };
+  marcarSujo(); renderTudo();
+}
+
+const seletor = $("#seletorTipos");
+
+function abrirSeletorTipos(botao, gid) {
+  seletor.innerHTML = F_CATEGORIAS.map(([cat, tipos]) => `
+    <div><div class="cat">${cat}</div>
+      ${tipos.map(k => `<button class="f-tipo-op" data-tipo="${k}">
+        ${fSelo(k)}<span>${F_TIPOS[k].rot}</span></button>`).join("")}
+    </div>`).join("");
+
+  const r = botao.getBoundingClientRect();
+  seletor.style.left = Math.min(r.left, window.innerWidth - 490) + "px";
+  seletor.style.top = Math.min(r.bottom + 6, window.innerHeight - 420) + "px";
+  seletor.classList.add("aberto");
+
+  seletor.querySelectorAll("[data-tipo]").forEach(b => b.addEventListener("click", () => {
+    seletor.classList.remove("aberto");
+    addQuestao(gid, b.dataset.tipo);
+  }));
+}
+
+function addQuestao(gid, tipo) {
+  const g = acharGrupo(gid);
+  if (!g) return;
+  const q = {
+    id: fNovoId("q"), tipo,
+    titulo: tipo === "declaracao" ? "Escreva sua declaração" : "Nova pergunta",
+    descricao: "", obrigatoria: false,
+    opcoes: F_TIPOS[tipo].opcoes ? (tipo === "matriz" ? ["Ruim", "Regular", "Bom"] : ["Opção 1", "Opção 2"]) : [],
+    config: tipo === "matriz" ? { linhas: ["Item 1", "Item 2"] } : {},
+  };
+  g.questoes = g.questoes || [];
+  g.questoes.push(q);
+  sel = { tipo: "questao", gid, qid: q.id };
+  marcarSujo(); renderTudo();
+}
+
+document.addEventListener("click", (e) => {
+  if (!seletor.contains(e.target)) seletor.classList.remove("aberto");
+});
+
+/* ---------------------------------------------------------------- abas */
+document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-aba]").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  abaEsq = b.dataset.aba;
+  renderEsq();
+}));
+document.querySelectorAll("[data-abad]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-abad]").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  abaDir = b.dataset.abad;
+  renderDir();
+}));
+$("#dispositivos").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  $("#dispositivos").querySelectorAll("button").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  $("#moldura").dataset.disp = b.dataset.d;
+}));
+
+carregar();
+</script>
+</body>
+</html>
