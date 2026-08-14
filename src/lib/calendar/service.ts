@@ -201,3 +201,23 @@ export async function getRemoteBusy(
     return [];
   }
 }
+
+/**
+ * Eventos do Google no intervalo. Sem conexão, devolve lista vazia — a agenda
+ * segue mostrando as sessões do ORDO em vez de quebrar.
+ */
+export async function listarEventosGoogle(
+  workspaceId: string,
+  timeMin: string,
+  timeMax: string,
+) {
+  const connection = await getWorkspaceConnection(workspaceId);
+  if (!connection?.calendar_id) return [];
+  try {
+    const accessToken = await getFreshAccessToken(connection);
+    const { listEvents } = await import("./google");
+    return await listEvents(accessToken, connection.calendar_id, timeMin, timeMax);
+  } catch {
+    return [];
+  }
+}

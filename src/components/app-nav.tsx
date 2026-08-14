@@ -19,6 +19,7 @@ import { OrdoSymbol } from "@/components/ordo-mark";
 
 const MAIN_LINKS = [
   { href: "/pipeline", label: "Pipeline" },
+  { href: "/agenda", label: "Agenda" },
   { href: "/dashboard", label: "Dashboard" },
 ];
 

@@ -278,3 +278,54 @@ export async function freeBusy(
   });
   return data.calendars?.[calendarId]?.busy ?? [];
 }
+
+export interface GoogleEventResumo {
+  id: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+  diaInteiro: boolean;
+  link: string | null;
+}
+
+/**
+ * Eventos do calendário num intervalo, já achatados (recorrências expandidas).
+ * Usado para desenhar a agenda — por isso traz título, ao contrário do
+ * free/busy, que só devolve blocos ocupados.
+ */
+export async function listEvents(
+  accessToken: string,
+  calendarId: string,
+  timeMin: string,
+  timeMax: string,
+): Promise<GoogleEventResumo[]> {
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "250",
+  });
+
+  const data = await googleFetch<{
+    items?: {
+      id: string;
+      summary?: string;
+      htmlLink?: string;
+      status?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+    }[];
+  }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
+
+  return (data.items ?? [])
+    .filter((e) => e.status !== "cancelled")
+    .map((e) => ({
+      id: e.id,
+      titulo: e.summary ?? "(sem título)",
+      inicio: e.start?.dateTime ?? e.start?.date ?? null,
+      fim: e.end?.dateTime ?? e.end?.date ?? null,
+      diaInteiro: Boolean(e.start?.date && !e.start?.dateTime),
+      link: e.htmlLink ?? null,
+    }));
+}
