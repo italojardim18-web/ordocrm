@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAnalyticsData } from "@/lib/crm/stats-queries";
 import { formatBRL, channelLabel } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { OrdoSymbol } from "@/components/ordo-mark";
 import { StatsClient } from "./stats-client";
 
 export const metadata: Metadata = { title: "Estatísticas & Relatórios" };
@@ -34,9 +35,28 @@ export default async function StatisticsPage() {
   const isAdmin = context.membership.role === "admin";
 
   return (
-    <section className="flex flex-col gap-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <section className="flex flex-col gap-6 print:gap-4 print:p-0">
+      {/* Cabeçalho Oficial Timbrado EXCLUSIVO PARA IMPRESSÃO / PDF */}
+      <div className="hidden print:flex items-center justify-between border-b-2 border-primary pb-4 mb-2">
+        <div className="flex items-center gap-3">
+          <OrdoSymbol className="size-9 text-primary" />
+          <div className="flex flex-col">
+            <span className="font-heading text-2xl font-bold tracking-[0.25em] text-primary">
+              ORDO
+            </span>
+            <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
+              Relatório Executivo · {context.workspace.displayName}
+            </span>
+          </div>
+        </div>
+        <div className="text-right text-xs text-muted-foreground">
+          <p className="font-semibold text-foreground">Clínica & Consultório</p>
+          <p>Emissão: {new Date().toLocaleDateString("pt-BR")}</p>
+        </div>
+      </div>
+
+      {/* Cabeçalho da Tela (Oculta botões na impressão) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="font-heading text-2xl font-bold text-primary tracking-tight">
@@ -51,7 +71,7 @@ export default async function StatisticsPage() {
           </p>
         </div>
 
-        {/* Botões de Ação Personalizados (Definir Metas e Confeccionar Relatório) */}
+        {/* Botões de Ação (Definir Metas e Confeccionar Relatório) */}
         <StatsClient
           data={data}
           isAdmin={isAdmin}
@@ -61,14 +81,14 @@ export default async function StatisticsPage() {
       </div>
 
       {/* 1. Análise de Vendas & Relatório Consolidado (Cards Principais) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="ordo-card p-5 flex flex-col justify-between gap-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4 print:gap-2 break-inside-avoid">
+        <div className="ordo-card p-5 print:p-3.5 print:border print:shadow-none flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
             <span>RECEITA TOTAL</span>
-            <span className="text-base">💰</span>
+            <span className="text-base print:hidden">💰</span>
           </div>
           <div>
-            <span className="font-heading text-3xl font-bold text-primary tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
               {formatBRL(data.vendas.receitaTotal)}
             </span>
             <p className="text-[11px] text-emerald-700 font-semibold mt-1">
@@ -77,13 +97,13 @@ export default async function StatisticsPage() {
           </div>
         </div>
 
-        <div className="ordo-card p-5 flex flex-col justify-between gap-2">
+        <div className="ordo-card p-5 print:p-3.5 print:border print:shadow-none flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
             <span>TICKET MÉDIO</span>
-            <span className="text-base">🏷️</span>
+            <span className="text-base print:hidden">🏷️</span>
           </div>
           <div>
-            <span className="font-heading text-3xl font-bold text-primary tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
               {formatBRL(data.vendas.ticketMedio)}
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -92,13 +112,13 @@ export default async function StatisticsPage() {
           </div>
         </div>
 
-        <div className="ordo-card p-5 flex flex-col justify-between gap-2">
+        <div className="ordo-card p-5 print:p-3.5 print:border print:shadow-none flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
             <span>TAXA DE CONVERSÃO</span>
-            <span className="text-base">🎯</span>
+            <span className="text-base print:hidden">🎯</span>
           </div>
           <div>
-            <span className="font-heading text-3xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
               {data.vendas.taxaConversao}%
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -107,13 +127,13 @@ export default async function StatisticsPage() {
           </div>
         </div>
 
-        <div className="ordo-card p-5 flex flex-col justify-between gap-2">
+        <div className="ordo-card p-5 print:p-3.5 print:border print:shadow-none flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
             <span>PIPELINE EM ABERTO</span>
-            <span className="text-base">📈</span>
+            <span className="text-base print:hidden">📈</span>
           </div>
           <div>
-            <span className="font-heading text-3xl font-bold text-primary tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
               {formatBRL(data.vendas.faturamentoProjetado)}
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -124,14 +144,14 @@ export default async function StatisticsPage() {
       </div>
 
       {/* Grid: Relatório de Metas Personalizadas + Vendas por Produtos */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 print:grid-cols-12 print:gap-3">
         {/* Relatório de Metas Personalizadas */}
-        <div className="ordo-card p-6 lg:col-span-6 flex flex-col justify-between gap-5">
+        <div className="ordo-card p-6 print:p-4 print:border print:shadow-none lg:col-span-6 print:col-span-6 flex flex-col justify-between gap-4 break-inside-avoid">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🎯</span>
+              <span className="text-lg print:hidden">🎯</span>
               <h2 className="font-heading text-base font-bold text-primary">
-                Relatório de Metas Personalizadas
+                Relatório de Metas
               </h2>
             </div>
             <Badge variant="secondary" className="rounded-full text-xs">
@@ -141,48 +161,48 @@ export default async function StatisticsPage() {
 
           <div className="flex flex-col gap-4">
             {/* Meta 1: Faturamento */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs font-medium">
-                <span className="text-foreground">Meta de Faturamento Mensal</span>
+                <span className="text-foreground">Meta de Faturamento</span>
                 <span className="text-primary font-bold">
                   {formatBRL(data.vendas.receitaTotal)} / {formatBRL(currentRevenueGoal)}
                 </span>
               </div>
-              <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  className="h-full rounded-full bg-primary"
                   style={{ width: `${percentualAtingido}%` }}
                 />
               </div>
             </div>
 
-            {/* Meta 2: Novos Pacientes / Fechamentos */}
-            <div className="flex flex-col gap-2">
+            {/* Meta 2: Novos Pacientes */}
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-foreground">Meta de Novos Pacientes</span>
                 <span className="text-primary font-bold">
                   {data.vendas.oportunidadesGanhas} / {currentClientsGoal} pacientes
                 </span>
               </div>
-              <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-[#b2966f] transition-all duration-500"
+                  className="h-full rounded-full bg-[#b2966f]"
                   style={{ width: `${percentualPacientes}%` }}
                 />
               </div>
             </div>
           </div>
 
-          <p className="text-[11px] text-muted-foreground bg-muted/30 p-3 rounded-xl border border-border/50">
-            💡 Faltam <strong>{formatBRL(Math.max(0, currentRevenueGoal - data.vendas.receitaTotal))}</strong> para bater 100% da meta de faturamento.
+          <p className="text-[11px] text-muted-foreground bg-muted/30 p-2.5 rounded-xl border border-border/50">
+            💡 Faltam <strong>{formatBRL(Math.max(0, currentRevenueGoal - data.vendas.receitaTotal))}</strong> para bater 100% da meta mensal.
           </p>
         </div>
 
         {/* Relatório de Vendas por Produtos */}
-        <div className="ordo-card p-6 lg:col-span-6 flex flex-col gap-4">
+        <div className="ordo-card p-6 print:p-4 print:border print:shadow-none lg:col-span-6 print:col-span-6 flex flex-col gap-3 break-inside-avoid">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">📦</span>
+              <span className="text-lg print:hidden">📦</span>
               <h2 className="font-heading text-base font-bold text-primary">
                 Vendas por Produto & Serviço
               </h2>
@@ -190,32 +210,38 @@ export default async function StatisticsPage() {
             <span className="text-xs text-muted-foreground">Faturamento</span>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {data.vendasPorProduto.slice(0, 4).map((p) => (
-              <div key={p.produtoId} className="flex flex-col gap-1.5 rounded-xl border border-border/60 p-3 bg-card/60">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground">{p.produtoNome}</span>
-                  <span className="font-bold text-primary">{formatBRL(p.faturamento > 0 ? p.faturamento : 4500)}</span>
+          <div className="flex flex-col gap-2.5">
+            {data.vendasPorProduto.length > 0 ? (
+              data.vendasPorProduto.map((p) => (
+                <div key={p.produtoId} className="flex flex-col gap-1 rounded-xl border border-border/60 p-2.5 bg-card/60">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground">{p.produtoNome}</span>
+                    <span className="font-bold text-primary">{formatBRL(p.faturamento)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>{p.vendasQtd} contratação(ões)</span>
+                    <span>{p.percentualTotal}% do total</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{p.vendasQtd > 0 ? p.vendasQtd : 3} contratações</span>
-                  <span>{p.percentualTotal > 0 ? p.percentualTotal : 35}% do total</span>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground italic py-4 text-center">
+                Nenhum produto cadastrado com vendas ainda.
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Grid: ROI por Canal + Relatório de Atividades */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 print:grid-cols-12 print:gap-3 break-inside-avoid">
         {/* ROI e Desempenho por Origem do Lead */}
-        <div className="ordo-card p-6 lg:col-span-7 flex flex-col gap-4">
+        <div className="ordo-card p-6 print:p-4 print:border print:shadow-none lg:col-span-7 print:col-span-7 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">📊</span>
+              <span className="text-lg print:hidden">📊</span>
               <h2 className="font-heading text-base font-bold text-primary">
-                ROI & Conversão por Origem do Lead
+                ROI & Conversão por Origem
               </h2>
             </div>
             <span className="text-xs text-muted-foreground">Eficiência</span>
@@ -225,31 +251,30 @@ export default async function StatisticsPage() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-border text-muted-foreground">
                 <tr>
-                  <th className="pb-2 font-medium">Canal de Origem</th>
+                  <th className="pb-2 font-medium">Canal</th>
                   <th className="pb-2 font-medium text-center">Leads</th>
                   <th className="pb-2 font-medium text-center">Vendas</th>
-                  <th className="pb-2 font-medium text-right">Receita Gerada</th>
+                  <th className="pb-2 font-medium text-right">Receita</th>
                   <th className="pb-2 font-medium text-right">Conversão</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
                 {data.origensLead.map((o) => {
                   const roi = data.roiPorCanal.find((r) => r.canal === o.origem);
-                  const receita = roi?.receita && roi.receita > 0 ? roi.receita : o.quantidade * 1200;
-                  const taxa = roi?.taxaConversao && roi.taxaConversao > 0 ? roi.taxaConversao : 45;
+                  const receita = roi?.receita ?? 0;
+                  const ganhos = roi?.ganhos ?? 0;
+                  const taxa = roi?.taxaConversao ?? 0;
 
                   return (
-                    <tr key={o.origem} className="hover:bg-muted/20">
-                      <td className="py-3 font-semibold text-foreground flex items-center gap-1.5">
-                        <span>📱</span> {channelLabel(o.origem)}
+                    <tr key={o.origem}>
+                      <td className="py-2.5 font-semibold text-foreground">
+                        {channelLabel(o.origem)}
                       </td>
-                      <td className="py-3 text-center tabular-nums">{o.quantidade}</td>
-                      <td className="py-3 text-center tabular-nums">{roi?.ganhos && roi.ganhos > 0 ? roi.ganhos : Math.ceil(o.quantidade * 0.4)}</td>
-                      <td className="py-3 text-right font-bold text-primary tabular-nums">{formatBRL(receita)}</td>
-                      <td className="py-3 text-right">
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                          {taxa}%
-                        </span>
+                      <td className="py-2.5 text-center tabular-nums">{o.quantidade}</td>
+                      <td className="py-2.5 text-center tabular-nums">{ganhos}</td>
+                      <td className="py-2.5 text-right font-bold text-primary tabular-nums">{formatBRL(receita)}</td>
+                      <td className="py-2.5 text-right font-semibold text-emerald-700">
+                        {taxa}%
                       </td>
                     </tr>
                   );
@@ -260,31 +285,31 @@ export default async function StatisticsPage() {
         </div>
 
         {/* Relatório por Atividades */}
-        <div className="ordo-card p-6 lg:col-span-5 flex flex-col gap-4">
+        <div className="ordo-card p-6 print:p-4 print:border print:shadow-none lg:col-span-5 print:col-span-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">⚡</span>
+              <span className="text-lg print:hidden">⚡</span>
               <h2 className="font-heading text-base font-bold text-primary">
-                Relatório de Atividades
+                Atividades da Equipe
               </h2>
             </div>
             <span className="text-xs text-muted-foreground">Produtividade</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-border/70 bg-card p-3.5 flex flex-col gap-1">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="rounded-xl border border-border/70 bg-card p-3 flex flex-col gap-0.5">
               <span className="text-[11px] text-muted-foreground">Mensagens WhatsApp</span>
-              <span className="font-heading text-2xl font-bold text-primary">
+              <span className="font-heading text-xl font-bold text-primary">
                 {data.atividades.mensagensRecebidas + data.atividades.mensagensEnviadas}
               </span>
               <span className="text-[10px] text-muted-foreground">
-                {data.atividades.mensagensEnviadas} enviadas · {data.atividades.mensagensRecebidas} recebidas
+                {data.atividades.mensagensEnviadas} enviadas
               </span>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-card p-3.5 flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">Tarefas Concluídas</span>
-              <span className="font-heading text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+            <div className="rounded-xl border border-border/70 bg-card p-3 flex flex-col gap-0.5">
+              <span className="text-[11px] text-muted-foreground">Tarefas Feitas</span>
+              <span className="font-heading text-xl font-bold text-emerald-700 dark:text-emerald-400">
                 {data.atividades.tarefasConcluidas}
               </span>
               <span className="text-[10px] text-muted-foreground">
@@ -292,17 +317,17 @@ export default async function StatisticsPage() {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-card p-3.5 flex flex-col gap-1">
+            <div className="rounded-xl border border-border/70 bg-card p-3 flex flex-col gap-0.5">
               <span className="text-[11px] text-muted-foreground">Sessões Agendadas</span>
-              <span className="font-heading text-2xl font-bold text-primary">
+              <span className="font-heading text-xl font-bold text-primary">
                 {data.atividades.sessoesAgendadas}
               </span>
-              <span className="text-[10px] text-muted-foreground">Google Calendar / CRM</span>
+              <span className="text-[10px] text-muted-foreground">Agenda Google</span>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-card p-3.5 flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">Sessões Realizadas</span>
-              <span className="font-heading text-2xl font-bold text-primary">
+            <div className="rounded-xl border border-border/70 bg-card p-3 flex flex-col gap-0.5">
+              <span className="text-[11px] text-muted-foreground">Sessões Feitas</span>
+              <span className="font-heading text-xl font-bold text-primary">
                 {data.atividades.sessoesRealizadas}
               </span>
               <span className="text-[10px] text-emerald-700 font-semibold">100% no horário</span>

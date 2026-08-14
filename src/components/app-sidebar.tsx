@@ -28,7 +28,7 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden lg:flex flex-col items-center justify-between w-20 py-6 bg-sidebar border-r border-sidebar-border/40 shrink-0 sticky top-0 h-screen z-30 shadow-sm">
+    <aside className="hidden lg:flex flex-col items-center justify-between w-20 py-6 bg-sidebar border-r border-sidebar-border/40 shrink-0 sticky top-0 h-screen z-30 shadow-sm print:hidden">
       {/* Topo: Logo Símbolo ORDO */}
       <div className="flex flex-col items-center gap-7">
         <Link

@@ -97,7 +97,7 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
 
   const opps = opportunities ?? [];
   const leadsList = leads ?? [];
-  const prods = products ?? [];
+  const prods = (products ?? []).filter((p) => !p.name.startsWith("[Placeholder]"));
   const tasksList = tasks ?? [];
   const appts = appointments ?? [];
   const msgs = messages ?? [];
@@ -107,7 +107,7 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
   const perdidas = opps.filter((o) => o.status === "lost");
   const receitaTotal = ganhas.reduce((sum, o) => sum + (Number(o.sold_value) || Number(o.potential_value) || 0), 0);
   const ticketMedio = ganhas.length > 0 ? Math.round(receitaTotal / ganhas.length) : 0;
-  const taxaConversao = opps.length > 0 ? Math.round((ganhas.length / opps.length) * 100) : (leadsList.length > 0 ? Math.round((ganhas.length / leadsList.length) * 100) : 0);
+  const taxaConversao = opps.length > 0 ? Math.round((ganhas.length / opps.length) * 100) : 0;
 
   // Faturamento projetado no pipeline (leads em aberto)
   const faturamentoProjetado = leadsList.reduce((sum, l) => sum + (Number(l.potential_value) || 0), 0);
@@ -121,7 +121,7 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
   for (const g of ganhas) {
     const pId = g.product_id ?? "outros";
     const valor = Number(g.sold_value) || Number(g.potential_value) || 0;
-    const nome = (g.products as { name?: string } | null)?.name ?? "Consulta Avulsa";
+    const nome = (g.products as { name?: string } | null)?.name?.replace("[Placeholder] ", "") ?? "Consulta Avulsa";
 
     if (!produtoMap.has(pId)) {
       produtoMap.set(pId, { nome, qtd: 0, fat: 0 });
@@ -136,7 +136,7 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
     produtoNome: info.nome,
     vendasQtd: info.qtd,
     faturamento: info.fat,
-    percentualTotal: receitaTotal > 0 ? Math.round((info.fat / receitaTotal) * 100) : 0,
+    percentualTotal: receitaTotal > 0 ? Math.round((info.fat / receitaTotal) * 100) : (info.fat > 0 ? 100 : 0),
   })).sort((a, b) => b.faturamento - a.faturamento);
 
   // Origens do Lead
@@ -194,32 +194,32 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
 
   return {
     vendas: {
-      receitaTotal: receitaTotal > 0 ? receitaTotal : 18500, // fallback visual
-      receitaMesAtual: receitaTotal > 0 ? receitaTotal : 18500,
-      ticketMedio: ticketMedio > 0 ? ticketMedio : 350,
-      totalOportunidades: opps.length > 0 ? opps.length : 14,
-      oportunidadesGanhas: ganhas.length > 0 ? ganhas.length : 8,
+      receitaTotal,
+      receitaMesAtual: receitaTotal,
+      ticketMedio,
+      totalOportunidades: opps.length,
+      oportunidadesGanhas: ganhas.length,
       oportunidadesPerdidas: perdidas.length,
-      taxaConversao: taxaConversao > 0 ? taxaConversao : 57,
-      faturamentoProjetado: faturamentoProjetado > 0 ? faturamentoProjetado : 28400,
+      taxaConversao,
+      faturamentoProjetado,
     },
     roiPorCanal,
     atividades: {
-      mensagensRecebidas: mensagensRecebidas > 0 ? mensagensRecebidas : 142,
-      mensagensEnviadas: mensagensEnviadas > 0 ? mensagensEnviadas : 129,
-      tarefasConcluidas: tarefasConcluidas > 0 ? tarefasConcluidas : 18,
+      mensagensRecebidas,
+      mensagensEnviadas,
+      tarefasConcluidas,
       tarefasPendentes,
-      sessoesAgendadas: sessoesAgendadas > 0 ? sessoesAgendadas : 12,
-      sessoesRealizadas: sessoesRealizadas > 0 ? sessoesRealizadas : 9,
+      sessoesAgendadas,
+      sessoesRealizadas,
     },
     vendasPorProduto,
     metas: {
       metaFaturamentoMensal,
-      faturamentoAtual: receitaTotal > 0 ? receitaTotal : 18500,
-      percentualAtingido: percentualAtingido > 0 ? percentualAtingido : 62,
+      faturamentoAtual: receitaTotal,
+      percentualAtingido,
       metaNovosPacientes,
-      novosPacientesAtual: ganhas.length > 0 ? ganhas.length : 8,
-      percentualPacientes: percentualPacientes > 0 ? percentualPacientes : 53,
+      novosPacientesAtual: ganhas.length,
+      percentualPacientes,
     },
     origensLead,
   };

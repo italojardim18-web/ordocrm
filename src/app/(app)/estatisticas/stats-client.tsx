@@ -123,13 +123,13 @@ export function StatsClient({
         </Button>
       </div>
 
-      {/* Relatório Gerado em Destaque (se houver) */}
+      {/* Relatório Gerado em Destaque */}
       {relatorioGerado ? (
-        <div className="ordo-card p-6 flex flex-col gap-5 border-2 border-primary/30 bg-card shadow-lg print:border-none print:shadow-none">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-4">
+        <div className="ordo-card p-6 print:p-4 flex flex-col gap-4 border-2 border-primary/40 bg-card shadow-lg print:border-none print:shadow-none break-inside-avoid">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="text-xl">📄</span>
+                <span className="text-xl print:hidden">📄</span>
                 <h2 className="font-heading text-lg font-bold text-primary">
                   {relatorioGerado.titulo}
                 </h2>
@@ -160,32 +160,32 @@ export function StatsClient({
           </div>
 
           {/* Sumário Executivo do Relatório */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 bg-muted/30 p-4 rounded-2xl border border-border/60">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3 bg-muted/30 p-3.5 rounded-2xl border border-border/60">
             <div>
               <span className="text-[11px] text-muted-foreground block">Faturamento Realizado</span>
-              <span className="font-heading text-2xl font-bold text-primary">
+              <span className="font-heading text-xl font-bold text-primary">
                 {formatBRL(data.vendas.receitaTotal)}
               </span>
             </div>
             <div>
               <span className="text-[11px] text-muted-foreground block">Conversão de Propostas</span>
-              <span className="font-heading text-2xl font-bold text-emerald-700">
+              <span className="font-heading text-xl font-bold text-emerald-700">
                 {data.vendas.taxaConversao}%
               </span>
             </div>
             <div>
               <span className="text-[11px] text-muted-foreground block">Meta Mensal Atingida</span>
-              <span className="font-heading text-2xl font-bold text-primary">
+              <span className="font-heading text-xl font-bold text-primary">
                 {data.metas.percentualAtingido}%
               </span>
             </div>
           </div>
 
-          <div className="text-xs text-foreground leading-relaxed flex flex-col gap-2">
+          <div className="text-xs text-foreground leading-relaxed flex flex-col gap-1.5 print:hidden">
             <h4 className="font-bold text-primary uppercase tracking-wider text-[11px]">
               Módulos Inclusos na Confecção:
             </h4>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {relatorioGerado.modulos.map((m) => (
                 <Badge key={m} variant="secondary" className="rounded-full text-xs font-medium">
                   ✓ {m}

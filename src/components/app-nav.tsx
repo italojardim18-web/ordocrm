@@ -39,7 +39,7 @@ export function AppNav({
   const pathname = usePathname();
 
   return (
-    <header className="bg-background/90 backdrop-blur-md text-foreground sticky top-0 z-40 py-3 px-4 sm:px-8 border-b border-border/50 shadow-2xs transition-colors">
+    <header className="bg-background/90 backdrop-blur-md text-foreground sticky top-0 z-40 py-3 px-4 sm:px-8 border-b border-border/50 shadow-2xs transition-colors print:hidden">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4">
         {/* Logo ORDO Ampliado e Destacado à Esquerda */}
         <div className="flex min-w-0 items-center gap-3">
