@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSessionContext } from "@/lib/auth";
 import { findDuplicates } from "@/lib/crm/queries";
 import { createClient } from "@/lib/supabase/server";
+import { triggerStageAutomation } from "@/lib/crm/stage-automation";
 
 const uuid = z.uuid();
 
@@ -25,6 +26,9 @@ export async function moveLead(
   stageId: string,
   position: number,
 ): Promise<{ error?: string }> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const parsed = z
     .object({ leadId: uuid, stageId: uuid, position: z.number().finite() })
     .safeParse({ leadId, stageId, position });
@@ -38,6 +42,11 @@ export async function moveLead(
   });
 
   if (error) return { error: "Não foi possível mover o lead." };
+
+  // Dispara gatilho automático de mensagem via WhatsApp caso a etapa possua automação ativa
+  triggerStageAutomation(leadId, stageId, context.workspace.id).catch((err) =>
+    console.error("Erro ao disparar automação de etapa:", err),
+  );
 
   revalidatePath("/pipeline");
   return {};

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getChannelConnections } from "@/lib/crm/queries";
 import { Badge } from "@/components/ui/badge";
 import { ReactivationPanel, type LostLeadItem } from "./reactivation-panel";
+import { StageTriggersPanel, type StageTriggerItem } from "./stage-triggers-panel";
 
 export const metadata: Metadata = { title: "Agente de IA & Automações" };
 
@@ -18,6 +19,7 @@ export default async function AIAgentPage() {
     { data: ws },
     channelConnections,
     { data: lostLeadsRaw },
+    { data: stagesRaw },
   ] = await Promise.all([
     supabase
       .from("workspaces")
@@ -32,6 +34,10 @@ export default async function AIAgentPage() {
       .not("lost_at", "is", null)
       .is("deleted_at", null)
       .order("lost_at", { ascending: false }),
+    supabase
+      .from("pipeline_stages")
+      .select("id, name, stage_type, position, automation_message_enabled, automation_message_template, automation_reminder_24h, automation_reminder_template")
+      .order("position", { ascending: true }),
   ]);
 
   const channels = channelConnections.map((ch) => ({
@@ -56,6 +62,17 @@ export default async function AIAgentPage() {
     };
   });
 
+  const stages: StageTriggerItem[] = (stagesRaw ?? []).map((s: any) => ({
+    id: s.id,
+    name: s.name,
+    stage_type: s.stage_type,
+    position: s.position,
+    automation_message_enabled: Boolean(s.automation_message_enabled),
+    automation_message_template: s.automation_message_template,
+    automation_reminder_24h: Boolean(s.automation_reminder_24h),
+    automation_reminder_template: s.automation_reminder_template,
+  }));
+
   const isAdmin = context.membership.role === "admin";
 
   return (
@@ -72,12 +89,15 @@ export default async function AIAgentPage() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Inteligência artificial para transcrição de áudios, resumos clínicos e automações de reativação de pacientes.
+            Automações de mensagens de WhatsApp por etapa do funil, agendamentos com link do Meet e reativação inteligente de pacientes.
           </p>
         </div>
       </div>
 
-      {/* Automação de Reativação de Leads Perdidos (NOVO) */}
+      {/* 1. Automação de Mensagens por Mudança de Etapa / Agendamento (NOVO - Estilo Kommo) */}
+      <StageTriggersPanel stages={stages} isAdmin={isAdmin} />
+
+      {/* 2. Automação de Reativação de Leads Perdidos */}
       <ReactivationPanel
         initialEnabled={Boolean(ws?.reactivation_enabled)}
         initialDays={ws?.reactivation_days || 30}
@@ -154,25 +174,6 @@ export default async function AIAgentPage() {
           <div className="rounded-xl bg-muted/40 p-3 text-[11px] text-muted-foreground">
             🎯 Automatiza a priorização diária no Pipeline e no Painel Operacional.
           </div>
-        </div>
-      </div>
-
-      {/* Guia de Configuração de Chaves de IA */}
-      <div className="ordo-card p-6 flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">⚙️</span>
-          <h2 className="font-heading text-base font-bold text-primary">
-            Configuração de Provedores de IA
-          </h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          O ORDO é compatível com os provedores de inteligência artificial de alta performance. As chaves são salvas com segurança no arquivo local de ambiente:
-        </p>
-
-        <div className="rounded-2xl bg-muted/50 p-4 border border-border text-xs font-mono">
-          <p className="text-muted-foreground mb-1"># Arquivo: ~/.ordo/env</p>
-          <p className="text-foreground">GROQ_API_KEY="gsk_..."</p>
-          <p className="text-foreground">OPENAI_API_KEY="sk-..."</p>
         </div>
       </div>
     </section>

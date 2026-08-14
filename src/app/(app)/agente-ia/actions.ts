@@ -129,3 +129,40 @@ export async function triggerManualReactivation(leadId: string) {
   revalidatePath(`/pipeline/lead/${leadId}`);
   return { success: true, message: mensagemFormatada };
 }
+
+export async function updateStageAutomationSettings(params: {
+  stageId: string;
+  enabled: boolean;
+  template: string;
+  reminder24h?: boolean;
+  reminderTemplate?: string;
+}) {
+  const context = await getSessionContext();
+  if (!context) return { error: "Não autenticado." };
+
+  if (context.membership.role !== "admin") {
+    return { error: "Apenas administradores podem alterar as automações." };
+  }
+
+  const parsed = uuid.safeParse(params.stageId);
+  if (!parsed.success) return { error: "Etapa inválida." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("pipeline_stages")
+    .update({
+      automation_message_enabled: params.enabled,
+      automation_message_template: params.template?.trim() || null,
+      automation_reminder_24h: Boolean(params.reminder24h),
+      automation_reminder_template: params.reminderTemplate?.trim() || null,
+    })
+    .eq("id", params.stageId);
+
+  if (error) {
+    return { error: "Erro ao salvar gatilho da etapa: " + error.message };
+  }
+
+  revalidatePath("/agente-ia");
+  revalidatePath("/pipeline");
+  return { success: true };
+}
