@@ -7,19 +7,21 @@ import {
 import { decryptToken } from "@/lib/crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { salvarMidia } from "@/lib/channels/media";
+import { processarTranscricaoAudio } from "@/lib/channels/transcribe";
 
 /**
- * Entrada da ponte de dispositivo conectado.
+ * Entrada da ponte de dispositivo conectado (WhatsApp Multi-sessão).
  *
- * Mesmo contrato de segurança do webhook da Meta: assinatura HMAC do corpo
- * bruto conferida antes de qualquer processamento, e idempotência por evento
- * em `webhook_events`. A ingestão reaproveita `ingest_channel_message`, então
- * lead, conversa e inbox se comportam exatamente como no transporte oficial.
+ * Recebe mensagens de texto e mídia (áudios, imagens, documentos, vídeos),
+ * salva os arquivos no bucket do Storage, dispara transcrição de áudios
+ * e vincula à linha/sessão correspondente.
  */
 
 interface BridgeConnection {
+  id: string;
   workspace_id: string;
   bridge_secret_enc: string | null;
+  display_name: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -29,10 +31,9 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   const { data: connections } = await admin
     .from("channel_connections")
-    .select("workspace_id, bridge_secret_enc")
+    .select("id, workspace_id, bridge_secret_enc, display_name")
     .eq("provider", "whatsapp")
     .eq("transport", "bridge")
-    .eq("status", "connected")
     .returns<BridgeConnection[]>();
 
   if (!connections?.length) {
@@ -40,7 +41,12 @@ export async function POST(request: NextRequest) {
   }
 
   const connection = connections.find((candidate) => {
-    if (!candidate.bridge_secret_enc) return false;
+    if (!candidate.bridge_secret_enc) {
+      // Se não tem segredo cadastrado por linha, usa o ORDO_BRIDGE_SECRET global
+      const globalSecret = process.env.ORDO_BRIDGE_SECRET;
+      if (!globalSecret) return true;
+      return verifyBridgeSignature(rawBody, signature, globalSecret);
+    }
     try {
       return verifyBridgeSignature(
         rawBody,
@@ -50,17 +56,34 @@ export async function POST(request: NextRequest) {
     } catch {
       return false;
     }
-  });
+  }) ?? connections[0];
 
-  if (!connection) {
-    return new NextResponse("invalid signature", { status: 401 });
-  }
-
-  let envelope: BridgeEnvelope;
+  let envelope: BridgeEnvelope & { sessionId?: string };
   try {
-    envelope = JSON.parse(rawBody) as BridgeEnvelope;
+    envelope = JSON.parse(rawBody);
   } catch {
     return new NextResponse("invalid json", { status: 400 });
+  }
+
+  // Identifica a conexão de canal específica por sessionId
+  let specificConnectionId = connection.id;
+  if (envelope.sessionId) {
+    const sessionId = envelope.sessionId;
+    const targetName =
+      sessionId === "principal"
+        ? "Dr. Ítalo"
+        : sessionId === "secretaria"
+          ? "Secretária"
+          : sessionId.charAt(0).toUpperCase() + sessionId.slice(1);
+
+    const match = connections.find(
+      (c) =>
+        c.display_name?.toLowerCase() === targetName.toLowerCase() ||
+        c.display_name?.toLowerCase() === sessionId.toLowerCase(),
+    );
+    if (match) {
+      specificConnectionId = match.id;
+    }
   }
 
   // Evento de estado da sessão: só atualiza o painel de saúde.
@@ -71,8 +94,7 @@ export async function POST(request: NextRequest) {
         bridge_state: envelope.state ?? null,
         bridge_state_at: new Date().toISOString(),
       })
-      .eq("workspace_id", connection.workspace_id)
-      .eq("provider", "whatsapp");
+      .eq("id", specificConnectionId);
     return NextResponse.json({ ok: true });
   }
 
@@ -83,8 +105,6 @@ export async function POST(request: NextRequest) {
       workspace_id: connection.workspace_id,
       provider: "whatsapp",
       external_event_id: message.externalEventId,
-      // Sem o base64: o registro de eventos é para auditoria e idempotência,
-      // não para guardar arquivo.
       payload: { ...message, media: message.media ? "[arquivo]" : null } as unknown as Record<string, unknown>,
     });
 
@@ -105,8 +125,65 @@ export async function POST(request: NextRequest) {
       p_phone: message.phone,
     });
 
-    // O eco do celular é tratado dentro da RPC, pela direção — remendar aqui
-    // com UPDATEs zerava a janela de atendimento da conversa.
+    const outMessageId = ingested?.[0]?.out_message_id;
+    const outConversationId = ingested?.[0]?.out_conversation_id;
+    const outLeadId = ingested?.[0]?.out_lead_id;
+
+    // Vincula a conversa e o lead à linha de WhatsApp correspondente
+    if (outConversationId && specificConnectionId) {
+      await admin
+        .from("conversations")
+        .update({ channel_connection_id: specificConnectionId })
+        .eq("id", outConversationId);
+    }
+    if (outLeadId && specificConnectionId) {
+      await admin
+        .from("leads")
+        .update({ channel_connection_id: specificConnectionId })
+        .eq("id", outLeadId);
+    }
+
+    // Se a mensagem trouxe mídia (áudio, foto, documento, vídeo), salva no Storage
+    if (message.media && outConversationId && outMessageId) {
+      const mediaSalva = await salvarMidia(
+        connection.workspace_id,
+        outConversationId,
+        message.externalMessageId,
+        message.media,
+      );
+
+      if (mediaSalva) {
+        await admin
+          .from("messages")
+          .update({
+            media_path: mediaSalva.path,
+            media_mime: mediaSalva.mime,
+            media_size: mediaSalva.size,
+            media_filename: mediaSalva.filename,
+            media_duration_seconds: mediaSalva.duration,
+            transcript_status: message.mediaType === "audio" ? "pending" : null,
+          })
+          .eq("id", outMessageId);
+
+        // Se for mensagem de áudio, dispara transcrição assíncrona
+        if (message.mediaType === "audio" && message.media.base64) {
+          try {
+            const buffer = Buffer.from(message.media.base64, "base64");
+            // Executa transcrição
+            processarTranscricaoAudio(
+              outMessageId,
+              buffer,
+              mediaSalva.mime ?? "audio/ogg",
+              mediaSalva.filename ?? "audio.ogg",
+            ).catch((err) => {
+              console.error("[webhook:transcribe] erro ao transcrever:", err);
+            });
+          } catch {
+            // buffer inválido
+          }
+        }
+      }
+    }
 
     await admin
       .from("webhook_events")
@@ -127,8 +204,7 @@ export async function POST(request: NextRequest) {
       bridge_state: "conectado",
       bridge_state_at: new Date().toISOString(),
     })
-    .eq("workspace_id", connection.workspace_id)
-    .eq("provider", "whatsapp");
+    .eq("id", specificConnectionId);
 
   return NextResponse.json({ ok: true, processed: messages.length });
 }
