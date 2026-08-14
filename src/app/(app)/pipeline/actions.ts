@@ -328,6 +328,9 @@ export async function addTask(
 
   const title = String(formData.get("title") ?? "").trim();
   const dueAt = String(formData.get("dueAt") ?? "");
+  // Permite atribuir a outro membro da equipe (ex: Dr. Ítalo → Secretária e vice-versa)
+  const assignedToRaw = String(formData.get("assignedTo") ?? "").trim();
+  const assignedTo = assignedToRaw || context.user.id;
 
   if (!title) return { error: "Descreva a tarefa." };
 
@@ -337,23 +340,25 @@ export async function addTask(
     lead_id: leadId,
     title,
     due_at: dueAt ? new Date(dueAt).toISOString() : null,
-    assigned_to: context.user.id,
+    assigned_to: assignedTo,
     created_by: context.user.id,
   });
 
   if (error) return { error: "Não foi possível criar a tarefa." };
 
   revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/dashboard");
   return { done: true };
 }
 
-export async function toggleTask(taskId: string, leadId: string, done: boolean) {
+export async function toggleTask(taskId: string, done: boolean, leadId?: string) {
   const supabase = await createClient();
   await supabase
     .from("tasks")
     .update({ completed_at: done ? new Date().toISOString() : null })
     .eq("id", taskId);
-  revalidatePath(`/pipeline/lead/${leadId}`);
+  if (leadId) revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/dashboard");
 }
 
 export async function logActivity(

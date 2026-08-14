@@ -9,7 +9,13 @@ import {
   type PeriodKey,
 } from "@/lib/crm/dashboard";
 import { getDashboardData } from "@/lib/crm/dashboard-queries";
-import { getMembers, getProducts } from "@/lib/crm/queries";
+import {
+  getChannelConnections,
+  getMyAssignedTasks,
+  getOperationalOverview,
+  getMembers,
+  getProducts,
+} from "@/lib/crm/queries";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatDate, formatDateTime } from "@/lib/format";
 import {
@@ -26,6 +32,8 @@ import {
   TimeseriesChart,
 } from "./charts";
 import { DashboardFilters } from "./filters";
+import { OperationsPanel } from "./operations-panel";
+import { TeamTasksCard } from "./team-tasks-card";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -80,6 +88,7 @@ export default async function DashboardPage({
 
   const params = await searchParams;
   const period = parsePeriod(params.periodo);
+  const selectedChannel = params.canal || null;
 
   const filters = {
     period,
@@ -94,6 +103,9 @@ export default async function DashboardPage({
     data,
     products,
     members,
+    operationalOverview,
+    channels,
+    myTasks,
     { data: upcoming },
     { data: agendadas },
     { data: overdue },
@@ -102,6 +114,9 @@ export default async function DashboardPage({
       getDashboardData(context.workspace.id, filters),
       getProducts(context.workspace.id, true),
       getMembers(context.workspace.id),
+      getOperationalOverview(context.workspace.id, selectedChannel),
+      getChannelConnections(context.workspace.id),
+      getMyAssignedTasks(context.workspace.id, context.user.id),
       supabase
         .from("appointments")
         .select("id, title, starts_at, lead_id, leads (name)")
@@ -179,6 +194,19 @@ export default async function DashboardPage({
           reais do pipeline
         </p>
       </div>
+
+      {/* 1. Visão da Operação em Tempo Real (Dealeto) */}
+      <OperationsPanel
+        overview={operationalOverview}
+        channels={channels}
+        selectedChannelId={selectedChannel}
+      />
+
+      {/* 2. Lembretes e Tarefas Atribuídas entre Equipe (Secretária ⟷ Dr. Ítalo) */}
+      <TeamTasksCard
+        tasks={myTasks}
+        currentUserId={context.user.id}
+      />
 
       <DashboardFilters products={products} members={members} />
 

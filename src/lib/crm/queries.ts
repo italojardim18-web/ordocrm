@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   ActivityRow,
   AppointmentRow,
+  ChannelConnectionItem,
   CommercialOutcomeRow,
   HistoryRow,
   LeadCard,
@@ -9,6 +10,7 @@ import type {
   LostReason,
   Member,
   Note,
+  OperationalOverview,
   OpportunityRow,
   Product,
   Stage,
@@ -297,4 +299,87 @@ export async function getCommercialOutcomes(
   }
 
   return (data as CommercialOutcomeRow[]) ?? [];
+}
+
+/** Retorna a visão da operação em tempo real para o Dashboard. */
+export async function getOperationalOverview(
+  workspaceId: string,
+  channelConnectionId?: string | null,
+): Promise<OperationalOverview> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_operational_overview", {
+    p_workspace_id: workspaceId,
+    p_channel_connection_id: channelConnectionId || null,
+  });
+
+  if (error) {
+    console.error("Erro ao buscar get_operational_overview:", error);
+    return {
+      open_conversations: 0,
+      tasks_today: 0,
+      appointments_week: 0,
+      attention_proposals: 0,
+      attention_no_next_step: 0,
+      attention_upcoming_sessions: 0,
+      pipeline_distribution: [],
+    };
+  }
+
+  return data as unknown as OperationalOverview;
+}
+
+/** Lista todas as conexões de canais (números de WhatsApp/Instagram) do workspace. */
+export async function getChannelConnections(
+  workspaceId: string,
+): Promise<ChannelConnectionItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("channel_connections")
+    .select("id, provider, display_name, phone_number, status, is_default, transport")
+    .eq("workspace_id", workspaceId)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true });
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    provider: row.provider,
+    display_name: row.display_name,
+    phone_number: row.phone_number,
+    status: row.status,
+    is_default: row.is_default,
+    transport: row.transport,
+  }));
+}
+
+/** Busca tarefas e lembretes atribuídos diretamente ao usuário (ex: criadas pela secretária). */
+export async function getMyAssignedTasks(
+  workspaceId: string,
+  userId: string,
+) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tasks")
+    .select(
+      `id, title, due_at, completed_at, created_by, lead_id,
+       leads (id, name)`
+    )
+    .eq("workspace_id", workspaceId)
+    .eq("assigned_to", userId)
+    .is("completed_at", null)
+    .is("deleted_at", null)
+    .order("due_at", { ascending: true, nullsFirst: false })
+    .limit(10)
+    .returns<
+      {
+        id: string;
+        title: string;
+        due_at: string | null;
+        completed_at: string | null;
+        created_by: string | null;
+        lead_id: string;
+        leads: { id: string; name: string } | null;
+      }[]
+    >();
+
+  return data ?? [];
 }

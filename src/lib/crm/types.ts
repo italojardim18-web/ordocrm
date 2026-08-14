@@ -130,6 +130,7 @@ export interface TaskRow {
   due_at: string | null;
   completed_at: string | null;
   assigned_to: string | null;
+  created_by?: string | null;
   created_at: string;
 }
 
@@ -185,4 +186,30 @@ export interface CommercialOutcomeRow {
   owner_id: string | null;
   channel: LeadChannel;
   lost_reason: string | null;
+}
+
+export interface ChannelConnectionItem {
+  id: string;
+  provider: "whatsapp" | "instagram" | "form" | "meta_lead_ads";
+  display_name: string | null;
+  phone_number: string | null;
+  status: string;
+  is_default: boolean;
+  transport?: "cloud_api" | "bridge";
+}
+
+export interface OperationalOverview {
+  open_conversations: number;
+  tasks_today: number;
+  appointments_week: number;
+  attention_proposals: number;
+  attention_no_next_step: number;
+  attention_upcoming_sessions: number;
+  pipeline_distribution: {
+    id: string;
+    name: string;
+    stage_type: StageType;
+    position: number;
+    lead_count: number;
+  }[];
 }

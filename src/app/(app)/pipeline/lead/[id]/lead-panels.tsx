@@ -119,10 +119,12 @@ export function TasksPanel({
   leadId,
   tasks,
   members,
+  currentUserId,
 }: {
   leadId: string;
   tasks: TaskRow[];
   members: Member[];
+  currentUserId: string;
 }) {
   const [state, formAction, pending] = useActionState<SimpleState, FormData>(
     async (prev, formData) => {
@@ -156,6 +158,26 @@ export function TasksPanel({
             <Label htmlFor="taskDue">Vencimento</Label>
             <Input id="taskDue" name="dueAt" type="datetime-local" />
           </div>
+          {members.length > 1 ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="taskAssignedTo">Atribuir para</Label>
+              <select
+                id="taskAssignedTo"
+                name="assignedTo"
+                aria-label="Responsável pela tarefa"
+                className="border-input h-9 rounded-md border bg-transparent px-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Eu mesmo</option>
+                {members
+                  .filter((m) => m.userId !== currentUserId)
+                  .map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.fullName}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          ) : null}
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Criando…" : "Adicionar"}
           </Button>
@@ -184,7 +206,7 @@ export function TasksPanel({
                   disabled={toggling}
                   onChange={(event) =>
                     startTransition(async () => {
-                      await toggleTask(task.id, leadId, event.target.checked);
+                      await toggleTask(task.id, event.target.checked, leadId);
                     })
                   }
                   className="mt-0.5"
@@ -205,6 +227,10 @@ export function TasksPanel({
                       : "Sem vencimento"}
                     {" · "}
                     {memberName(members, task.assigned_to)}
+                    {task.created_by && task.created_by !== task.assigned_to ? (
+                      <span className="text-[10px] text-muted-foreground/70">
+                        {" (criada por "}{memberName(members, task.created_by)}{")"}                      </span>
+                    ) : null}
                   </p>
                 </div>
                 {overdue ? (
