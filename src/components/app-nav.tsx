@@ -48,11 +48,16 @@ export function AppNav({
             className="flex shrink-0 items-center gap-3 rounded-2xl p-1 transition-transform hover:scale-102 group"
           >
             <OrdoSymbol className="size-8 text-primary transition-transform group-hover:scale-105" title="ORDO" />
-            <div className="flex flex-col">
-              <span className="font-heading text-xl tracking-[0.16em] font-bold text-primary leading-none">
-                ORDO CRM
-              </span>
-              <span className="text-[10px] tracking-wider text-muted-foreground font-sans mt-0.5 font-medium">
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="flex items-baseline gap-1.5 leading-none">
+                <span className="font-heading text-2xl tracking-[0.22em] font-bold text-primary">
+                  ORDO
+                </span>
+                <span className="font-heading text-xs tracking-[0.14em] font-semibold text-primary/75">
+                  CRM
+                </span>
+              </div>
+              <span className="text-[9px] tracking-wider text-muted-foreground font-sans mt-0.5 font-medium text-center w-full">
                 by Práxis mentis
               </span>
             </div>

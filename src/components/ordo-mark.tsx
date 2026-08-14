@@ -87,10 +87,13 @@ export function OrdoLockup({
   return (
     <span className={`inline-flex items-center gap-2.5 ${className ?? ""}`}>
       <OrdoSymbol className="size-7 shrink-0" title="" />
-      <span className="flex flex-col leading-none">
-        <span className="font-heading text-xl tracking-[0.16em] font-bold">ORDO CRM</span>
+      <span className="flex flex-col items-center leading-none text-center">
+        <span className="flex items-baseline gap-1">
+          <span className="font-heading text-xl tracking-[0.20em] font-bold">ORDO</span>
+          <span className="font-heading text-[10px] tracking-[0.10em] font-semibold opacity-75">CRM</span>
+        </span>
         {!compact ? (
-          <span className="mt-1 text-[0.5rem] tracking-[0.12em] opacity-80 font-medium">
+          <span className="mt-0.5 text-[0.5rem] tracking-[0.12em] opacity-80 font-medium text-center">
             by Práxis mentis
           </span>
         ) : null}
