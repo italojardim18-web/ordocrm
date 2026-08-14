@@ -1,4 +1,5 @@
 import { AppNav } from "@/components/app-nav";
+import { AppSidebar } from "@/components/app-sidebar";
 import { getSessionContext } from "@/lib/auth";
 import { getChannelConnections } from "@/lib/crm/queries";
 import { Button } from "@/components/ui/button";
@@ -31,18 +32,26 @@ export default async function AppLayout({
     phoneNumber: ch.phone_number,
   }));
 
+  const isAdmin = context.membership.role === "admin";
+
   return (
-    <div className="flex min-h-svh flex-col">
-      <AppNav
-        workspaceName={context.workspace.displayName}
-        userName={context.profile.fullName}
-        userEmail={context.user.email}
-        isAdmin={context.membership.role === "admin"}
-        channels={channels}
-      />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
-        {children}
-      </main>
+    <div className="flex min-h-svh bg-background">
+      {/* Barra Lateral Esquerda com Dock de Ferramentas / Configurações / Suporte */}
+      <AppSidebar isAdmin={isAdmin} />
+
+      {/* Área Principal de Conteúdo com Barra Superior Moderna */}
+      <div className="flex flex-1 flex-col min-w-0">
+        <AppNav
+          workspaceName={context.workspace.displayName}
+          userName={context.profile.fullName}
+          userEmail={context.user.email}
+          isAdmin={isAdmin}
+          channels={channels}
+        />
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-7">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
