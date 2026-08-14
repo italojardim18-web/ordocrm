@@ -7,6 +7,8 @@ import { channelLabel, formatBRL, formatDateTime } from "@/lib/format";
 import { initials } from "@/lib/validation";
 import { Badge } from "@/components/ui/badge";
 
+import type { TagItem } from "@/lib/crm/types";
+
 export const metadata: Metadata = { title: "Lista de Contatos" };
 
 interface ContactRow {
@@ -19,6 +21,7 @@ interface ContactRow {
   created_at: string;
   last_interaction_at: string | null;
   pipeline_stages: { name: string } | null;
+  tags: TagItem[];
 }
 
 export default async function ContactsPage({
@@ -36,13 +39,19 @@ export default async function ContactsPage({
 
   const { data: leads } = await supabase
     .from("leads")
-    .select("id, name, phone, email, channel, potential_value, created_at, last_interaction_at, pipeline_stages (name)")
+    .select("id, name, phone, email, channel, potential_value, created_at, last_interaction_at, pipeline_stages (name), lead_tags (tags (id, name, color))")
     .eq("workspace_id", context.workspace.id)
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .returns<ContactRow[]>();
+    .order("created_at", { ascending: false });
 
-  const filtered = (leads ?? []).filter((l) => {
+  const mappedLeads = (leads ?? []).map((row: any) => ({
+    ...row,
+    tags: (row.lead_tags ?? [])
+      .map((lt: any) => lt.tags)
+      .filter(Boolean) as { id: string; name: string; color: string }[],
+  }));
+
+  const filtered = mappedLeads.filter((l) => {
     if (!busca) return true;
     return (
       l.name.toLowerCase().includes(busca) ||
@@ -110,6 +119,20 @@ export default async function ContactsPage({
                           <span className="text-[11px] text-muted-foreground">
                             {contact.email}
                           </span>
+                        ) : null}
+                        {contact.tags && contact.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {contact.tags.map((t: TagItem) => (
+                              <span
+                                key={t.id}
+                                style={{ backgroundColor: `${t.color}15`, borderColor: `${t.color}40`, color: t.color }}
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0 text-[9px] font-semibold"
+                              >
+                                <span className="size-1 rounded-full" style={{ backgroundColor: t.color }} />
+                                <span>{t.name}</span>
+                              </span>
+                            ))}
+                          </div>
                         ) : null}
                       </div>
                     </Link>

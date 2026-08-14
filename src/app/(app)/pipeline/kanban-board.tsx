@@ -188,6 +188,19 @@ function LeadCardView({
             Tarefa atrasada
           </Badge>
         ) : null}
+
+        {lead.tags && lead.tags.length > 0 ? (
+          lead.tags.map((t) => (
+            <span
+              key={t.id}
+              style={{ backgroundColor: `${t.color}15`, borderColor: `${t.color}40`, color: t.color }}
+              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.2 text-[9px] font-semibold"
+            >
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: t.color }} />
+              <span>{t.name}</span>
+            </span>
+          ))
+        ) : null}
       </div>
 
       {/* Rodapé do Card: Valor em Destaque e Avatar */}

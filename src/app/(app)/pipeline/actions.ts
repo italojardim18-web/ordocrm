@@ -635,3 +635,99 @@ export async function updateLeadSummary(
   return {};
 }
 
+// -----------------------------------------------------------------------------
+// Gerenciamento de Tags / Etiquetas Coloridas
+// -----------------------------------------------------------------------------
+
+export async function addTagToLead(
+  leadId: string,
+  tagId: string,
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({ leadId: uuid, tagId: uuid })
+    .safeParse({ leadId, tagId });
+  if (!parsed.success) return { error: "IDs inválidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("lead_tags")
+    .upsert(
+      {
+        workspace_id: context.workspace.id,
+        lead_id: leadId,
+        tag_id: tagId,
+      },
+      { onConflict: "lead_id,tag_id" },
+    );
+
+  if (error) return { error: "Não foi possível adicionar a etiqueta." };
+
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/pipeline");
+  revalidatePath("/contatos");
+  return {};
+}
+
+export async function removeTagFromLead(
+  leadId: string,
+  tagId: string,
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({ leadId: uuid, tagId: uuid })
+    .safeParse({ leadId, tagId });
+  if (!parsed.success) return { error: "IDs inválidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("lead_tags")
+    .delete()
+    .eq("lead_id", leadId)
+    .eq("tag_id", tagId);
+
+  if (error) return { error: "Não foi possível remover a etiqueta." };
+
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/pipeline");
+  revalidatePath("/contatos");
+  return {};
+}
+
+export async function createWorkspaceTag(
+  name: string,
+  color: string,
+): Promise<{ tag?: { id: string; name: string; color: string }; error?: string }> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({
+      name: z.string().trim().min(1, "Nome da tag é obrigatório.").max(40),
+      color: z.string().regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, "Cor hexadecimal inválida."),
+    })
+    .safeParse({ name, color });
+
+  if (!parsed.success) return { error: "Dados da tag inválidos." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tags")
+    .insert({
+      workspace_id: context.workspace.id,
+      name: parsed.data.name,
+      color: parsed.data.color,
+    })
+    .select("id, name, color")
+    .single();
+
+  if (error) return { error: "Erro ao criar tag: " + error.message };
+
+  revalidatePath("/pipeline");
+  return { tag: data };
+}
+

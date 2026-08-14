@@ -1,5 +1,6 @@
 import { AppNav } from "@/components/app-nav";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppAssistantChatbot } from "@/components/app-assistant-chatbot";
 import { getSessionContext } from "@/lib/auth";
 import { getChannelConnections } from "@/lib/crm/queries";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,9 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+
+      {/* Mini Assistente / Chatbot de IA Flutuante no Canto Inferior Direito */}
+      <AppAssistantChatbot />
     </div>
   );
 }

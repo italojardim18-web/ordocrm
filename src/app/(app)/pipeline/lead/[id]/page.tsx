@@ -8,6 +8,7 @@ import {
   getMembers,
   getProducts,
   getStages,
+  getWorkspaceTags,
   isCalendarConnected,
 } from "@/lib/crm/queries";
 import { channelLabel, formatDateTime } from "@/lib/format";
@@ -25,6 +26,7 @@ import { FollowUpCard } from "./follow-up-card";
 import { TemperatureCard } from "./temperature-card";
 import { AISummaryCard } from "./ai-summary-card";
 import { ContinuityTimeline } from "./continuity-timeline";
+import { LeadTagsEditor } from "./lead-tags-editor";
 import { ActivityPanel, NotesPanel, TasksPanel } from "./lead-panels";
 import { OpportunitiesPanel } from "./opportunities-panel";
 import { ConversationPanel } from "./conversation-panel";
@@ -51,15 +53,17 @@ export default async function LeadPage({
     interests,
     appointments,
     opportunities,
+    tags,
   } = full;
 
-  const [stages, products, members, lostReasons, calendarConnected] =
+  const [stages, products, members, lostReasons, calendarConnected, workspaceTags] =
     await Promise.all([
       getStages(lead.pipeline_id),
       getProducts(context.workspace.id, true),
       getMembers(context.workspace.id),
       getLostReasons(context.workspace.id),
       isCalendarConnected(context.workspace.id),
+      getWorkspaceTags(context.workspace.id),
     ]);
 
   const currentStage = stages.find((s) => s.id === lead.stage_id);
@@ -119,6 +123,12 @@ export default async function LeadPage({
             leadId={lead.id}
             initialFollowUpAt={lead.follow_up_at}
             initialNote={lead.follow_up_note}
+          />
+
+          <LeadTagsEditor
+            leadId={lead.id}
+            leadTags={tags}
+            allWorkspaceTags={workspaceTags}
           />
 
           <AISummaryCard lead={lead} />

@@ -42,6 +42,12 @@ export interface LostReason {
   is_active: boolean;
 }
 
+export interface TagItem {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Member {
   userId: string;
   fullName: string;
@@ -67,6 +73,7 @@ export interface LeadCard {
   temperature_override_at?: string | null;
   lead_product_interests: { product_id: string }[];
   tasks: { id: string; due_at: string | null; completed_at: string | null }[];
+  tags?: TagItem[];
 }
 
 export interface LeadDetail {

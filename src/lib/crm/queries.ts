@@ -14,6 +14,7 @@ import type {
   OpportunityRow,
   Product,
   Stage,
+  TagItem,
   TaskRow,
 } from "./types";
 
@@ -61,7 +62,8 @@ export async function getBoardLeads(
        temperature_override, temperature_override_at,
        channel_connection_id,
        lead_product_interests (product_id),
-       tasks (id, due_at, completed_at)`,
+       tasks (id, due_at, completed_at),
+       lead_tags (tags (id, name, color))`,
     )
     .eq("pipeline_id", pipelineId)
     .is("deleted_at", null)
@@ -73,9 +75,14 @@ export async function getBoardLeads(
 
   const { data } = await query
     .order("position", { ascending: true })
-    .limit(500)
-    .returns<LeadCard[]>();
-  return data ?? [];
+    .limit(500);
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    tags: (row.lead_tags ?? [])
+      .map((lt: any) => lt.tags)
+      .filter(Boolean) as TagItem[],
+  })) as LeadCard[];
 }
 
 export async function getProducts(
@@ -143,6 +150,30 @@ export interface LeadFull {
   interests: string[];
   appointments: AppointmentRow[];
   opportunities: OpportunityRow[];
+  tags: TagItem[];
+}
+
+export async function getWorkspaceTags(workspaceId: string): Promise<TagItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tags")
+    .select("id, name, color")
+    .eq("workspace_id", workspaceId)
+    .order("name", { ascending: true })
+    .returns<TagItem[]>();
+  return data ?? [];
+}
+
+export async function getLeadTags(leadId: string): Promise<TagItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lead_tags")
+    .select("tag_id, tags (id, name, color)")
+    .eq("lead_id", leadId);
+
+  return (data ?? [])
+    .map((item: any) => item.tags)
+    .filter(Boolean) as TagItem[];
 }
 
 export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
@@ -165,6 +196,7 @@ export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
     interests,
     appointments,
     opportunities,
+    leadTags,
   ] = await Promise.all([
     supabase
       .from("notes")
@@ -216,6 +248,7 @@ export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .returns<OpportunityRow[]>(),
+    getLeadTags(leadId),
   ]);
 
   return {
@@ -227,6 +260,7 @@ export async function getLeadFull(leadId: string): Promise<LeadFull | null> {
     interests: (interests.data ?? []).map((i) => i.product_id),
     appointments: appointments.data ?? [],
     opportunities: opportunities.data ?? [],
+    tags: leadTags ?? [],
   };
 }
 
