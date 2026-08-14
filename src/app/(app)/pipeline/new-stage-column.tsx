@@ -43,7 +43,7 @@ export function NewStageColumn({
 
   if (!abrindo) {
     return (
-      <div className="w-72 shrink-0 flex flex-col">
+      <div className="w-[15.5rem] sm:w-[16.5rem] lg:w-[17.5rem] shrink-0 flex flex-col">
         <button
           type="button"
           onClick={() => setAbrindo(true)}

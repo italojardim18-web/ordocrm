@@ -166,6 +166,22 @@
     }
   }
 
+  /* Scrollbar moderna e discreta para o Kanban */
+  .kanban-scroll::-webkit-scrollbar {
+    height: 7px;
+  }
+  .kanban-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 9999px;
+  }
+  .kanban-scroll::-webkit-scrollbar-thumb {
+    background: rgba(182, 174, 164, 0.45);
+    border-radius: 9999px;
+  }
+  .kanban-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(82, 29, 42, 0.5);
+  }
+
   /* Respeita quem pediu menos animação no sistema. */
   @media (prefers-reduced-motion: reduce) {
     *,
