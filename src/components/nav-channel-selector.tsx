@@ -31,7 +31,6 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
     });
   }
 
-  // Lista padrão caso ainda não tenha canais sincronizados
   const opcoes: ChannelItem[] =
     channels.length > 0
       ? channels
@@ -44,16 +43,16 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
     <div
       role="group"
       aria-label="Filtro de linha de WhatsApp"
-      className="flex items-center gap-1 rounded-md bg-sidebar-accent/50 p-0.5 text-xs text-sidebar-foreground"
+      className="flex items-center gap-1 rounded-full bg-sidebar-accent/50 p-1 border border-sidebar-border/40 text-xs text-sidebar-foreground"
     >
       <button
         type="button"
         onClick={() => handleChange("todas")}
         disabled={pending}
         className={cn(
-          "rounded px-2.5 py-1 text-xs font-medium transition-all",
+          "rounded-full px-3 py-1 text-xs font-medium transition-all",
           current === "todas"
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs"
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs font-semibold"
             : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}
       >
@@ -66,13 +65,13 @@ export function NavChannelSelector({ channels }: { channels: ChannelItem[] }) {
           onClick={() => handleChange(ch.id)}
           disabled={pending}
           className={cn(
-            "rounded px-2.5 py-1 text-xs font-medium transition-all flex items-center gap-1",
+            "rounded-full px-3 py-1 text-xs font-medium transition-all flex items-center gap-1.5",
             current === ch.id
-              ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs"
+              ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xs font-semibold"
               : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground",
           )}
         >
-          <span className="text-[11px]">📱</span>
+          <span className="text-[10px]">📱</span>
           <span>{ch.label}</span>
         </button>
       ))}

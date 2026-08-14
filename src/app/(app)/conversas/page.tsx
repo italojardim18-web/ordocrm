@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getChannelConnections } from "@/lib/crm/queries";
 import { channelLabel, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
-import { ChannelSelector } from "@/components/channel-selector";
+import { initials } from "@/lib/validation";
 
 export const metadata: Metadata = { title: "Conversas" };
 
@@ -34,7 +34,6 @@ export default async function ConversationsPage({
 
   const supabase = await createClient();
 
-  // Busca conversas e canais em paralelo
   const [channelConnections, { data: conversations }] = await Promise.all([
     getChannelConnections(context.workspace.id),
     (() => {
@@ -55,62 +54,79 @@ export default async function ConversationsPage({
     })(),
   ]);
 
-  // Monta opções do seletor
-  const channelOptions = channelConnections.map((ch) => ({
-    id: ch.id,
-    label: ch.display_name ?? ch.provider,
-    phoneNumber: ch.phone_number,
-  }));
+  const channelMap = new Map(channelConnections.map((c) => [c.id, c.display_name ?? c.provider]));
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-primary">Conversas</h1>
-        <ChannelSelector channels={channelOptions} />
+        <div className="flex items-center gap-3">
+          <h1 className="font-heading text-2xl font-bold text-primary tracking-tight">
+            Conversas
+          </h1>
+          <span className="rounded-full bg-secondary px-3 py-0.5 text-xs font-semibold text-secondary-foreground">
+            {conversations?.length ?? 0} ativas
+          </span>
+        </div>
       </div>
 
       {(conversations ?? []).length === 0 ? (
-        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-card p-8 text-center">
-          <p className="font-medium">Nenhuma conversa ainda.</p>
-          <p className="max-w-md text-sm text-muted-foreground">
+        <div className="ordo-card flex min-h-64 flex-col items-center justify-center gap-3 p-8 text-center">
+          <span className="text-3xl">💬</span>
+          <p className="font-semibold text-sm">Nenhuma conversa encontrada</p>
+          <p className="max-w-md text-xs text-muted-foreground">
             {selectedChannel
-              ? "Nenhuma conversa nesta linha. Troque o filtro ou aguarde novas mensagens."
+              ? "Nenhuma conversa registrada nesta linha. Troque o filtro no topo ou aguarde novas mensagens."
               : "As conversas aparecem aqui quando o WhatsApp ou o Instagram estiverem conectados em Configurações → Integrações."}
           </p>
         </div>
       ) : (
-        <ul className="divide-y rounded-lg border bg-card">
-          {(conversations ?? []).map((conversation) => (
-            <li key={conversation.id}>
+        <div className="ordo-card p-3 divide-y divide-border/50">
+          {(conversations ?? []).map((conversation) => {
+            const nome = conversation.leads?.name ?? "Contato sem cadastro";
+            const linhaNome = conversation.channel_connection_id
+              ? channelMap.get(conversation.channel_connection_id)
+              : null;
+
+            return (
               <Link
+                key={conversation.id}
                 href={`/conversas/${conversation.id}`}
-                className="flex items-center gap-3 p-4 hover:bg-muted/60"
+                className="flex items-center gap-3.5 p-3.5 rounded-xl transition-colors hover:bg-muted/40"
               >
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary font-bold text-xs ring-1 ring-border/60">
+                  {initials(nome)}
+                </div>
+
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-medium">
-                      {conversation.leads?.name ?? "Contato sem cadastro"}
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="truncate font-semibold text-xs text-foreground">
+                      {nome}
                     </p>
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0">
                       {channelLabel(conversation.provider)}
                     </Badge>
+                    {linhaNome ? (
+                      <span className="text-[10px] text-muted-foreground/75 rounded-full bg-muted px-2 py-0.5 font-medium">
+                        📱 {linhaNome}
+                      </span>
+                    ) : null}
                     {conversation.unread_count > 0 ? (
-                      <Badge className="bg-positive text-[10px] text-primary-foreground">
+                      <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
                         {conversation.unread_count} nova(s)
-                      </Badge>
+                      </span>
                     ) : null}
                   </div>
-                  <p className="truncate text-sm text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground">
                     {conversation.last_message_preview ?? "—"}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
+                <span className="shrink-0 text-[11px] text-muted-foreground/80">
                   {formatDateTime(conversation.last_message_at)}
                 </span>
               </Link>
-            </li>
-          ))}
-        </ul>
+            );
+          })}
+        </div>
       )}
     </section>
   );

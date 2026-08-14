@@ -145,11 +145,17 @@ export default async function ConversationPage({
         unreadCount={conversation.unread_count}
       />
 
-      {/* Coluna esquerda: as outras conversas. Some no celular, onde a lista
-          é uma tela própria. */}
-      <aside className="hidden w-56 shrink-0 flex-col rounded-lg border bg-card md:flex xl:w-64">
-        <h2 className="border-b px-4 py-3 text-sm font-medium">Conversas</h2>
-        <ul className="min-h-0 flex-1 divide-y overflow-y-auto">
+      {/* Coluna esquerda: as outras conversas. */}
+      <aside className="ordo-card hidden w-64 shrink-0 flex-col overflow-hidden bg-card md:flex xl:w-72">
+        <div className="border-b border-border/60 px-4 py-3.5 flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Conversas
+          </h2>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+            {todas?.length ?? 0}
+          </span>
+        </div>
+        <ul className="min-h-0 flex-1 divide-y divide-border/40 overflow-y-auto p-1.5">
           {(todas ?? []).map((item) => {
             const ativa = item.id === id;
             return (
@@ -157,21 +163,23 @@ export default async function ConversationPage({
                 <Link
                   href={`/conversas/${item.id}`}
                   aria-current={ativa ? "page" : undefined}
-                  className={`block px-4 py-3 transition-colors ${
-                    ativa ? "bg-secondary" : "hover:bg-muted/60"
+                  className={`block rounded-xl px-3.5 py-3 transition-colors ${
+                    ativa
+                      ? "bg-secondary text-secondary-foreground font-medium shadow-2xs"
+                      : "hover:bg-muted/50 text-foreground"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="truncate text-xs font-semibold">
                       {item.leads?.name ?? "Sem cadastro"}
                     </span>
                     {item.unread_count > 0 ? (
-                      <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                      <span className="ml-auto rounded-full bg-primary px-1.5 py-0.2 text-[10px] font-bold text-primary-foreground">
                         {item.unread_count}
                       </span>
                     ) : null}
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-[11px] text-muted-foreground">
                     {item.last_message_preview ?? "—"}
                   </p>
                 </Link>
@@ -181,22 +189,24 @@ export default async function ConversationPage({
         </ul>
       </aside>
 
-      {/* Centro: o chat. É o que importa, então fica no meio e ocupa o resto. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-lg border bg-card">
-        <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+      {/* Centro: o chat principal */}
+      <div className="ordo-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
+        <header className="flex flex-wrap items-center gap-2.5 border-b border-border/60 px-5 py-3.5 bg-card/80">
           <Link
             href="/conversas"
-            className="text-sm text-muted-foreground hover:underline md:hidden"
+            className="text-xs text-muted-foreground hover:underline md:hidden"
           >
-            ←
+            ← Voltar
           </Link>
-          <h1 className="truncate text-base font-medium">{titulo}</h1>
-          <Badge variant="secondary" className="text-[10px]">
+          <h1 className="truncate font-heading text-base font-bold text-foreground tracking-tight">
+            {titulo}
+          </h1>
+          <Badge variant="secondary" className="rounded-full text-[10px] px-2.5 font-medium">
             {channelLabel(conversation.provider)}
           </Badge>
         </header>
 
-        <ol className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+        <ol className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5 bg-muted/15">
           {(messages ?? []).map((message) => (
             <li
               key={message.id}
@@ -205,14 +215,14 @@ export default async function ConversationPage({
               }`}
             >
               <div
-                className={`max-w-[75%] rounded-lg px-3 py-2 ${
+                className={`max-w-[75%] rounded-2xl px-4 py-2.5 shadow-2xs ${
                   message.direction === "outbound"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    ? "bg-primary text-primary-foreground rounded-br-xs"
+                    : "bg-card border border-border/70 text-foreground rounded-bl-xs"
                 }`}
               >
                 {message.media_type ? (
-                  <div className="mb-1">
+                  <div className="mb-1.5">
                     <MessageMedia
                       path={message.media_path}
                       mime={message.media_mime}
@@ -227,7 +237,7 @@ export default async function ConversationPage({
                   </div>
                 ) : null}
                 {message.body ? (
-                  <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{message.body}</p>
                 ) : null}
                 <p
                   className={`mt-1 text-[10px] ${
@@ -245,7 +255,7 @@ export default async function ConversationPage({
             </li>
           ))}
           {(messages ?? []).length === 0 ? (
-            <li className="m-auto text-sm text-muted-foreground">
+            <li className="m-auto text-xs text-muted-foreground italic">
               Nenhuma mensagem nesta conversa.
             </li>
           ) : null}

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { KanbanBoard } from "./kanban-board";
 import { LeadList } from "./lead-list";
 import { NewLeadDialog } from "./new-lead-dialog";
+import { cn } from "@/lib/utils";
 
 const MOBILE_QUERY = "(max-width: 767px)";
 
@@ -51,7 +52,6 @@ export function PipelineView({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // `null` = usuário ainda não escolheu; aí o dispositivo decide.
   const [chosenView, setChosenView] = useState<"kanban" | "list" | null>(() => {
     const fromUrl = searchParams.get("visao");
     if (fromUrl === "lista") return "list";
@@ -59,12 +59,10 @@ export function PipelineView({
     return null;
   });
 
-  // No celular a lista é a visão útil: arrastar cartão com o dedo é ruim e o
-  // Kanban exige rolagem lateral. A escolha explícita do usuário sempre vence.
   const isMobile = useSyncExternalStore(
     subscribeToMobile,
     () => window.matchMedia(MOBILE_QUERY).matches,
-    () => false, // no servidor assumimos desktop; o cliente corrige na hidratação
+    () => false,
   );
   const effectiveView = chosenView ?? (isMobile ? "list" : "kanban");
   const [filters, setFilters] = useState<BoardFilters>({
@@ -74,7 +72,6 @@ export function PipelineView({
     ownerId: searchParams.get("responsavel") ?? "",
   });
 
-  // Filtros e visão compartilhados via URL (Kanban e lista usam o mesmo estado).
   useEffect(() => {
     const params = new URLSearchParams();
     if (chosenView === "list") params.set("visao", "lista");
@@ -87,7 +84,6 @@ export function PipelineView({
     window.history.replaceState(null, "", qs ? `?${qs}` : "/pipeline");
   }, [chosenView, filters]);
 
-  // Tempo real: mudanças nos leads do workspace recarregam os dados do servidor.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const supabase = createClient();
@@ -137,49 +133,71 @@ export function PipelineView({
   }, [leads, filters]);
 
   return (
-    <section className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold text-primary">Pipeline</h1>
-        <div
-          role="group"
-          aria-label="Alternar visualização"
-          className="ml-auto flex rounded-md border"
-        >
-          <Button
-            variant={effectiveView === "kanban" ? "secondary" : "ghost"}
-            size="sm"
-            aria-pressed={effectiveView === "kanban"}
-            className="tap-target"
-            onClick={() => setChosenView("kanban")}
-          >
-            Kanban
-          </Button>
-          <Button
-            variant={effectiveView === "list" ? "secondary" : "ghost"}
-            size="sm"
-            aria-pressed={effectiveView === "list"}
-            className="tap-target"
-            onClick={() => setChosenView("list")}
-          >
-            Lista
-          </Button>
+    <section className="flex min-w-0 flex-col gap-5">
+      {/* Cabeçalho do Pipeline com Alternância e Novo Lead */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="font-heading text-2xl font-bold text-primary tracking-tight">
+            Pipeline
+          </h1>
+          <span className="rounded-full bg-secondary px-3 py-0.5 text-xs font-semibold text-secondary-foreground">
+            {filtered.length} leads
+          </span>
         </div>
-        <NewLeadDialog
-          stages={stages}
-          products={products}
-          members={members}
-        />
+
+        <div className="flex items-center gap-2.5">
+          {/* Alternador Kanban / Lista em pílula */}
+          <div
+            role="group"
+            aria-label="Alternar visualização"
+            className="flex rounded-full bg-secondary/60 p-1 border border-border"
+          >
+            <button
+              type="button"
+              aria-pressed={effectiveView === "kanban"}
+              onClick={() => setChosenView("kanban")}
+              className={cn(
+                "rounded-full px-3.5 py-1 text-xs font-medium transition-all",
+                effectiveView === "kanban"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              ☷ Kanban
+            </button>
+            <button
+              type="button"
+              aria-pressed={effectiveView === "list"}
+              onClick={() => setChosenView("list")}
+              className={cn(
+                "rounded-full px-3.5 py-1 text-xs font-medium transition-all",
+                effectiveView === "list"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              ☰ Lista
+            </button>
+          </div>
+
+          <NewLeadDialog
+            stages={stages}
+            products={products}
+            members={members}
+          />
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Filtros em Pílulas */}
+      <div className="flex flex-wrap items-center gap-2.5">
         <Input
           aria-label="Buscar por nome, telefone ou e-mail"
-          placeholder="Buscar…"
+          placeholder="🔍 Buscar lead..."
           value={filters.search}
           onChange={(event) =>
             setFilters((f) => ({ ...f, search: event.target.value }))
           }
-          className="w-56"
+          className="w-60 rounded-full bg-card px-4 text-xs h-9 shadow-xs"
         />
         <select
           aria-label="Filtrar por canal"
@@ -187,7 +205,7 @@ export function PipelineView({
           onChange={(event) =>
             setFilters((f) => ({ ...f, channel: event.target.value }))
           }
-          className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
+          className="h-9 rounded-full border border-border bg-card px-3.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="">Todos os canais</option>
           <option value="whatsapp">WhatsApp</option>
@@ -202,7 +220,7 @@ export function PipelineView({
           onChange={(event) =>
             setFilters((f) => ({ ...f, productId: event.target.value }))
           }
-          className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
+          className="h-9 rounded-full border border-border bg-card px-3.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="">Todos os produtos</option>
           {products.map((product) => (
@@ -217,7 +235,7 @@ export function PipelineView({
           onChange={(event) =>
             setFilters((f) => ({ ...f, ownerId: event.target.value }))
           }
-          className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
+          className="h-9 rounded-full border border-border bg-card px-3.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="">Todos os responsáveis</option>
           {members.map((member) => (
@@ -233,8 +251,9 @@ export function PipelineView({
             onClick={() =>
               setFilters({ search: "", channel: "", productId: "", ownerId: "" })
             }
+            className="rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
           >
-            Limpar filtros
+            ✕ Limpar filtros
           </Button>
         ) : null}
       </div>

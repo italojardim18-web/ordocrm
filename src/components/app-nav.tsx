@@ -24,8 +24,6 @@ const MAIN_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
 ];
 
-// Conversas fica fora da navegação principal (só Pipeline e Dashboard),
-// acessível por atalho ao lado do avatar.
 const SECONDARY_LINK = { href: "/conversas", label: "Conversas" };
 
 export function AppNav({
@@ -44,25 +42,30 @@ export function AppNav({
   const pathname = usePathname();
 
   return (
-    <header className="bg-sidebar text-sidebar-foreground">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+    <header className="bg-sidebar text-sidebar-foreground border-b border-sidebar-border/40">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
         {/* Marca do produto à esquerda */}
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href="/pipeline"
-            className="flex shrink-0 items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sidebar-ring"
+            className="flex shrink-0 items-center gap-2.5 rounded-full px-2 py-1 transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-sidebar-ring"
           >
-            <OrdoSymbol className="size-6" title="ORDO" />
-            <span className="font-heading text-base tracking-[0.22em]">
+            <OrdoSymbol className="size-6 text-sidebar-foreground" title="ORDO" />
+            <span className="font-heading text-base tracking-[0.25em] font-semibold text-sidebar-foreground">
               ORDO
             </span>
           </Link>
-          <span aria-hidden className="h-4 w-px bg-sidebar-border" />
-          <span className="truncate text-sm text-sidebar-foreground/75">
+          <span aria-hidden className="h-4 w-px bg-sidebar-border/60" />
+          <span className="truncate text-xs tracking-wide text-sidebar-foreground/70 font-medium">
             {workspaceName}
           </span>
         </div>
-        <nav aria-label="Navegação principal" className="flex items-center gap-1">
+
+        {/* Navegação principal em pílulas (Pill Tabs) */}
+        <nav
+          aria-label="Navegação principal"
+          className="flex items-center gap-1.5 rounded-full bg-sidebar-accent/40 p-1 border border-sidebar-border/40"
+        >
           {MAIN_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             return (
@@ -71,11 +74,10 @@ export function AppNav({
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring",
+                  "rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-150",
                   active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-semibold"
+                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground",
                 )}
               >
                 {link.label}
@@ -84,78 +86,80 @@ export function AppNav({
           })}
         </nav>
 
-        {/* Seletor de Linha WhatsApp no Painel de Ferramentas / Header */}
-        <div className="hidden sm:flex items-center ml-2">
+        {/* Seletor de Linha WhatsApp no Painel Superior */}
+        <div className="hidden md:flex items-center ml-2">
           <NavChannelSelector channels={channels} />
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* Ações à direita: Conversas e Avatar */}
+        <div className="ml-auto flex items-center gap-2.5">
           <Link
             href={SECONDARY_LINK.href}
             aria-current={
               pathname.startsWith(SECONDARY_LINK.href) ? "page" : undefined
             }
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm transition-colors",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring",
+              "rounded-full px-3.5 py-1.5 text-xs font-medium transition-all border border-sidebar-border/40",
               pathname.startsWith(SECONDARY_LINK.href)
-                ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-xs"
+                : "bg-sidebar-accent/30 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             )}
           >
-            {SECONDARY_LINK.label}
+            💬 {SECONDARY_LINK.label}
           </Link>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Menu do usuário"
-                className="rounded-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                className="rounded-full text-sidebar-foreground hover:bg-sidebar-accent ring-1 ring-sidebar-border/60 transition-transform hover:scale-105"
               >
                 <Avatar className="size-8">
-                  <AvatarFallback className="bg-sidebar-primary text-xs text-sidebar-primary-foreground">
+                  <AvatarFallback className="bg-sidebar-primary text-xs text-sidebar-primary-foreground font-semibold">
                     {initials(userName || userEmail)}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="flex flex-col">
-                <span>{userName || "Sem nome"}</span>
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5 shadow-xl border-border/80">
+              <DropdownMenuLabel className="flex flex-col px-3 py-2">
+                <span className="font-semibold text-sm">{userName || "Sem nome"}</span>
                 <span className="text-xs font-normal text-muted-foreground">
                   {userEmail}
                 </span>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/configuracoes/perfil">Perfil</Link>
+              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                <Link href="/configuracoes/perfil">👤 Perfil</Link>
               </DropdownMenuItem>
               {isAdmin ? (
                 <>
-                  <DropdownMenuItem asChild>
-                    <Link href="/configuracoes/produtos">Produtos</Link>
+                  <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                    <Link href="/configuracoes/produtos">📦 Produtos</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/configuracoes/pipeline">Pipeline e etapas</Link>
+                  <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                    <Link href="/configuracoes/pipeline">⚡ Pipeline e etapas</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/configuracoes/usuarios">Usuários</Link>
+                  <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                    <Link href="/configuracoes/usuarios">👥 Usuários</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/configuracoes/workspace">Workspace</Link>
+                  <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                    <Link href="/configuracoes/workspace">🏢 Workspace</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/configuracoes/integracoes">Integrações</Link>
+                  <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                    <Link href="/configuracoes/integracoes">🔗 Integrações</Link>
                   </DropdownMenuItem>
                 </>
               ) : null}
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
                 variant="destructive"
+                className="rounded-xl cursor-pointer"
                 onSelect={() => logout()}
               >
-                Sair
+                🚪 Sair
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
