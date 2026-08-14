@@ -27,6 +27,7 @@ import { TemperatureCard } from "./temperature-card";
 import { AISummaryCard } from "./ai-summary-card";
 import { ContinuityTimeline } from "./continuity-timeline";
 import { LeadTagsEditor } from "./lead-tags-editor";
+import { LgpdLeadCard } from "./lgpd-lead-card";
 import { ActivityPanel, NotesPanel, TasksPanel } from "./lead-panels";
 import { OpportunitiesPanel } from "./opportunities-panel";
 import { ConversationPanel } from "./conversation-panel";
@@ -143,6 +144,15 @@ export default async function LeadPage({
             lead={lead}
             products={products}
             interests={interests}
+          />
+
+          <LgpdLeadCard
+            leadId={lead.id}
+            leadName={lead.name}
+            consentStatus={(lead as any).consent_status}
+            consentPurpose={(lead as any).consent_purpose}
+            isAnonymized={Boolean((lead as any).is_anonymized)}
+            isAdmin={context.membership.role === "admin"}
           />
 
           <Card>

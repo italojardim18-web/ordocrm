@@ -24,6 +24,7 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
 
   const bottomItems = [
     { href: "/configuracoes/integracoes", label: "Integrações", icon: "🔗", adminOnly: true },
+    { href: "/configuracoes/seguranca-lgpd", label: "Segurança & LGPD", icon: "🛡️", adminOnly: true },
     { href: "/configuracoes/workspace", label: "Configurações", icon: "⚙️", adminOnly: true },
   ];
 
