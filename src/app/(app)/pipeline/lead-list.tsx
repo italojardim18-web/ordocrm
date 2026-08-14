@@ -4,12 +4,50 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { LeadCard, Member, Stage } from "@/lib/crm/types";
 import { channelLabel, formatBRL, formatDate } from "@/lib/format";
+import {
+  computeLeadTemperature,
+  TEMPERATURE_CONFIG,
+} from "@/lib/crm/temperature";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const PAGE_SIZE = 25;
 
 type SortKey = "name" | "created_at" | "potential_value";
+
+function getFollowUpStatus(followUpAt: string | null | undefined): {
+  label: string;
+  variant: "destructive" | "outline" | "secondary";
+  className?: string;
+} | null {
+  if (!followUpAt) return null;
+  const now = new Date();
+  const date = new Date(followUpAt);
+  const isPast = date.getTime() < now.getTime();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isPast && !isToday) {
+    return {
+      label: "Atrasado",
+      variant: "destructive",
+    };
+  }
+  if (isToday) {
+    return {
+      label: "Hoje",
+      variant: "outline",
+      className: "border-amber-500/40 text-amber-700 bg-amber-500/10 dark:text-amber-400",
+    };
+  }
+  return {
+    label: formatDate(date),
+    variant: "outline",
+    className: "text-muted-foreground",
+  };
+}
 
 export function LeadList({
   stages,
@@ -105,7 +143,9 @@ export function LeadList({
                   Nome{sortIndicator("name")}
                 </button>
               </th>
+              <th scope="col" className="px-3 py-2">Temperatura</th>
               <th scope="col" className="px-3 py-2">Etapa</th>
+              <th scope="col" className="px-3 py-2">Follow-up</th>
               <th scope="col" className="px-3 py-2">Canal</th>
               <th scope="col" className="px-3 py-2">Contato</th>
               <th scope="col" className="px-3 py-2">Responsável</th>
@@ -133,6 +173,10 @@ export function LeadList({
               const owner = lead.owner_id
                 ? memberById.get(lead.owner_id)
                 : null;
+              const temp = computeLeadTemperature(lead);
+              const tempCfg = TEMPERATURE_CONFIG[temp.temperature];
+              const followUp = getFollowUpStatus(lead.follow_up_at);
+
               return (
                 <tr key={lead.id} className="border-b last:border-0 hover:bg-muted/60">
                   <td className="px-3 py-2">
@@ -144,7 +188,29 @@ export function LeadList({
                     </Link>
                   </td>
                   <td className="px-3 py-2">
+                    <span
+                      title={temp.reason}
+                      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border ${tempCfg.badgeClass}`}
+                    >
+                      <span>{tempCfg.emoji}</span>
+                      <span>{tempCfg.label}</span>
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
                     <Badge variant="secondary">{stage?.name ?? "—"}</Badge>
+                  </td>
+                  <td className="px-3 py-2">
+                    {followUp ? (
+                      <Badge
+                        variant={followUp.variant}
+                        className={`text-[10px] ${followUp.className ?? ""}`}
+                        title={lead.follow_up_note ?? undefined}
+                      >
+                        {followUp.label}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">{channelLabel(lead.channel)}</td>
                   <td className="max-w-48 truncate px-3 py-2 text-muted-foreground">
@@ -163,7 +229,7 @@ export function LeadList({
             {pageRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={9}
                   className="px-3 py-8 text-center text-sm text-muted-foreground"
                 >
                   Nenhum lead encontrado com os filtros atuais.

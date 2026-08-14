@@ -25,9 +25,13 @@ import { toast } from "sonner";
 import { moveLead } from "./actions";
 import type { LeadCard, Member, Stage } from "@/lib/crm/types";
 import { NewStageColumn } from "./new-stage-column";
-import { channelLabel, formatBRL } from "@/lib/format";
+import { channelLabel, formatBRL, formatDate } from "@/lib/format";
 import { positionBetween } from "@/lib/positions";
 import { initials } from "@/lib/validation";
+import {
+  computeLeadTemperature,
+  TEMPERATURE_CONFIG,
+} from "@/lib/crm/temperature";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +63,40 @@ function hasOverdueTask(lead: LeadCard): boolean {
   );
 }
 
+function getFollowUpStatus(followUpAt: string | null | undefined): {
+  label: string;
+  variant: "destructive" | "outline" | "secondary";
+  className?: string;
+} | null {
+  if (!followUpAt) return null;
+  const now = new Date();
+  const date = new Date(followUpAt);
+  const isPast = date.getTime() < now.getTime();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isPast && !isToday) {
+    return {
+      label: "Follow-up atrasado",
+      variant: "destructive",
+    };
+  }
+  if (isToday) {
+    return {
+      label: "Follow-up hoje",
+      variant: "outline",
+      className: "border-amber-500/40 text-amber-700 bg-amber-500/10 dark:text-amber-400",
+    };
+  }
+  return {
+    label: `Retorno: ${formatDate(date)}`,
+    variant: "outline",
+    className: "text-muted-foreground",
+  };
+}
+
 function LeadCardView({
   lead,
   stages,
@@ -74,6 +112,9 @@ function LeadCardView({
 }) {
   const owner = members.find((m) => m.userId === lead.owner_id);
   const overdue = hasOverdueTask(lead);
+  const temp = computeLeadTemperature(lead);
+  const tempCfg = TEMPERATURE_CONFIG[temp.temperature];
+  const followUpStatus = getFollowUpStatus(lead.follow_up_at);
 
   return (
     <div
@@ -120,12 +161,26 @@ function LeadCardView({
         </DropdownMenu>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          title={temp.reason}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border ${tempCfg.badgeClass}`}
+        >
+          <span>{tempCfg.emoji}</span>
+          <span>{tempCfg.label}</span>
+        </span>
         <Badge variant="secondary" className="text-[10px]">
           {channelLabel(lead.channel)}
         </Badge>
-        {overdue ? (
+        {followUpStatus ? (
+          <Badge
+            variant={followUpStatus.variant}
+            className={`text-[10px] ${followUpStatus.className ?? ""}`}
+          >
+            {followUpStatus.label}
+          </Badge>
+        ) : overdue ? (
           <Badge variant="destructive" className="text-[10px]">
-            Follow-up vencido
+            Tarefa atrasada
           </Badge>
         ) : null}
       </div>

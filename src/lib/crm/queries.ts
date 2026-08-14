@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   ActivityRow,
   AppointmentRow,
+  CommercialOutcomeRow,
   HistoryRow,
   LeadCard,
   LeadDetail,
@@ -51,6 +52,8 @@ export async function getBoardLeads(pipelineId: string): Promise<LeadCard[]> {
     .select(
       `id, name, stage_id, position, channel, phone, email, potential_value,
        owner_id, engaged_at, created_at,
+       follow_up_at, follow_up_note, last_interaction_at,
+       temperature_override, temperature_override_at,
        lead_product_interests (product_id),
        tasks (id, due_at, completed_at)`,
     )
@@ -265,4 +268,33 @@ export async function findDuplicates(
 
   const { data } = await query;
   return data ?? [];
+}
+
+/** Oportunidades fechadas (ganhas ou perdidas) no período para detalhamento. */
+export async function getCommercialOutcomes(
+  workspaceId: string,
+  params: {
+    from: Date;
+    to: Date;
+    status?: "won" | "lost" | null;
+    productId?: string | null;
+    ownerId?: string | null;
+  },
+): Promise<CommercialOutcomeRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("commercial_outcomes", {
+    p_workspace_id: workspaceId,
+    p_from: params.from.toISOString(),
+    p_to: params.to.toISOString(),
+    p_status: params.status ?? null,
+    p_product_id: params.productId ?? null,
+    p_owner_id: params.ownerId ?? null,
+  });
+
+  if (error) {
+    console.error("Erro ao buscar commercial_outcomes:", error);
+    return [];
+  }
+
+  return (data as CommercialOutcomeRow[]) ?? [];
 }

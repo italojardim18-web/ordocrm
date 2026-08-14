@@ -513,3 +513,120 @@ export async function createStageAtEnd(
   revalidatePath("/pipeline");
   return {};
 }
+
+// -----------------------------------------------------------------------------
+// Operação diária: Follow-up, Temperatura e Resumo IA
+// -----------------------------------------------------------------------------
+
+export async function setLeadFollowUp(
+  leadId: string,
+  followUpAt: string | null,
+  note: string | null,
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({
+      leadId: uuid,
+      followUpAt: z.string().nullable().optional(),
+      note: z.string().trim().max(500).nullable().optional(),
+    })
+    .safeParse({ leadId, followUpAt, note });
+
+  if (!parsed.success) return { error: "Dados de follow-up inválidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      follow_up_at: parsed.data.followUpAt || null,
+      follow_up_note: parsed.data.note || null,
+    })
+    .eq("id", leadId);
+
+  if (error) return { error: "Não foi possível salvar o follow-up." };
+
+  revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function setLeadTemperatureOverride(
+  leadId: string,
+  override: "hot" | "warm" | "cold" | null,
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({
+      leadId: uuid,
+      override: z.enum(["hot", "warm", "cold"]).nullable().optional(),
+    })
+    .safeParse({ leadId, override });
+
+  if (!parsed.success) return { error: "Temperatura inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      temperature_override: parsed.data.override || null,
+      temperature_override_at: parsed.data.override ? new Date().toISOString() : null,
+    })
+    .eq("id", leadId);
+
+  if (error) return { error: "Não foi possível atualizar a temperatura." };
+
+  revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  return {};
+}
+
+export async function updateLeadSummary(
+  leadId: string,
+  fields: {
+    need?: string | null;
+    moment?: string | null;
+    preference?: string | null;
+    openPoint?: string | null;
+    notesSummary?: string | null;
+  },
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({
+      leadId: uuid,
+      need: z.string().trim().max(1000).nullable().optional(),
+      moment: z.string().trim().max(1000).nullable().optional(),
+      preference: z.string().trim().max(1000).nullable().optional(),
+      openPoint: z.string().trim().max(1000).nullable().optional(),
+      notesSummary: z.string().trim().max(2000).nullable().optional(),
+    })
+    .safeParse({ leadId, ...fields });
+
+  if (!parsed.success) return { error: "Dados de resumo inválidos." };
+
+  const supabase = await createClient();
+  const updateData: Record<string, string | null> = {};
+  if (fields.need !== undefined) updateData.summary_need = fields.need;
+  if (fields.moment !== undefined) updateData.summary_moment = fields.moment;
+  if (fields.preference !== undefined) updateData.summary_preference = fields.preference;
+  if (fields.openPoint !== undefined) updateData.summary_open_point = fields.openPoint;
+  if (fields.notesSummary !== undefined) updateData.notes_summary = fields.notesSummary;
+
+  const { error } = await supabase
+    .from("leads")
+    .update(updateData)
+    .eq("id", leadId);
+
+  if (error) return { error: "Não foi possível atualizar o resumo." };
+
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  return {};
+}
+

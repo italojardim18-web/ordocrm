@@ -21,6 +21,9 @@ import {
 import { AppointmentsPanel } from "./appointments-panel";
 import { LeadActions } from "./lead-actions";
 import { LeadProfileForm } from "./lead-profile-form";
+import { FollowUpCard } from "./follow-up-card";
+import { TemperatureCard } from "./temperature-card";
+import { AISummaryCard } from "./ai-summary-card";
 import { ActivityPanel, NotesPanel, TasksPanel } from "./lead-panels";
 import { OpportunitiesPanel } from "./opportunities-panel";
 import { ConversationPanel } from "./conversation-panel";
@@ -106,9 +109,19 @@ export default async function LeadPage({
         members={members}
       />
 
-      <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)_minmax(0,18rem)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)]">
-        {/* Esquerda: quem é o lead. */}
+      <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,20rem)] xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,22rem)]">
+        {/* Esquerda: quem é o lead, temperatura, retorno e resumo IA. */}
         <div className="flex flex-col gap-5">
+          <TemperatureCard lead={lead} />
+
+          <FollowUpCard
+            leadId={lead.id}
+            initialFollowUpAt={lead.follow_up_at}
+            initialNote={lead.follow_up_note}
+          />
+
+          <AISummaryCard lead={lead} />
+
           <LeadProfileForm
             lead={lead}
             products={products}

@@ -97,6 +97,7 @@ export default async function DashboardPage({
     { data: upcoming },
     { data: agendadas },
     { data: overdue },
+    { data: followUpLeads },
   ] = await Promise.all([
       getDashboardData(context.workspace.id, filters),
       getProducts(context.workspace.id, true),
@@ -139,6 +140,23 @@ export default async function DashboardPage({
             due_at: string;
             lead_id: string;
             leads: { name: string } | null;
+          }[]
+        >(),
+      supabase
+        .from("leads")
+        .select("id, name, follow_up_at, follow_up_note")
+        .eq("workspace_id", context.workspace.id)
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .not("follow_up_at", "is", null)
+        .order("follow_up_at")
+        .limit(5)
+        .returns<
+          {
+            id: string;
+            name: string;
+            follow_up_at: string;
+            follow_up_note: string | null;
           }[]
         >(),
     ]);
@@ -400,26 +418,53 @@ export default async function DashboardPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Follow-ups vencidos</CardTitle>
+            <CardTitle>Retornos e Follow-ups</CardTitle>
+            <CardDescription>
+              Compromissos de contato e tarefas pendentes.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="flex flex-col gap-2">
+              {(followUpLeads ?? []).map((lead) => {
+                const isOverdue =
+                  new Date(lead.follow_up_at).getTime() < Date.now();
+                return (
+                  <li key={`fu-${lead.id}`} className="flex justify-between gap-2 text-sm">
+                    <Link
+                      href={`/pipeline/lead/${lead.id}`}
+                      className="truncate hover:underline font-medium"
+                    >
+                      {lead.name}
+                      {lead.follow_up_note ? (
+                        <span className="font-normal text-muted-foreground"> · {lead.follow_up_note}</span>
+                      ) : ""}
+                    </Link>
+                    <span
+                      className={`shrink-0 text-xs ${
+                        isOverdue ? "text-destructive font-medium" : "text-muted-foreground"
+                      }`}
+                    >
+                      {formatDateTime(lead.follow_up_at)}
+                    </span>
+                  </li>
+                );
+              })}
               {(overdue ?? []).map((task) => (
-                <li key={task.id} className="flex justify-between gap-2 text-sm">
+                <li key={`t-${task.id}`} className="flex justify-between gap-2 text-sm">
                   <Link
                     href={`/pipeline/lead/${task.lead_id}`}
                     className="truncate hover:underline"
                   >
                     {task.leads?.name ?? "Lead"} · {task.title}
                   </Link>
-                  <span className="shrink-0 text-destructive">
+                  <span className="shrink-0 text-destructive text-xs">
                     {formatDate(task.due_at)}
                   </span>
                 </li>
               ))}
-              {(overdue ?? []).length === 0 ? (
+              {(followUpLeads ?? []).length === 0 && (overdue ?? []).length === 0 ? (
                 <li className="text-sm text-muted-foreground">
-                  Nenhum follow-up vencido.
+                  Nenhum retorno ou follow-up pendente.
                 </li>
               ) : null}
             </ul>

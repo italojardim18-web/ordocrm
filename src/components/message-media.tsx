@@ -16,6 +16,9 @@ export interface MediaProps {
   duration: number | null;
   /** Descrição textual para leitores de tela e para quando o arquivo falhar. */
   legenda?: string | null;
+  transcript?: string | null;
+  transcriptStatus?: string | null;
+  transcriptError?: string | null;
 }
 
 function tamanhoLegivel(bytes: number | null): string {
@@ -39,6 +42,9 @@ export async function MessageMedia({
   size,
   duration,
   legenda,
+  transcript,
+  transcriptStatus,
+  transcriptError,
 }: MediaProps) {
   if (!path) {
     // Mídia que a ponte não conseguiu baixar: dizer isso é melhor do que
@@ -70,13 +76,26 @@ export async function MessageMedia({
 
   if (tipo.startsWith("audio/")) {
     return (
-      <div className="flex flex-col gap-1">
-        <audio controls preload="none" src={url} className="max-w-64">
+      <div className="flex flex-col gap-1.5 max-w-72">
+        <audio controls preload="none" src={url} className="w-full">
           Seu navegador não reproduz áudio.
         </audio>
-        {duration ? (
-          <span className="text-[10px] opacity-70">
-            {duracaoLegivel(duration)}
+        <div className="flex items-center justify-between text-[10px] opacity-70 px-0.5">
+          {duration ? <span>{duracaoLegivel(duration)}</span> : <span />}
+          {transcriptStatus === "pending" ? (
+            <span className="italic">⏳ Transcrevendo...</span>
+          ) : null}
+        </div>
+        {transcript ? (
+          <div className="rounded bg-background/60 p-2 text-xs text-foreground shadow-2xs">
+            <span className="mb-0.5 block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Transcrição
+            </span>
+            <p className="leading-relaxed whitespace-pre-wrap">{transcript}</p>
+          </div>
+        ) : transcriptStatus === "failed" ? (
+          <span className="text-[10px] text-muted-foreground italic" title={transcriptError ?? undefined}>
+            [Transcrição falhou]
           </span>
         ) : null}
       </div>

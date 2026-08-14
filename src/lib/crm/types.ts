@@ -15,6 +15,10 @@ export type LeadChannel =
   | "paid_traffic"
   | "manual";
 
+export type LeadTemperature = "hot" | "warm" | "cold";
+
+export type TranscriptStatus = "pending" | "done" | "failed" | "skipped";
+
 export interface Stage {
   id: string;
   name: string;
@@ -56,6 +60,11 @@ export interface LeadCard {
   owner_id: string | null;
   engaged_at: string | null;
   created_at: string;
+  follow_up_at?: string | null;
+  follow_up_note?: string | null;
+  last_interaction_at?: string | null;
+  temperature_override?: LeadTemperature | null;
+  temperature_override_at?: string | null;
   lead_product_interests: { product_id: string }[];
   tasks: { id: string; due_at: string | null; completed_at: string | null }[];
 }
@@ -90,6 +99,19 @@ export interface LeadDetail {
   lost_note: string | null;
   lost_at: string | null;
   reactivated_count: number;
+  follow_up_at: string | null;
+  follow_up_note: string | null;
+  last_interaction_at: string | null;
+  temperature_override: LeadTemperature | null;
+  temperature_override_at: string | null;
+  summary_need: string | null;
+  summary_moment: string | null;
+  summary_preference: string | null;
+  summary_open_point: string | null;
+  summary_generated_at: string | null;
+  summary_model: string | null;
+  summary_source_count: number | null;
+  notes_summary: string | null;
   created_at: string;
   deleted_at: string | null;
 }
@@ -147,4 +169,20 @@ export interface HistoryRow {
   to_stage_type: StageType;
   actor_id: string | null;
   created_at: string;
+}
+
+export interface CommercialOutcomeRow {
+  opportunity_id: string;
+  lead_id: string;
+  lead_name: string;
+  product_id: string | null;
+  product_name: string | null;
+  status: "won" | "lost";
+  potential_value: number | null;
+  sold_value: number | null;
+  payment_method: string | null;
+  closed_at: string;
+  owner_id: string | null;
+  channel: LeadChannel;
+  lost_reason: string | null;
 }

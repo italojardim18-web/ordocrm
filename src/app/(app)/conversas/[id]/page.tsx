@@ -25,6 +25,9 @@ interface MessageRow {
   media_filename: string | null;
   media_size: number | null;
   media_duration_seconds: number | null;
+  transcript: string | null;
+  transcript_status: string | null;
+  transcript_error: string | null;
   sent_at: string;
 }
 
@@ -94,7 +97,7 @@ export default async function ConversationPage({
   ] = await Promise.all([
       supabase
         .from("messages")
-        .select("id, direction, status, body, media_type, media_path, media_mime, media_filename, media_size, media_duration_seconds, sent_at")
+        .select("id, direction, status, body, media_type, media_path, media_mime, media_filename, media_size, media_duration_seconds, transcript, transcript_status, transcript_error, sent_at")
         .eq("conversation_id", id)
         .order("sent_at", { ascending: true })
         .limit(200)
@@ -217,6 +220,9 @@ export default async function ConversationPage({
                       size={message.media_size}
                       duration={message.media_duration_seconds}
                       legenda={message.body}
+                      transcript={message.transcript}
+                      transcriptStatus={message.transcript_status}
+                      transcriptError={message.transcript_error}
                     />
                   </div>
                 ) : null}
