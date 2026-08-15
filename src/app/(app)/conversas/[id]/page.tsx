@@ -65,10 +65,15 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default async function ConversationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const selectedChannel = typeof sp.linha === "string" ? sp.linha : null;
+
   const context = await getSessionContext();
   if (!context) redirect("/login");
 
@@ -76,7 +81,7 @@ export default async function ConversationPage({
 
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("id, provider, lead_id, last_inbound_at, unread_count")
+    .select("id, provider, lead_id, last_inbound_at, unread_count, channel_connection_id")
     .eq("id", id)
     .maybeSingle<{
       id: string;
@@ -84,6 +89,7 @@ export default async function ConversationPage({
       lead_id: string | null;
       last_inbound_at: string | null;
       unread_count: number;
+      channel_connection_id: string | null;
     }>();
 
   if (!conversation) notFound();
@@ -116,15 +122,22 @@ export default async function ConversationPage({
             .eq("status", "connected")
             .limit(1)
             .maybeSingle(),
-      supabase
-        .from("conversations")
-        .select(
-          "id, provider, last_message_at, last_message_preview, unread_count, leads (name)",
-        )
-        .eq("workspace_id", context.workspace.id)
-        .order("last_message_at", { ascending: false, nullsFirst: false })
-        .limit(50)
-        .returns<ConversationItem[]>(),
+      (() => {
+        let q = supabase
+          .from("conversations")
+          .select(
+            "id, provider, last_message_at, last_message_preview, unread_count, channel_connection_id, leads (name)",
+          )
+          .eq("workspace_id", context.workspace.id)
+          .order("last_message_at", { ascending: false, nullsFirst: false })
+          .limit(50);
+
+        if (selectedChannel) {
+          q = q.eq("channel_connection_id", selectedChannel);
+        }
+
+        return q.returns<ConversationItem[]>();
+      })(),
       conversation.lead_id
         ? supabase
             .from("leads")
@@ -169,7 +182,7 @@ export default async function ConversationPage({
             return (
               <li key={item.id}>
                 <Link
-                  href={`/conversas/${item.id}`}
+                  href={`/conversas/${item.id}${selectedChannel ? `?linha=${selectedChannel}` : ""}`}
                   aria-current={ativa ? "page" : undefined}
                   className={`block rounded-xl px-3.5 py-3 transition-colors ${
                     ativa
