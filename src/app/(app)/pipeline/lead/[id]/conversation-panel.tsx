@@ -9,6 +9,7 @@ import {
   ScheduledList,
   type ScheduledMessage,
 } from "@/app/(app)/conversas/[id]/scheduled-list";
+import { RealtimeMessages } from "@/app/(app)/conversas/[id]/realtime-messages";
 
 interface MessageRow {
   id: string;
@@ -103,6 +104,7 @@ export async function ConversationPanel({
 
   return (
     <div className="ordo-card flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
+      <RealtimeMessages conversationId={conversation.id} />
       <header className="flex items-center gap-2.5 border-b border-border/60 px-5 py-3.5 bg-card/80">
         <span className="text-sm font-bold text-foreground">Conversa</span>
         <Badge variant="secondary" className="rounded-full text-[10px] px-2.5 font-medium">

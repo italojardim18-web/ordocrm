@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Composer } from "./composer";
 import { ScheduledList, type ScheduledMessage } from "./scheduled-list";
 import { MarkReadOnMount } from "./mark-read";
+import { RealtimeMessages } from "./realtime-messages";
 
 export const metadata: Metadata = { title: "Conversa" };
 
@@ -165,6 +166,7 @@ export default async function ConversationPage({
         conversationId={id}
         unreadCount={conversation.unread_count}
       />
+      <RealtimeMessages conversationId={id} />
 
       {/* Coluna esquerda: as outras conversas. */}
       <aside className="ordo-card hidden w-64 shrink-0 flex-col overflow-hidden bg-card md:flex xl:w-72">

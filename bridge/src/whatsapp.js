@@ -466,16 +466,15 @@ export async function enviarTexto(identificador, texto, sessionId = "principal")
   let destino;
 
   if (limpo.length <= 13) {
-    const [existe] = await socket.onWhatsApp(`${limpo}@s.whatsapp.net`);
-    if (!existe?.exists) {
-      throw new Error("número não encontrado no WhatsApp");
-    }
-    destino = existe.jid;
+    destino = `${limpo}@s.whatsapp.net`;
   } else {
     destino = `${limpo}@lid`;
   }
 
-  await new Promise((resolve) => setTimeout(resolve, config.sendDelayMs));
+  // Delay mínimo de 150ms apenas para não engasgar o buffer de rede
+  if (config.sendDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(config.sendDelayMs, 200)));
+  }
 
   const resultado = await socket.sendMessage(destino, { text: texto });
   return resultado?.key?.id ?? null;

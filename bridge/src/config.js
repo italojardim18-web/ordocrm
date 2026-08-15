@@ -21,8 +21,8 @@ export const config = {
   qrFile: process.env.BRIDGE_QR_FILE ?? "./qr.png",
   /** Token do agendador de jobs do ORDO (mesmo valor do JOBS_SECRET de lá). */
   jobsSecret: process.env.JOBS_SECRET ?? "",
-  /** Intervalo de processamento da fila de saída. */
-  outboxIntervalMs: Number(process.env.BRIDGE_OUTBOX_INTERVAL_MS ?? 30_000),
+  /** Intervalo de processamento da fila de saída (3s para envio ultrarrápido). */
+  outboxIntervalMs: Number(process.env.BRIDGE_OUTBOX_INTERVAL_MS ?? 3000),
 };
 
 export function assertConfig() {
