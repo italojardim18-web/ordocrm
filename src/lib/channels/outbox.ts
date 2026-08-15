@@ -107,14 +107,21 @@ export async function processOutbox(): Promise<OutboxResult> {
     const connId = row.channel_connection_id || row.payload?.channel_connection_id;
     const connection = (connId ? byId.get(connId) : null) ?? byWorkspace.get(row.workspace_id);
 
+    const configured = (connections ?? []).find(
+      (c) => c.workspace_id === row.workspace_id && c.bridge_url && c.bridge_secret_enc,
+    );
+
+    const bridgeUrl = connection?.bridge_url || configured?.bridge_url || "http://localhost:8787";
+    const bridgeSecretEnc = connection?.bridge_secret_enc || configured?.bridge_secret_enc;
+
     // Sem canal conectado não há o que tentar: a mensagem espera sem gastar
     // tentativa (senão esgotaria as 5 antes de existir conexão).
     if (
       !connection ||
       connection.status !== "connected" ||
       connection.transport !== "bridge" ||
-      !connection.bridge_url ||
-      !connection.bridge_secret_enc
+      !bridgeUrl ||
+      !bridgeSecretEnc
     ) {
       result.skipped += 1;
       continue;
@@ -154,10 +161,10 @@ export async function processOutbox(): Promise<OutboxResult> {
 
     try {
       const body = JSON.stringify({ to, text, sessionId });
-      const secret = decryptToken(connection.bridge_secret_enc);
+      const secret = decryptToken(bridgeSecretEnc);
 
       const response = await fetch(
-        `${connection.bridge_url.replace(/\/$/, "")}/send`,
+        `${bridgeUrl.replace(/\/$/, "")}/send`,
         {
           method: "POST",
           headers: {

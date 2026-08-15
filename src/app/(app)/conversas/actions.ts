@@ -28,6 +28,10 @@ export async function sendMessage(
 
   if (error) return { error: "Não foi possível enfileirar a mensagem." };
 
+  // Dispara o worker imediatamente para envio em tempo real (< 1 segundo)
+  const { processOutbox } = await import("@/lib/channels/outbox");
+  processOutbox().catch((err) => console.error("[conversas:actions] erro no disparo imediato:", err));
+
   revalidatePath(`/conversas/${conversationId}`);
   revalidatePath("/conversas");
   return { done: true };
