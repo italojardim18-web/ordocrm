@@ -78,12 +78,20 @@ export async function ConversationPanel({
         .order("sent_at", { ascending: true })
         .limit(200)
         .returns<MessageRow[]>(),
-      supabase
-        .from("channel_connections")
-        .select("status")
-        .eq("workspace_id", workspaceId)
-        .eq("provider", conversation.provider)
-        .maybeSingle(),
+      (conversation as any).channel_connection_id
+        ? supabase
+            .from("channel_connections")
+            .select("status")
+            .eq("id", (conversation as any).channel_connection_id)
+            .maybeSingle()
+        : supabase
+            .from("channel_connections")
+            .select("status")
+            .eq("workspace_id", workspaceId)
+            .eq("provider", conversation.provider)
+            .eq("status", "connected")
+            .limit(1)
+            .maybeSingle(),
       supabase
         .from("scheduled_messages")
         .select("id, body, scheduled_for, status, error")

@@ -102,12 +102,20 @@ export default async function ConversationPage({
         .order("sent_at", { ascending: true })
         .limit(200)
         .returns<MessageRow[]>(),
-      supabase
-        .from("channel_connections")
-        .select("status")
-        .eq("workspace_id", context.workspace.id)
-        .eq("provider", conversation.provider)
-        .maybeSingle(),
+      (conversation as any).channel_connection_id
+        ? supabase
+            .from("channel_connections")
+            .select("status")
+            .eq("id", (conversation as any).channel_connection_id)
+            .maybeSingle()
+        : supabase
+            .from("channel_connections")
+            .select("status")
+            .eq("workspace_id", context.workspace.id)
+            .eq("provider", conversation.provider)
+            .eq("status", "connected")
+            .limit(1)
+            .maybeSingle(),
       supabase
         .from("conversations")
         .select(
