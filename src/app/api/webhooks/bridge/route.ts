@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
       p_media_url: null,
       p_direction: message.outbound ? "outbound" : "inbound",
       p_phone: phoneContato,
+      p_channel_connection_id: specificConnectionId,
     });
 
     const outMessageId = ingested?.[0]?.out_message_id;

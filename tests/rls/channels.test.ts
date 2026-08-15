@@ -185,6 +185,7 @@ describe.skipIf(!hasStack)("RLS — canais e conversas (Fase 4)", () => {
       .from("form_endpoints")
       .select("slug")
       .eq("workspace_id", WS_A)
+      .eq("slug", "contato")
       .maybeSingle();
 
     expect(error === null ? endpoint?.slug : "contato").toBe("contato");

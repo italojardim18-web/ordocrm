@@ -456,14 +456,7 @@ export async function iniciarWhatsapp() {
 export async function enviarTexto(identificador, texto, sessionId = "principal") {
   const sessao = sessoes.get(sessionId);
   if (!sessao?.socket || sessao.estado !== "conectado") {
-    // Fallback: tenta qualquer sessão conectada
-    for (const [id, s] of sessoes) {
-      if (s.estado === "conectado" && s.socket) {
-        console.log(`[whatsapp] sessão "${sessionId}" indisponível, usando "${id}"`);
-        return enviarTexto(identificador, texto, id);
-      }
-    }
-    throw new Error(`nenhuma sessão disponível (sessão pedida: ${sessionId})`);
+    throw new Error(`sessão "${sessionId}" não está conectada ao WhatsApp`);
   }
 
   const socket = sessao.socket;

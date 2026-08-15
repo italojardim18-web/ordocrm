@@ -20,6 +20,7 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
     { href: "/agente-ia", label: "Agente de IA", icon: "🤖" },
     { href: "/contatos", label: "Lista de Contatos", icon: "👥" },
     { href: "/origens", label: "Origens do Lead", icon: "🌐" },
+    { href: "/resultado", label: "Resultado Comercial", icon: "🏆" },
     { href: "/estatisticas", label: "Estatísticas & Relatórios", icon: "📈" },
   ];
 

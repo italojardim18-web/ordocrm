@@ -91,8 +91,8 @@ export default async function StatisticsPage() {
             <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
               {formatBRL(data.vendas.receitaTotal)}
             </span>
-            <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-              +14% vs mês anterior
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Oportunidades ganhas
             </p>
           </div>
         </div>

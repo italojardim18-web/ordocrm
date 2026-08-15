@@ -24,17 +24,22 @@ const MAX_AGE_HOURS = 12;
 interface OutboxRow {
   id: number;
   workspace_id: string;
+  channel_connection_id: string | null;
   message_id: string | null;
   provider: string;
   attempts: number;
   created_at: string;
   payload: {
     external_conversation_id?: string;
+    channel_connection_id?: string;
     body?: string;
   };
 }
 
 interface BridgeConnection {
+  id: string;
+  workspace_id: string;
+  display_name: string | null;
   bridge_url: string | null;
   bridge_secret_enc: string | null;
   transport: string;
@@ -70,7 +75,7 @@ export async function processOutbox(): Promise<OutboxResult> {
   const { data: pending } = await admin
     .from("outbox_messages")
     .select(
-      "id, workspace_id, message_id, provider, attempts, created_at, payload",
+      "id, workspace_id, channel_connection_id, message_id, provider, attempts, created_at, payload",
     )
     .eq("status", "pending")
     .lte("next_retry_at", new Date().toISOString())
@@ -80,21 +85,27 @@ export async function processOutbox(): Promise<OutboxResult> {
 
   if (!pending?.length) return result;
 
-  // Conexões por workspace, buscadas uma vez só.
+  // Conexões por workspace e por ID de canal.
   const workspaceIds = [...new Set(pending.map((row) => row.workspace_id))];
   const { data: connections } = await admin
     .from("channel_connections")
-    .select("workspace_id, bridge_url, bridge_secret_enc, transport, status")
+    .select("id, workspace_id, display_name, bridge_url, bridge_secret_enc, transport, status")
     .in("workspace_id", workspaceIds)
     .eq("provider", "whatsapp");
 
+  const byId = new Map<string, BridgeConnection>(
+    (connections ?? []).map((c) => [c.id, c as BridgeConnection]),
+  );
   const byWorkspace = new Map<string, BridgeConnection>(
     (connections ?? []).map((c) => [c.workspace_id as string, c as BridgeConnection]),
   );
 
   for (const row of pending) {
     result.processed += 1;
-    const connection = byWorkspace.get(row.workspace_id);
+
+    // Resolve a conexão específica da linha de WhatsApp
+    const connId = row.channel_connection_id || row.payload?.channel_connection_id;
+    const connection = (connId ? byId.get(connId) : null) ?? byWorkspace.get(row.workspace_id);
 
     // Sem canal conectado não há o que tentar: a mensagem espera sem gastar
     // tentativa (senão esgotaria as 5 antes de existir conexão).
@@ -118,6 +129,15 @@ export async function processOutbox(): Promise<OutboxResult> {
       continue;
     }
 
+    // Identifica o sessionId exato para o Baileys (secretaria vs principal)
+    const displayName = (connection.display_name ?? "").toLowerCase();
+    const sessionId =
+      displayName.includes("secretaria") || displayName.includes("secretária")
+        ? "secretaria"
+        : displayName.includes("italo") || displayName.includes("ítalo")
+          ? "principal"
+          : "principal";
+
     // Guarda contra fila represada: melhor não entregar do que entregar
     // uma resposta comercial fora de hora.
     const idadeHoras =
@@ -133,7 +153,7 @@ export async function processOutbox(): Promise<OutboxResult> {
     }
 
     try {
-      const body = JSON.stringify({ to, text });
+      const body = JSON.stringify({ to, text, sessionId });
       const secret = decryptToken(connection.bridge_secret_enc);
 
       const response = await fetch(
