@@ -46,6 +46,8 @@ export function AppSidebar({
   ];
 
   const bottomItems = [
+    { href: "/ecossistema", label: "Página do Ecossistema (Marketing)", icon: "🏛️", adminOnly: false },
+    { href: "/planos", label: "Tabela de Planos & Preços", icon: "💎", adminOnly: false },
     { href: "/ajuda", label: "Manual do Usuário & Ajuda", icon: "📖", adminOnly: false },
     { href: "/configuracoes/integracoes", label: "Integrações", icon: "🔗", adminOnly: true },
     { href: "/configuracoes/seguranca-lgpd", label: "Segurança & LGPD", icon: "🛡️", adminOnly: true },
