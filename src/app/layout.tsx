@@ -29,9 +29,15 @@ export const metadata: Metadata = {
   description:
     "ORDO — ordem que gera direção. Gestão de relacionamento e pipeline comercial.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: ["/favicon.svg"],
+    apple: [
+      { url: "/apple-touch-icon.png" },
+    ],
   },
 };
 
@@ -42,6 +48,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body
         className={`${inter.variable} ${bodoni.variable} font-sans antialiased`}
       >
