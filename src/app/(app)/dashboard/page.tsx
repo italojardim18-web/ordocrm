@@ -70,7 +70,7 @@ function Metric({
         </CardDescription>
         {/* Valores monetários são longos (R$ 40.020,00): o tamanho acompanha
             a largura do card para a receita nunca ser cortada. */}
-        <CardTitle className="text-xl font-semibold text-primary tabular-nums break-words @min-[11rem]:text-2xl @min-[16rem]:text-3xl">
+        <CardTitle className="text-xl font-semibold text-primary tabular-nums break-words @min-[11rem]:text-2xl @min-[16rem]:text-3xl privacy-financial">
           {value}
         </CardTitle>
       </CardHeader>
@@ -273,7 +273,7 @@ export default async function DashboardPage({
                   <li key={stage.type} className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between text-sm">
                       <span>{stage.label}</span>
-                      <span className="font-medium tabular-nums">{reached}</span>
+                      <span className="font-medium tabular-nums privacy-financial">{reached}</span>
                     </div>
                     <div
                       className="h-2 rounded-full bg-muted"
@@ -344,7 +344,7 @@ export default async function DashboardPage({
               Leads criados no período e quantos viraram venda.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="privacy-financial">
             <ChannelChart data={breakdowns.by_channel} />
           </CardContent>
         </Card>
@@ -356,7 +356,7 @@ export default async function DashboardPage({
               Vendas fechadas no período, por produto.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="privacy-financial">
             <RevenueByProductChart data={breakdowns.by_product} />
           </CardContent>
         </Card>
@@ -395,7 +395,7 @@ export default async function DashboardPage({
                   {m.lead_id ? (
                     <Link
                       href={`/pipeline/lead/${m.lead_id}`}
-                      className="truncate hover:underline"
+                      className="truncate hover:underline privacy-lead-name"
                     >
                       {m.lead_name} · {m.body}
                     </Link>
@@ -426,7 +426,7 @@ export default async function DashboardPage({
                 <li key={appointment.id} className="flex justify-between gap-2 text-sm">
                   <Link
                     href={`/pipeline/lead/${appointment.lead_id}`}
-                    className="truncate hover:underline"
+                    className="truncate hover:underline privacy-lead-name"
                   >
                     {appointment.leads?.name ?? "Lead"} · {appointment.title}
                   </Link>
@@ -460,7 +460,7 @@ export default async function DashboardPage({
                   <li key={`fu-${lead.id}`} className="flex justify-between gap-2 text-sm">
                     <Link
                       href={`/pipeline/lead/${lead.id}`}
-                      className="truncate hover:underline font-medium"
+                      className="truncate hover:underline font-medium privacy-lead-name"
                     >
                       {lead.name}
                       {lead.follow_up_note ? (
@@ -481,7 +481,7 @@ export default async function DashboardPage({
                 <li key={`t-${task.id}`} className="flex justify-between gap-2 text-sm">
                   <Link
                     href={`/pipeline/lead/${task.lead_id}`}
-                    className="truncate hover:underline"
+                    className="truncate hover:underline privacy-lead-name"
                   >
                     {task.leads?.name ?? "Lead"} · {task.title}
                   </Link>

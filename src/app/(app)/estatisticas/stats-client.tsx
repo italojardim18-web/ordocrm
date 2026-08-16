@@ -163,19 +163,19 @@ export function StatsClient({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3 bg-muted/30 p-3.5 rounded-2xl border border-border/60">
             <div>
               <span className="text-[11px] text-muted-foreground block">Faturamento Realizado</span>
-              <span className="font-heading text-xl font-bold text-primary">
+              <span className="font-heading text-xl font-bold text-primary privacy-financial">
                 {formatBRL(data.vendas.receitaTotal)}
               </span>
             </div>
             <div>
               <span className="text-[11px] text-muted-foreground block">Conversão de Propostas</span>
-              <span className="font-heading text-xl font-bold text-emerald-700">
+              <span className="font-heading text-xl font-bold text-emerald-700 privacy-financial">
                 {data.vendas.taxaConversao}%
               </span>
             </div>
             <div>
               <span className="text-[11px] text-muted-foreground block">Meta Mensal Atingida</span>
-              <span className="font-heading text-xl font-bold text-primary">
+              <span className="font-heading text-xl font-bold text-primary privacy-financial">
                 {data.metas.percentualAtingido}%
               </span>
             </div>

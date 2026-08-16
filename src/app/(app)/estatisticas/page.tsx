@@ -91,7 +91,7 @@ export default async function StatisticsPage() {
             <span className="text-base print:hidden">💰</span>
           </div>
           <div>
-            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums privacy-financial">
               {formatBRL(data.vendas.receitaTotal)}
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -106,7 +106,7 @@ export default async function StatisticsPage() {
             <span className="text-base print:hidden">🏷️</span>
           </div>
           <div>
-            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums privacy-financial">
               {formatBRL(data.vendas.ticketMedio)}
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -121,7 +121,7 @@ export default async function StatisticsPage() {
             <span className="text-base print:hidden">🎯</span>
           </div>
           <div>
-            <span className="font-heading text-3xl print:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums privacy-financial">
               {data.vendas.taxaConversao}%
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -136,7 +136,7 @@ export default async function StatisticsPage() {
             <span className="text-base print:hidden">📈</span>
           </div>
           <div>
-            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums">
+            <span className="font-heading text-3xl print:text-2xl font-bold text-primary tabular-nums privacy-financial">
               {formatBRL(data.vendas.faturamentoProjetado)}
             </span>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -167,7 +167,7 @@ export default async function StatisticsPage() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-foreground">Meta de Faturamento</span>
-                <span className="text-primary font-bold">
+                <span className="text-primary font-bold privacy-financial">
                   {formatBRL(realizadoNoMes)} / {formatBRL(currentRevenueGoal)}
                 </span>
               </div>
@@ -183,7 +183,7 @@ export default async function StatisticsPage() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-foreground">Meta de Novos Pacientes</span>
-                <span className="text-primary font-bold">
+                <span className="text-primary font-bold privacy-financial">
                   {pacientesNoMes} / {currentClientsGoal} pacientes
                 </span>
               </div>
@@ -197,7 +197,7 @@ export default async function StatisticsPage() {
           </div>
 
           <p className="text-[11px] text-muted-foreground bg-muted/30 p-2.5 rounded-xl border border-border/50">
-            💡 Faltam <strong>{formatBRL(Math.max(0, currentRevenueGoal - realizadoNoMes))}</strong> para bater 100% da meta deste mês.
+            💡 Faltam <strong className="privacy-financial">{formatBRL(Math.max(0, currentRevenueGoal - realizadoNoMes))}</strong> para bater 100% da meta deste mês.
           </p>
         </div>
 
@@ -219,11 +219,11 @@ export default async function StatisticsPage() {
                 <div key={p.produtoId} className="flex flex-col gap-1 rounded-xl border border-border/60 p-2.5 bg-card/60">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-foreground">{p.produtoNome}</span>
-                    <span className="font-bold text-primary">{formatBRL(p.faturamento)}</span>
+                    <span className="font-bold text-primary privacy-financial">{formatBRL(p.faturamento)}</span>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>{p.vendasQtd} contratação(ões)</span>
-                    <span>{p.percentualTotal}% do total</span>
+                    <span className="privacy-financial">{p.percentualTotal}% do total</span>
                   </div>
                 </div>
               ))

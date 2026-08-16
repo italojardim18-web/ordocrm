@@ -194,6 +194,9 @@
   html.privacy-mode [data-email],
   html.privacy-mode .privacy-financial,
   html.privacy-mode [data-financial],
+  html.privacy-mode .tabular-nums,
+  html.privacy-mode .recharts-responsive-container,
+  html.privacy-mode .recharts-surface,
   html.privacy-mode .privacy-chat,
   html.privacy-mode [data-chat-preview],
   html.privacy-mode [data-message-content],
@@ -201,10 +204,10 @@
   html.privacy-mode [data-agenda-title],
   html.privacy-mode .privacy-clinical-notes,
   html.privacy-mode [data-clinical-notes] {
-    filter: blur(7px) !important;
+    filter: blur(8px) !important;
     user-select: none !important;
     pointer-events: auto;
-    transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: filter 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Espiadinha rápida ao passar o mouse (hover) de forma controlada */
@@ -217,6 +220,9 @@
   html.privacy-mode [data-email]:hover,
   html.privacy-mode .privacy-financial:hover,
   html.privacy-mode [data-financial]:hover,
+  html.privacy-mode .tabular-nums:hover,
+  html.privacy-mode .recharts-responsive-container:hover,
+  html.privacy-mode .recharts-surface:hover,
   html.privacy-mode .privacy-chat:hover,
   html.privacy-mode [data-chat-preview]:hover,
   html.privacy-mode [data-message-content]:hover,
