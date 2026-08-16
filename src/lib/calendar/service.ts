@@ -212,35 +212,46 @@ export async function listarEventosGoogle(
 ) {
   const connection = await getWorkspaceConnection(workspaceId);
   if (!connection?.calendar_id) return [];
+
   try {
-    const accessToken = await getFreshAccessToken(connection);
-    const { listCalendars, listEvents } = await import("./google");
-    const calendars = await listCalendars(accessToken);
+    // Timeout de 2500ms para nunca travar a página caso a API do Google esteja lenta
+    const fetchPromise = (async () => {
+      const accessToken = await getFreshAccessToken(connection);
+      const { listCalendars, listEvents } = await import("./google");
+      const calendars = await listCalendars(accessToken);
 
-    const calsToFetch = calendars.length > 0
-      ? calendars
-      : [{ id: connection.calendar_id, summary: connection.calendar_name || "Principal" }];
+      const calsToFetch = calendars.length > 0
+        ? calendars
+        : [{ id: connection.calendar_id || "primary", summary: connection.calendar_name || "Principal", backgroundColor: undefined }];
 
-    const results = await Promise.allSettled(
-      calsToFetch.map(async (cal) => {
-        const events = await listEvents(accessToken, cal.id, timeMin, timeMax);
-        return events.map((ev) => ({
-          ...ev,
-          calendarId: cal.id,
-          calendarName: cal.summary || "Google Agenda",
-          calendarColor: cal.backgroundColor || undefined,
-        }));
-      }),
+      const results = await Promise.allSettled(
+        calsToFetch.map(async (cal) => {
+          if (!cal.id) return [];
+          const events = await listEvents(accessToken, cal.id, timeMin, timeMax);
+          return events.map((ev) => ({
+            ...ev,
+            calendarId: cal.id ?? undefined,
+            calendarName: cal.summary || "Google Agenda",
+            calendarColor: "backgroundColor" in cal ? (cal.backgroundColor as string | undefined) : undefined,
+          }));
+        }),
+      );
+
+      const todosEventos: import("./google").GoogleEventResumo[] = [];
+      for (const res of results) {
+        if (res.status === "fulfilled") {
+          todosEventos.push(...res.value);
+        }
+      }
+
+      return todosEventos;
+    })();
+
+    const timeoutPromise = new Promise<import("./google").GoogleEventResumo[]>((resolve) =>
+      setTimeout(() => resolve([]), 2500),
     );
 
-    const todosEventos: import("./google").GoogleEventResumo[] = [];
-    for (const res of results) {
-      if (res.status === "fulfilled") {
-        todosEventos.push(...res.value);
-      }
-    }
-
-    return todosEventos;
+    return await Promise.race([fetchPromise, timeoutPromise]);
   } catch {
     return [];
   }

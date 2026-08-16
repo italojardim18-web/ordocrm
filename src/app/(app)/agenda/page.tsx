@@ -34,13 +34,13 @@ export default async function AgendaPage({
   const referencia = dataParam ? new Date(`${dataParam}T12:00:00`) : new Date();
   const baseDate = Number.isNaN(referencia.getTime()) ? new Date() : referencia;
 
-  // Janela de busca: 45 dias antes até 45 dias depois para cobrir o mês inteiro + semanas vizinhas
+  // Janela de busca otimizada: 14 dias antes até 28 dias depois (cobre o mês corrente e semanas vizinhas)
   const inicioBusca = new Date(baseDate);
-  inicioBusca.setDate(inicioBusca.getDate() - 45);
+  inicioBusca.setDate(inicioBusca.getDate() - 14);
   inicioBusca.setHours(0, 0, 0, 0);
 
   const fimBusca = new Date(baseDate);
-  fimBusca.setDate(fimBusca.getDate() + 45);
+  fimBusca.setDate(fimBusca.getDate() + 28);
   fimBusca.setHours(23, 59, 59, 999);
 
   const supabase = await createClient();
