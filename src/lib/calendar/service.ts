@@ -228,6 +228,7 @@ export async function listarEventosGoogle(
           ...ev,
           calendarId: cal.id,
           calendarName: cal.summary || "Google Agenda",
+          calendarColor: cal.backgroundColor || undefined,
         }));
       }),
     );

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AppointmentDialog, type AppointmentDialogData } from "./appointment-dialog";
 import { syncGoogleCalendarAction } from "./agenda-actions";
+import { AgendaColorsDialog, type CalendarConfigItem, PRESET_COLORS } from "./agenda-colors-dialog";
 
 export interface SessaoItem {
   id: string;
@@ -61,6 +62,76 @@ export function AgendaView({
     isOpen: false,
     mode: "create",
   });
+
+  // Estado do Modal de Personalização de Cores
+  const [isColorsDialogOpen, setIsColorsDialogOpen] = useState(false);
+
+  // Configurações de cores e visibilidade de cada agenda
+  const [calendarConfigs, setCalendarConfigs] = useState<CalendarConfigItem[]>([
+    { id: "ordo", name: "Consultório (ORDO)", color: "#521D2A", visible: true, source: "ordo" },
+  ]);
+
+  // Carrega e detecta agendas dinâmicas + preferências salvas
+  useEffect(() => {
+    try {
+      const savedRaw = localStorage.getItem("ordo_calendar_configs");
+      const savedMap: Record<string, { color: string; visible: boolean }> = savedRaw ? JSON.parse(savedRaw) : {};
+
+      const detected = new Map<string, CalendarConfigItem>();
+
+      // Agenda ORDO
+      detected.set("ordo", {
+        id: "ordo",
+        name: "Consultório (ORDO)",
+        color: savedMap["ordo"]?.color || "#521D2A",
+        visible: savedMap["ordo"]?.visible !== false,
+        source: "ordo",
+      });
+
+      // Agendas do Google encontradas nos eventos
+      const defaultGoogleColors = ["#0D9488", "#2563EB", "#7C3AED", "#D97706", "#EA580C", "#0891B2"];
+      let colorIdx = 0;
+
+      eventosGoogle.forEach((ev) => {
+        const calName = ev.calendarName || "Google Agenda";
+        const calId = calName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+
+        if (!detected.has(calId)) {
+          const suggestedColor =
+            calName.toLowerCase().includes("psicomanager") ? "#0D9488" :
+            calName.toLowerCase().includes("pessoal") ? "#2563EB" :
+            defaultGoogleColors[colorIdx % defaultGoogleColors.length];
+          colorIdx++;
+
+          detected.set(calId, {
+            id: calId,
+            name: calName,
+            color: savedMap[calId]?.color || suggestedColor,
+            visible: savedMap[calId]?.visible !== false,
+            source: "google",
+          });
+        }
+      });
+
+      setCalendarConfigs(Array.from(detected.values()));
+    } catch {
+      /* fallback silencioso */
+    }
+  }, [eventosGoogle]);
+
+  const handleSaveCalendarConfigs = (updated: CalendarConfigItem[]) => {
+    setCalendarConfigs(updated);
+    try {
+      const mapToSave: Record<string, { color: string; visible: boolean }> = {};
+      updated.forEach((c) => {
+        mapToSave[c.id] = { color: c.color, visible: c.visible };
+      });
+      localStorage.setItem("ordo_calendar_configs", JSON.stringify(mapToSave));
+      toast.success("Preferências de cores salvas com sucesso!");
+    } catch {
+      /* fallback */
+    }
+  };
 
   // Modo de visualização: "semana" (default), "mes", "dia"
   const [viewMode, setViewMode] = useState<"mes" | "semana" | "dia">(
@@ -142,6 +213,13 @@ export function AgendaView({
     });
   }, [startOfWeek]);
 
+  // Mapa rápido de configurações de agendas
+  const configMap = useMemo(() => {
+    const map = new Map<string, CalendarConfigItem>();
+    calendarConfigs.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [calendarConfigs]);
+
   // Lista de todos os compromissos unificados (ORDO + Google)
   const allEvents = useMemo(() => {
     const list: Array<{
@@ -155,26 +233,39 @@ export function AgendaView({
       source: "ordo" | "google";
       diaInteiro?: boolean;
       calendarName?: string;
+      customColor?: string;
     }> = [];
 
-    // Sessões do CRM
-    sessoes.forEach((s) => {
-      list.push({
-        id: s.id,
-        title: s.title,
-        starts_at: new Date(s.starts_at),
-        ends_at: s.ends_at ? new Date(s.ends_at) : null,
-        status: s.status,
-        lead_id: s.lead_id,
-        lead_name: s.lead_name,
-        source: "ordo",
+    const ordoConfig = configMap.get("ordo");
+
+    // Sessões do CRM (se visível)
+    if (ordoConfig?.visible !== false) {
+      sessoes.forEach((s) => {
+        list.push({
+          id: s.id,
+          title: s.title,
+          starts_at: new Date(s.starts_at),
+          ends_at: s.ends_at ? new Date(s.ends_at) : null,
+          status: s.status,
+          lead_id: s.lead_id,
+          lead_name: s.lead_name,
+          source: "ordo",
+          customColor: ordoConfig?.color || "#521D2A",
+        });
       });
-    });
+    }
 
     const titulosOrdo = new Set(sessoes.map((s) => s.title));
 
     // Eventos do Google (sem duplicar os do ORDO)
     eventosGoogle.forEach((e) => {
+      const calName = e.calendarName || "Google Agenda";
+      const calId = calName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+      const calConfig = configMap.get(calId);
+
+      // Se a agenda estiver oculta pelo usuário, não renderiza
+      if (calConfig && calConfig.visible === false) return;
+
       if (e.inicio && !titulosOrdo.has(e.titulo)) {
         list.push({
           id: e.id,
@@ -184,13 +275,14 @@ export function AgendaView({
           status: "google",
           source: "google",
           diaInteiro: e.diaInteiro,
-          calendarName: e.calendarName,
+          calendarName: calName,
+          customColor: calConfig?.color || "#0D9488",
         });
       }
     });
 
     return list;
-  }, [sessoes, eventosGoogle]);
+  }, [sessoes, eventosGoogle, configMap]);
 
   // Navegação
   const handlePrev = () => {
@@ -368,8 +460,21 @@ export function AgendaView({
           </p>
         </div>
 
-        {/* Seletor de Modo + Botão de Sincronização com Google */}
-        <div className="flex items-center gap-2.5">
+        {/* Seletor de Modo + Cores & Agendas + Botão de Sincronização com Google */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Botão de Cores & Personalização das Agendas */}
+          <button
+            onClick={() => setIsColorsDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-700 transition-all hover:border-stone-300 hover:bg-white dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
+            title="Personalizar cores e visibilidade das suas agendas"
+          >
+            <span>🎨</span>
+            <span>Cores & Agendas</span>
+            <span className="rounded-full bg-stone-200/80 px-1.5 py-0.2 text-[10px] font-bold text-stone-700 dark:bg-stone-700 dark:text-stone-300">
+              {calendarConfigs.length}
+            </span>
+          </button>
+
           <button
             onClick={handleSyncGoogle}
             disabled={isSyncing}
@@ -523,6 +628,7 @@ export function AgendaView({
                           };
 
                           if (ev.source === "ordo") {
+                            const calColor = ev.customColor || "#521D2A";
                             return (
                               <div
                                 key={ev.id}
@@ -533,30 +639,37 @@ export function AgendaView({
                                 style={{
                                   top: `${topOffset}px`,
                                   height: `${cardHeight}px`,
+                                  backgroundColor: `${calColor}14`,
+                                  borderColor: `${calColor}35`,
+                                  borderLeftColor: calColor,
+                                  borderLeftWidth: "4px",
                                 }}
-                                className={`absolute left-1 right-1 z-20 flex flex-col justify-between overflow-hidden rounded-lg border p-1.5 text-xs shadow-xs transition-all hover:z-30 hover:shadow-md cursor-pointer ${statusInfo.bg} ${statusInfo.border}`}
+                                className="absolute left-1 right-1 z-20 flex flex-col justify-between overflow-hidden rounded-lg border p-1.5 text-xs shadow-xs transition-all hover:z-30 hover:shadow-md cursor-pointer backdrop-blur-xs"
                               >
                                 <div>
                                   <div className="flex items-center justify-between gap-1">
                                     <span className="font-semibold text-stone-900 dark:text-stone-100 text-[11px]">
                                       {horarioTexto}
                                     </span>
-                                    <span className={`text-[9px] font-medium px-1 rounded ${statusInfo.text} bg-white/70 dark:bg-stone-900/70`}>
+                                    <span
+                                      className="text-[9px] font-medium px-1 rounded text-white"
+                                      style={{ backgroundColor: calColor }}
+                                    >
                                       {statusInfo.label}
                                     </span>
                                   </div>
-                                  <p className="truncate font-semibold text-stone-800 dark:text-stone-200 mt-0.5">
+                                  <p className="truncate font-semibold text-stone-900 dark:text-stone-100 mt-0.5">
                                     {ev.lead_name || ev.title}
                                   </p>
                                   {isLongEvent && ev.lead_name && ev.title !== ev.lead_name && (
-                                    <p className="truncate text-[10px] text-stone-500 dark:text-stone-400">
+                                    <p className="truncate text-[10px] text-stone-600 dark:text-stone-400">
                                       {ev.title}
                                     </p>
                                   )}
                                 </div>
 
                                 {isLongEvent && (
-                                  <div className="flex items-center justify-between text-[9px] text-stone-400 border-t border-stone-200/50 dark:border-stone-700/50 pt-0.5 mt-1">
+                                  <div className="flex items-center justify-between text-[9px] text-stone-500 border-t border-stone-200/50 dark:border-stone-700/50 pt-0.5 mt-1">
                                     <span>{duracaoMinutos >= 60 ? `${Math.floor(duracaoMinutos / 60)}h${duracaoMinutos % 60 ? `${duracaoMinutos % 60}m` : ""}` : `${duracaoMinutos} min`}</span>
                                     <span>Detalhes →</span>
                                   </div>
@@ -566,6 +679,7 @@ export function AgendaView({
                           }
 
                           // Evento Google (de qualquer agenda conectada: PsicoManager, Pessoal, Consultório, etc.)
+                          const calColor = ev.customColor || "#0D9488";
                           return (
                             <div
                               key={ev.id}
@@ -576,28 +690,35 @@ export function AgendaView({
                               style={{
                                 top: `${topOffset}px`,
                                 height: `${cardHeight}px`,
+                                backgroundColor: `${calColor}14`,
+                                borderColor: `${calColor}35`,
+                                borderLeftColor: calColor,
+                                borderLeftWidth: "4px",
                               }}
-                              className="absolute left-1 right-1 z-20 flex flex-col justify-between overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50/95 p-1.5 text-xs shadow-xs transition-all hover:z-30 hover:shadow-md cursor-pointer dark:border-stone-700 dark:bg-stone-800/90"
+                              className="absolute left-1 right-1 z-20 flex flex-col justify-between overflow-hidden rounded-lg border border-dashed p-1.5 text-xs shadow-xs transition-all hover:z-30 hover:shadow-md cursor-pointer backdrop-blur-xs"
                               title={`Google Calendar: ${ev.calendarName || "Agenda Google"}`}
                             >
                               <div>
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="font-semibold text-stone-700 dark:text-stone-300 text-[11px]">
+                                  <span className="font-semibold text-stone-900 dark:text-stone-100 text-[11px]">
                                     {horarioTexto}
                                   </span>
                                   {ev.calendarName && (
-                                    <span className="truncate max-w-[70px] rounded bg-stone-200/80 px-1 py-0.5 text-[9px] font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                                    <span
+                                      className="truncate max-w-[70px] rounded px-1 py-0.5 text-[9px] font-medium text-white shadow-2xs"
+                                      style={{ backgroundColor: calColor }}
+                                    >
                                       {ev.calendarName}
                                     </span>
                                   )}
                                 </div>
-                                <p className="truncate font-medium text-stone-800 dark:text-stone-200 mt-0.5">
+                                <p className="truncate font-medium text-stone-900 dark:text-stone-100 mt-0.5">
                                   {ev.title}
                                 </p>
                               </div>
 
                               {isLongEvent && (
-                                <div className="flex items-center justify-between text-[9px] text-stone-400 border-t border-stone-200/40 dark:border-stone-700/40 pt-0.5 mt-1">
+                                <div className="flex items-center justify-between text-[9px] text-stone-500 border-t border-stone-200/40 dark:border-stone-700/40 pt-0.5 mt-1">
                                   <span>{duracaoMinutos >= 60 ? `${Math.floor(duracaoMinutos / 60)}h${duracaoMinutos % 60 ? `${duracaoMinutos % 60}m` : ""}` : `${duracaoMinutos} min`}</span>
                                   <span>Google Calendar</span>
                                 </div>
@@ -864,6 +985,14 @@ export function AgendaView({
         onClose={() => setDialogState({ isOpen: false, mode: "create" })}
         workspaceTimezone={workspaceTimezone}
         isGoogleConnected={isGoogleConnected}
+      />
+
+      {/* Modal de Personalização de Cores e Visibilidade de Agendas */}
+      <AgendaColorsDialog
+        isOpen={isColorsDialogOpen}
+        onClose={() => setIsColorsDialogOpen(false)}
+        calendars={calendarConfigs}
+        onSaveConfig={handleSaveCalendarConfigs}
       />
     </div>
   );

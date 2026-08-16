@@ -142,6 +142,8 @@ export interface GoogleCalendarInfo {
   id: string;
   summary: string;
   primary?: boolean;
+  backgroundColor?: string;
+  foregroundColor?: string;
 }
 
 export async function listCalendars(
@@ -313,6 +315,7 @@ export interface GoogleEventResumo {
   link: string | null;
   calendarName?: string;
   calendarId?: string;
+  calendarColor?: string;
 }
 
 /**
