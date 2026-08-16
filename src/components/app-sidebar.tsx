@@ -46,6 +46,7 @@ export function AppSidebar({
   ];
 
   const bottomItems = [
+    { href: "/ajuda", label: "Manual do Usuário & Ajuda", icon: "📖", adminOnly: false },
     { href: "/configuracoes/integracoes", label: "Integrações", icon: "🔗", adminOnly: true },
     { href: "/configuracoes/seguranca-lgpd", label: "Segurança & LGPD", icon: "🛡️", adminOnly: true },
     { href: "/configuracoes/workspace", label: "Configurações", icon: "⚙️", adminOnly: true },
