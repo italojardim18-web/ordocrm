@@ -277,13 +277,14 @@ export async function cancelEvent(
   }
 }
 
-/** Períodos ocupados no calendário (detecção de conflito remoto). */
+/** Períodos ocupados em um ou mais calendários (detecção de conflito remoto). */
 export async function freeBusy(
   accessToken: string,
-  calendarId: string,
+  calendarIds: string | string[],
   timeMin: string,
   timeMax: string,
 ): Promise<{ start: string; end: string }[]> {
+  const ids = Array.isArray(calendarIds) ? calendarIds : [calendarIds];
   const data = await googleFetch<{
     calendars?: Record<string, { busy?: { start: string; end: string }[] }>;
   }>(accessToken, "/freeBusy", {
@@ -291,10 +292,16 @@ export async function freeBusy(
     body: JSON.stringify({
       timeMin,
       timeMax,
-      items: [{ id: calendarId }],
+      items: ids.map((id) => ({ id })),
     }),
   });
-  return data.calendars?.[calendarId]?.busy ?? [];
+  const allBusy: { start: string; end: string }[] = [];
+  if (data.calendars) {
+    for (const cal of Object.values(data.calendars)) {
+      if (cal.busy) allBusy.push(...cal.busy);
+    }
+  }
+  return allBusy;
 }
 
 export interface GoogleEventResumo {
@@ -304,6 +311,8 @@ export interface GoogleEventResumo {
   fim: string | null;
   diaInteiro: boolean;
   link: string | null;
+  calendarName?: string;
+  calendarId?: string;
 }
 
 /**

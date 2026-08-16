@@ -26,6 +26,7 @@ interface AgendaViewProps {
     inicio: string | null;
     fim: string | null;
     diaInteiro: boolean;
+    calendarName?: string;
   }>;
   workspaceTimezone: string;
   isGoogleConnected: boolean;
@@ -145,6 +146,7 @@ export function AgendaView({
       lead_name?: string | null;
       source: "ordo" | "google";
       diaInteiro?: boolean;
+      calendarName?: string;
     }> = [];
 
     // Sessões do CRM
@@ -174,6 +176,7 @@ export function AgendaView({
           status: "google",
           source: "google",
           diaInteiro: e.diaInteiro,
+          calendarName: e.calendarName,
         });
       }
     });
@@ -529,7 +532,7 @@ export function AgendaView({
                             );
                           }
 
-                          // Evento Google
+                          // Evento Google (de qualquer agenda conectada: PsicoManager, Pessoal, Consultório, etc.)
                           return (
                             <div
                               key={ev.id}
@@ -537,13 +540,20 @@ export function AgendaView({
                                 e.stopPropagation();
                                 handleEventClick(ev);
                               }}
-                              className="mb-1 rounded-lg border border-dashed border-stone-300 bg-stone-50/90 p-1.5 text-xs cursor-pointer dark:border-stone-700 dark:bg-stone-800/70"
-                              title="Google Calendar"
+                              className="mb-1 rounded-lg border border-dashed border-stone-300 bg-stone-50/90 p-1.5 text-xs shadow-2xs transition-transform hover:scale-[1.01] cursor-pointer dark:border-stone-700 dark:bg-stone-800/70"
+                              title={`Google Calendar: ${ev.calendarName || "Agenda Google"}`}
                             >
-                              <span className="font-semibold text-stone-700 dark:text-stone-300">
-                                {horaInicio}
-                              </span>
-                              <p className="truncate text-stone-600 dark:text-stone-400">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-semibold text-stone-700 dark:text-stone-300">
+                                  {horaInicio}
+                                </span>
+                                {ev.calendarName && (
+                                  <span className="truncate max-w-[80px] rounded bg-stone-200/80 px-1 py-0.5 text-[9px] font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                                    {ev.calendarName}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="truncate font-medium text-stone-800 dark:text-stone-200 mt-0.5">
                                 {ev.title}
                               </p>
                             </div>
@@ -658,17 +668,26 @@ export function AgendaView({
                                 e.stopPropagation();
                                 handleEventClick(ev);
                               }}
-                              className="flex items-center justify-between rounded-xl border border-dashed border-stone-300 bg-stone-50/90 p-3 text-xs cursor-pointer dark:border-stone-700 dark:bg-stone-800/80"
+                              className="flex items-center justify-between rounded-xl border border-dashed border-stone-300 bg-stone-50/90 p-3 text-xs shadow-2xs transition-all hover:scale-[1.005] cursor-pointer dark:border-stone-700 dark:bg-stone-800/80"
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-stone-700 dark:text-stone-300">
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-stone-800 dark:text-stone-200">
                                   {horaInicio}
                                 </span>
-                                <span className="text-stone-600 dark:text-stone-300">
-                                  {ev.title}
-                                </span>
+                                <div>
+                                  <span className="font-medium text-stone-800 dark:text-stone-200">
+                                    {ev.title}
+                                  </span>
+                                  {ev.calendarName && (
+                                    <p className="text-[11px] text-stone-500">
+                                      Agenda: {ev.calendarName}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <span className="text-[10px] text-stone-400">Google Calendar</span>
+                              <span className="rounded-full bg-stone-200/80 px-2 py-0.5 text-[10px] font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                                {ev.calendarName || "Google Agenda"}
+                              </span>
                             </div>
                           );
                         })}

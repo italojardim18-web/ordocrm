@@ -191,20 +191,19 @@ export async function getRemoteBusy(
   if (!connection?.calendar_id) return [];
   try {
     const accessToken = await getFreshAccessToken(connection);
-    return await freeBusy(
-      accessToken,
-      connection.calendar_id,
-      timeMin,
-      timeMax,
-    );
+    const { listCalendars } = await import("./google");
+    const calendars = await listCalendars(accessToken);
+    const calIds = calendars.length > 0 ? calendars.map((c) => c.id) : [connection.calendar_id];
+    return await freeBusy(accessToken, calIds, timeMin, timeMax);
   } catch {
     return [];
   }
 }
 
 /**
- * Eventos do Google no intervalo. Sem conexão, devolve lista vazia — a agenda
- * segue mostrando as sessões do ORDO em vez de quebrar.
+ * Eventos do Google no intervalo.
+ * Busca os eventos de TODAS as agendas do usuário (Pessoal, PsicoManager, etc.)
+ * e anexa o nome do calendário de origem a cada evento.
  */
 export async function listarEventosGoogle(
   workspaceId: string,
@@ -215,8 +214,32 @@ export async function listarEventosGoogle(
   if (!connection?.calendar_id) return [];
   try {
     const accessToken = await getFreshAccessToken(connection);
-    const { listEvents } = await import("./google");
-    return await listEvents(accessToken, connection.calendar_id, timeMin, timeMax);
+    const { listCalendars, listEvents } = await import("./google");
+    const calendars = await listCalendars(accessToken);
+
+    const calsToFetch = calendars.length > 0
+      ? calendars
+      : [{ id: connection.calendar_id, summary: connection.calendar_name || "Principal" }];
+
+    const results = await Promise.allSettled(
+      calsToFetch.map(async (cal) => {
+        const events = await listEvents(accessToken, cal.id, timeMin, timeMax);
+        return events.map((ev) => ({
+          ...ev,
+          calendarId: cal.id,
+          calendarName: cal.summary || "Google Agenda",
+        }));
+      }),
+    );
+
+    const todosEventos: import("./google").GoogleEventResumo[] = [];
+    for (const res of results) {
+      if (res.status === "fulfilled") {
+        todosEventos.push(...res.value);
+      }
+    }
+
+    return todosEventos;
   } catch {
     return [];
   }
