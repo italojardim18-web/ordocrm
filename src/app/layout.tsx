@@ -28,6 +28,11 @@ export const metadata: Metadata = {
   },
   description:
     "ORDO — ordem que gera direção. Gestão de relacionamento e pipeline comercial.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
