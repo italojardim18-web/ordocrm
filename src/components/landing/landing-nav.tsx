@@ -1,12 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { OrdoSymbol } from "@/components/ordo-mark";
 import { cn } from "@/lib/utils";
 
 export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossistema" | "planos" }) {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentActive, setCurrentActive] = useState<string>(activeTab === "planos" ? "planos" : "ecossistema");
+
+  useEffect(() => {
+    if (pathname.includes("/planos")) {
+      setCurrentActive("planos");
+      return;
+    }
+
+    const sections = [
+      { id: "faq", key: "faq" },
+      { id: "precos", key: "planos" },
+      { id: "comparativo", key: "comparativo" },
+      { id: "pilares", key: "pilares" },
+    ];
+
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 180;
+
+      // Se estiver bem no topo
+      if (window.scrollY < 300) {
+        setCurrentActive("ecossistema");
+        return;
+      }
+
+      for (const section of sections) {
+        const element = document.getElementById(section.id);
+        if (element) {
+          const top = element.offsetTop;
+          const height = element.offsetHeight;
+          if (scrollPosition >= top && scrollPosition < top + height) {
+            setCurrentActive(section.key);
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // Checagem inicial
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [pathname]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#291015] border-b border-[#521D2A] py-3.5 shadow-2xl">
@@ -31,13 +74,14 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
           </div>
         </Link>
 
-        {/* Links Centrais de Navegação */}
+        {/* Links Centrais de Navegação Dinâmicos com ScrollSpy */}
         <nav className="hidden md:flex items-center gap-1.5 rounded-full bg-white/10 p-1.5 backdrop-blur-md border border-white/15 shadow-inner text-xs font-semibold text-stone-200">
           <Link
             href="/ecossistema"
+            onClick={() => setCurrentActive("ecossistema")}
             className={cn(
               "rounded-full px-4 py-2 transition-all",
-              activeTab === "ecossistema"
+              currentActive === "ecossistema"
                 ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
                 : "hover:bg-white/10 hover:text-white"
             )}
@@ -46,21 +90,34 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
           </Link>
           <Link
             href="/ecossistema#pilares"
-            className="rounded-full px-4 py-2 hover:bg-white/10 hover:text-white transition-all"
+            onClick={() => setCurrentActive("pilares")}
+            className={cn(
+              "rounded-full px-4 py-2 transition-all",
+              currentActive === "pilares"
+                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
+                : "hover:bg-white/10 hover:text-white"
+            )}
           >
             🧩 Os 4 Sistemas
           </Link>
           <Link
             href="/ecossistema#comparativo"
-            className="rounded-full px-4 py-2 hover:bg-white/10 hover:text-white transition-all"
+            onClick={() => setCurrentActive("comparativo")}
+            className={cn(
+              "rounded-full px-4 py-2 transition-all",
+              currentActive === "comparativo"
+                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
+                : "hover:bg-white/10 hover:text-white"
+            )}
           >
             ⚖️ Comparativo
           </Link>
           <Link
             href="/planos"
+            onClick={() => setCurrentActive("planos")}
             className={cn(
               "rounded-full px-4 py-2 transition-all flex items-center gap-1.5",
-              activeTab === "planos"
+              currentActive === "planos"
                 ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
                 : "hover:bg-white/10 hover:text-white"
             )}
@@ -72,7 +129,13 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
           </Link>
           <Link
             href="/ecossistema#faq"
-            className="rounded-full px-4 py-2 hover:bg-white/10 hover:text-white transition-all"
+            onClick={() => setCurrentActive("faq")}
+            className={cn(
+              "rounded-full px-4 py-2 transition-all",
+              currentActive === "faq"
+                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
+                : "hover:bg-white/10 hover:text-white"
+            )}
           >
             ❓ Dúvidas
           </Link>
@@ -109,20 +172,55 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
       {/* Menu Dropdown Mobile */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#291015] border-t border-[#521D2A] mt-3 px-4 py-4 flex flex-col gap-3 text-sm text-stone-200 animate-in fade-in slide-in-from-top-4">
-          <Link href="/ecossistema" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-white/10">
+          <Link
+            href="/ecossistema"
+            onClick={() => {
+              setCurrentActive("ecossistema");
+              setMobileMenuOpen(false);
+            }}
+            className={cn("py-2.5 border-b border-white/10", currentActive === "ecossistema" && "text-[#B2966F] font-bold")}
+          >
             🏛️ O Ecossistema
           </Link>
-          <Link href="/ecossistema#pilares" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-white/10">
+          <Link
+            href="/ecossistema#pilares"
+            onClick={() => {
+              setCurrentActive("pilares");
+              setMobileMenuOpen(false);
+            }}
+            className={cn("py-2.5 border-b border-white/10", currentActive === "pilares" && "text-[#B2966F] font-bold")}
+          >
             🧩 Os 4 Sistemas (Forms, CRM, Manager, Analytics)
           </Link>
-          <Link href="/ecossistema#comparativo" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-white/10">
+          <Link
+            href="/ecossistema#comparativo"
+            onClick={() => {
+              setCurrentActive("comparativo");
+              setMobileMenuOpen(false);
+            }}
+            className={cn("py-2.5 border-b border-white/10", currentActive === "comparativo" && "text-[#B2966F] font-bold")}
+          >
             ⚖️ Comparativo de Rotina
           </Link>
-          <Link href="/planos" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-white/10 flex items-center justify-between">
+          <Link
+            href="/planos"
+            onClick={() => {
+              setCurrentActive("planos");
+              setMobileMenuOpen(false);
+            }}
+            className={cn("py-2.5 border-b border-white/10 flex items-center justify-between", currentActive === "planos" && "text-[#B2966F] font-bold")}
+          >
             <span>💎 Planos & Preços Oficiais</span>
             <span className="rounded bg-[#B2966F] px-2 py-0.5 text-xs font-bold text-[#291015]">-20% Anual</span>
           </Link>
-          <Link href="/ecossistema#faq" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-white/10">
+          <Link
+            href="/ecossistema#faq"
+            onClick={() => {
+              setCurrentActive("faq");
+              setMobileMenuOpen(false);
+            }}
+            className={cn("py-2.5 border-b border-white/10", currentActive === "faq" && "text-[#B2966F] font-bold")}
+          >
             ❓ Perguntas Frequentes
           </Link>
           <div className="pt-3 flex flex-col gap-2.5">
