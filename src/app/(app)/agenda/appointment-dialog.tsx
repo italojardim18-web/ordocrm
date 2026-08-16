@@ -19,11 +19,14 @@ export interface AppointmentDialogData {
   appointment?: {
     id: string;
     title: string;
+    description?: string | null;
     starts_at: Date;
     ends_at?: Date | null;
     status: string;
     lead_id?: string | null;
     lead_name?: string | null;
+    meet_link?: string | null;
+    link?: string | null;
     source: "ordo" | "google";
   } | null;
 }
@@ -429,6 +432,53 @@ export function AppointmentDialog({
                 )}
               </span>
             </div>
+
+            {/* Link do Google Meet */}
+            {(data.appointment.meet_link || data.appointment.link) && (
+              <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800 dark:bg-emerald-950/40">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-xs">
+                      🎥
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-semibold text-emerald-950 dark:text-emerald-200">
+                        Google Meet (Sala de Vídeo)
+                      </h4>
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300 truncate max-w-[200px] sm:max-w-[260px]">
+                        {data.appointment.meet_link || data.appointment.link}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = data.appointment?.meet_link || data.appointment?.link;
+                        if (url) {
+                          navigator.clipboard.writeText(url);
+                          toast.success("Link do Google Meet copiado para a área de transferência!");
+                        }
+                      }}
+                      className="rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-800 shadow-2xs hover:bg-emerald-50 dark:border-emerald-700 dark:bg-stone-900 dark:text-emerald-300"
+                    >
+                      📋 Copiar
+                    </button>
+
+                    <a
+                      href={data.appointment.meet_link || data.appointment.link || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700"
+                    >
+                      <span>Entrar</span>
+                      <span>↗</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Alterar Status */}
             {data.appointment.source === "ordo" && (

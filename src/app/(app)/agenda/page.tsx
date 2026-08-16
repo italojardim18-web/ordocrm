@@ -12,10 +12,12 @@ export const metadata: Metadata = { title: "Agenda" };
 interface SessaoRow {
   id: string;
   title: string;
+  description?: string | null;
   starts_at: string;
   ends_at?: string | null;
   status: string;
   lead_id: string | null;
+  meet_link?: string | null;
   leads: { name: string } | null;
 }
 
@@ -47,7 +49,7 @@ export default async function AgendaPage({
   const [{ data: sessoesRows }, eventosGoogle, conectado] = await Promise.all([
     supabase
       .from("appointments")
-      .select("id, title, starts_at, ends_at, status, lead_id, leads (name)")
+      .select("id, title, description, starts_at, ends_at, status, lead_id, meet_link, leads (name)")
       .eq("workspace_id", context.workspace.id)
       .is("deleted_at", null)
       .gte("starts_at", inicioBusca.toISOString())
@@ -65,11 +67,13 @@ export default async function AgendaPage({
   const sessoesFormatadas: SessaoItem[] = (sessoesRows ?? []).map((s) => ({
     id: s.id,
     title: s.title,
+    description: s.description ?? null,
     starts_at: s.starts_at,
     ends_at: s.ends_at,
     status: s.status,
     lead_id: s.lead_id,
     lead_name: s.leads?.name ?? null,
+    meet_link: s.meet_link ?? null,
     source: "ordo",
   }));
 

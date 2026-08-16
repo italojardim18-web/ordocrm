@@ -11,11 +11,13 @@ import { AgendaColorsDialog, type CalendarConfigItem, PRESET_COLORS } from "./ag
 export interface SessaoItem {
   id: string;
   title: string;
+  description?: string | null;
   starts_at: string;
   ends_at?: string | null;
   status: string;
   lead_id?: string | null;
   lead_name?: string | null;
+  meet_link?: string | null;
   source?: "ordo" | "google";
 }
 
@@ -28,6 +30,8 @@ interface AgendaViewProps {
     fim: string | null;
     diaInteiro: boolean;
     calendarName?: string;
+    meetLink?: string | null;
+    link?: string | null;
   }>;
   workspaceTimezone: string;
   isGoogleConnected: boolean;
@@ -234,6 +238,8 @@ export function AgendaView({
       diaInteiro?: boolean;
       calendarName?: string;
       customColor?: string;
+      meet_link?: string | null;
+      link?: string | null;
     }> = [];
 
     const ordoConfig = configMap.get("ordo");
@@ -249,6 +255,7 @@ export function AgendaView({
           status: s.status,
           lead_id: s.lead_id,
           lead_name: s.lead_name,
+          meet_link: s.meet_link,
           source: "ordo",
           customColor: ordoConfig?.color || "#521D2A",
         });
@@ -276,6 +283,7 @@ export function AgendaView({
           source: "google",
           diaInteiro: e.diaInteiro,
           calendarName: calName,
+          meet_link: e.meetLink,
           customColor: calConfig?.color || "#0D9488",
         });
       }
@@ -668,12 +676,37 @@ export function AgendaView({
                                   )}
                                 </div>
 
-                                {isLongEvent && (
+                                {isLongEvent ? (
                                   <div className="flex items-center justify-between text-[9px] text-stone-500 border-t border-stone-200/50 dark:border-stone-700/50 pt-0.5 mt-1">
                                     <span>{duracaoMinutos >= 60 ? `${Math.floor(duracaoMinutos / 60)}h${duracaoMinutos % 60 ? `${duracaoMinutos % 60}m` : ""}` : `${duracaoMinutos} min`}</span>
-                                    <span>Detalhes →</span>
+                                    <div className="flex items-center gap-1">
+                                      {ev.meet_link && (
+                                        <a
+                                          href={ev.meet_link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-0.5 rounded bg-emerald-600 px-1 py-0.2 text-[8px] font-bold text-white hover:bg-emerald-700"
+                                        >
+                                          🎥 Meet
+                                        </a>
+                                      )}
+                                      <span>Detalhes →</span>
+                                    </div>
                                   </div>
-                                )}
+                                ) : ev.meet_link ? (
+                                  <div className="flex justify-end pt-0.5">
+                                    <a
+                                      href={ev.meet_link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-0.5 rounded bg-emerald-600 px-1 py-0.2 text-[8px] font-bold text-white hover:bg-emerald-700"
+                                    >
+                                      🎥 Meet
+                                    </a>
+                                  </div>
+                                ) : null}
                               </div>
                             );
                           }
@@ -717,12 +750,37 @@ export function AgendaView({
                                 </p>
                               </div>
 
-                              {isLongEvent && (
+                              {isLongEvent ? (
                                 <div className="flex items-center justify-between text-[9px] text-stone-500 border-t border-stone-200/40 dark:border-stone-700/40 pt-0.5 mt-1">
                                   <span>{duracaoMinutos >= 60 ? `${Math.floor(duracaoMinutos / 60)}h${duracaoMinutos % 60 ? `${duracaoMinutos % 60}m` : ""}` : `${duracaoMinutos} min`}</span>
-                                  <span>Google Calendar</span>
+                                  <div className="flex items-center gap-1">
+                                    {(ev.meet_link || ev.link) && (
+                                      <a
+                                        href={ev.meet_link || ev.link || "#"}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-0.5 rounded bg-emerald-600 px-1 py-0.2 text-[8px] font-bold text-white hover:bg-emerald-700"
+                                      >
+                                        🎥 Meet
+                                      </a>
+                                    )}
+                                    <span>Google Calendar</span>
+                                  </div>
                                 </div>
-                              )}
+                              ) : (ev.meet_link || ev.link) ? (
+                                <div className="flex justify-end pt-0.5">
+                                  <a
+                                    href={ev.meet_link || ev.link || "#"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-0.5 rounded bg-emerald-600 px-1 py-0.2 text-[8px] font-bold text-white hover:bg-emerald-700"
+                                  >
+                                    🎥 Meet
+                                  </a>
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })}

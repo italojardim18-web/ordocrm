@@ -343,6 +343,10 @@ export async function listEvents(
       summary?: string;
       htmlLink?: string;
       status?: string;
+      hangoutLink?: string;
+      conferenceData?: {
+        entryPoints?: { entryPointType?: string; uri?: string }[];
+      };
       start?: { dateTime?: string; date?: string };
       end?: { dateTime?: string; date?: string };
     }[];
@@ -357,5 +361,9 @@ export async function listEvents(
       fim: e.end?.dateTime ?? e.end?.date ?? null,
       diaInteiro: Boolean(e.start?.date && !e.start?.dateTime),
       link: e.htmlLink ?? null,
+      meetLink:
+        e.hangoutLink ??
+        e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
+        null,
     }));
 }
