@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 
 export default function PlanosPage() {
   return (
-    <main className="min-h-screen bg-[#FBF9F6] selection:bg-[#521D2A] selection:text-white pt-16">
+    <main className="min-h-screen bg-[#FBF9F6] selection:bg-[#521D2A] selection:text-white">
       <LandingNav activeTab="planos" />
 
       {/* Header Superior da Página de Preços */}
-      <section className="bg-gradient-to-b from-[#291015] to-[#3B151F] py-20 text-white text-center">
+      <section className="bg-gradient-to-b from-[#291015] to-[#3B151F] pt-28 pb-20 text-white text-center">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <Badge className="bg-[#B2966F] text-[#291015] text-xs px-3 py-1 mb-4 font-bold">
             Transparência & Liberdade de Escolha

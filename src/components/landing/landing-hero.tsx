@@ -42,13 +42,13 @@ export function LandingHero() {
             <span className="text-base">↗</span>
           </Link>
 
-          <a
-            href="#pilares"
+          <Link
+            href="/ecossistema#pilares"
             className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-7 py-4 text-sm font-semibold text-white backdrop-blur-md transition-all hover:bg-white/10"
           >
             <span>Explorar os 4 Sistemas</span>
             <span>↓</span>
-          </a>
+          </Link>
         </div>
 
         {/* Badges de Confiança */}

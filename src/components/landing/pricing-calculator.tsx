@@ -9,6 +9,15 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
   // Estado do Seletor: "anual" (default com 20% OFF) ou "mensal"
   const [billingCycle, setBillingCycle] = useState<"anual" | "mensal">("anual");
 
+  const WHATSAPP_NUMBER = "5567999110001";
+
+  const getWaLink = (plano: string) => {
+    const text = encodeURIComponent(
+      `Olá! Tenho interesse em contratar o plano: ${plano} (${billingCycle === "anual" ? "Plano Anual com 20% OFF" : "Plano Mensal"}). Como posso proceder?`
+    );
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${text}`;
+  };
+
   return (
     <section id="precos" className="py-24 bg-[#FBF9F6] text-stone-900">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -125,10 +134,10 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
               </p>
 
               <a
-                href="https://wa.me/5521999999999?text=Olá!%20Gostaria%20de%20assinar%20o%20Combo%20Ecossistema%20ORDO%20PRO."
+                href={getWaLink("Combo Ecossistema ORDO PRO")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-5 w-full rounded-2xl bg-gradient-to-r from-[#B2966F] to-[#C9B18F] py-3.5 text-center text-xs sm:text-sm font-bold text-[#291015] shadow-xl hover:scale-105 transition-transform"
+                className="mt-5 w-full rounded-2xl bg-gradient-to-r from-[#B2966F] to-[#C9B18F] py-3.5 text-center text-xs sm:text-sm font-bold text-[#291015] shadow-xl hover:scale-105 transition-transform inline-block"
               >
                 Garantir o Combo com 20% OFF ↗
               </a>
@@ -142,7 +151,7 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
         {showAllSystems && (
           <div className="mt-20 space-y-16">
             {/* 1. TABELA ORDO CRM */}
-            <div id="crm" className="scroll-mt-24">
+            <div id="crm" className="scroll-mt-24 text-left">
               <div className="flex items-center justify-between border-b border-stone-200 pb-3 mb-6">
                 <div>
                   <h3 className="font-heading text-2xl font-bold text-[#291015] flex items-center gap-2">
@@ -180,12 +189,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl border border-[#521D2A] text-center py-2.5 text-xs font-bold text-[#521D2A] hover:bg-[#521D2A] hover:text-white transition-all"
+                  <a
+                    href={getWaLink("ORDO CRM Solo")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl border border-[#521D2A] text-center py-2.5 text-xs font-bold text-[#521D2A] hover:bg-[#521D2A] hover:text-white transition-all inline-block"
                   >
-                    Contratar CRM Individual
-                  </Link>
+                    Contratar CRM Solo ↗
+                  </a>
                 </div>
 
                 {/* PRO */}
@@ -217,12 +228,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl bg-[#521D2A] text-center py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#6b2737] transition-all"
+                  <a
+                    href={getWaLink("ORDO CRM PRO")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl bg-[#521D2A] text-center py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#6b2737] transition-all inline-block"
                   >
-                    Contratar CRM PRO
-                  </Link>
+                    Contratar CRM PRO ↗
+                  </a>
                 </div>
 
                 {/* Clínica */}
@@ -248,19 +261,19 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                   </div>
 
                   <a
-                    href="https://wa.me/5521999999999?text=Olá!%20Gostaria%20de%20uma%20proposta%20para%20o%20ORDO%20CRM%20Clínica."
+                    href={getWaLink("ORDO CRM Clínica sob consulta")}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all"
+                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all inline-block"
                   >
-                    Falar com Consultor
+                    Falar com Consultor ↗
                   </a>
                 </div>
               </div>
             </div>
 
             {/* 2. TABELA ORDO FORMS */}
-            <div id="forms" className="scroll-mt-24">
+            <div id="forms" className="scroll-mt-24 text-left">
               <div className="flex items-center justify-between border-b border-stone-200 pb-3 mb-6">
                 <div>
                   <h3 className="font-heading text-2xl font-bold text-[#291015] flex items-center gap-2">
@@ -290,12 +303,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all"
+                  <a
+                    href={getWaLink("ORDO Forms Grátis")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all inline-block"
                   >
-                    Criar Conta Grátis
-                  </Link>
+                    Ativar Forms Grátis ↗
+                  </a>
                 </div>
 
                 {/* Individual */}
@@ -320,12 +335,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl bg-[#521D2A] text-center py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#6b2737] transition-all"
+                  <a
+                    href={getWaLink("ORDO Forms Individual")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl bg-[#521D2A] text-center py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#6b2737] transition-all inline-block"
                   >
-                    Assinar Forms Solo
-                  </Link>
+                    Assinar Forms Solo ↗
+                  </a>
                 </div>
 
                 {/* Clínica PRO */}
@@ -350,18 +367,20 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all"
+                  <a
+                    href={getWaLink("ORDO Forms Clínica PRO")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all inline-block"
                   >
-                    Assinar Forms PRO
-                  </Link>
+                    Assinar Forms PRO ↗
+                  </a>
                 </div>
               </div>
             </div>
 
             {/* 3. TABELA ORDO MANAGER */}
-            <div id="manager" className="scroll-mt-24">
+            <div id="manager" className="scroll-mt-24 text-left">
               <div className="flex items-center justify-between border-b border-stone-200 pb-3 mb-6">
                 <div>
                   <h3 className="font-heading text-2xl font-bold text-[#291015] flex items-center gap-2">
@@ -390,12 +409,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all"
+                  <a
+                    href={getWaLink("ORDO Manager Grátis")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all inline-block"
                   >
-                    Começar Básico
-                  </Link>
+                    Ativar Manager Grátis ↗
+                  </a>
                 </div>
 
                 {/* Standard */}
@@ -419,12 +440,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all"
+                  <a
+                    href={getWaLink("ORDO Manager Standard")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl border border-stone-300 text-center py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all inline-block"
                   >
-                    Assinar Standard
-                  </Link>
+                    Assinar Standard ↗
+                  </a>
                 </div>
 
                 {/* PRO */}
@@ -449,12 +472,14 @@ export function PricingCalculator({ showAllSystems = true }: { showAllSystems?: 
                     </ul>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full rounded-xl bg-[#521D2A] text-center py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#6b2737] transition-all"
+                  <a
+                    href={getWaLink("ORDO Manager PRO")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl bg-[#521D2A] text-center py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#6b2737] transition-all inline-block"
                   >
-                    Assinar Manager PRO
-                  </Link>
+                    Assinar Manager PRO ↗
+                  </a>
                 </div>
               </div>
             </div>
