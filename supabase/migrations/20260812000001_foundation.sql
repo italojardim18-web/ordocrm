@@ -10,20 +10,26 @@ create extension if not exists citext with schema extensions;
 -- Tipos de domínio
 -- -----------------------------------------------------------------------------
 
-create type public.member_role as enum ('admin', 'assistant');
-
-create type public.invitation_status as enum ('pending', 'accepted', 'revoked', 'expired');
-
-create type public.audit_action as enum (
-  'workspace_updated',
-  'branding_updated',
-  'member_invited',
-  'invitation_revoked',
-  'invitation_accepted',
-  'member_role_changed',
-  'member_activated',
-  'member_deactivated'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'member_role') THEN
+    CREATE TYPE public.member_role AS ENUM ('admin', 'assistant');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invitation_status') THEN
+    CREATE TYPE public.invitation_status AS ENUM ('pending', 'accepted', 'revoked', 'expired');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'audit_action') THEN
+    CREATE TYPE public.audit_action AS ENUM (
+      'workspace_updated',
+      'branding_updated',
+      'member_invited',
+      'invitation_revoked',
+      'invitation_accepted',
+      'member_role_changed',
+      'member_activated',
+      'member_deactivated'
+    );
+  END IF;
+END $$;
 
 -- -----------------------------------------------------------------------------
 -- Schema privado para funções auxiliares (nunca exposto pela API)
@@ -35,7 +41,7 @@ create schema if not exists private;
 -- Tabelas
 -- -----------------------------------------------------------------------------
 
-create table public.workspaces (
+create table if not exists public.workspaces (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 120),
   timezone text not null default 'America/Campo_Grande',
@@ -44,7 +50,7 @@ create table public.workspaces (
   deleted_at timestamptz
 );
 
-create table public.workspace_branding (
+create table if not exists public.workspace_branding (
   workspace_id uuid primary key references public.workspaces (id) on delete cascade,
   display_name text,
   logo_url text,
@@ -55,7 +61,7 @@ create table public.workspace_branding (
   updated_at timestamptz not null default now()
 );
 
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
   full_name text,
@@ -64,7 +70,7 @@ create table public.profiles (
   updated_at timestamptz not null default now()
 );
 
-create table public.workspace_members (
+create table if not exists public.workspace_members (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -75,10 +81,10 @@ create table public.workspace_members (
   unique (workspace_id, user_id)
 );
 
-create index workspace_members_user_idx on public.workspace_members (user_id);
-create index workspace_members_workspace_idx on public.workspace_members (workspace_id);
+create index if not exists workspace_members_user_idx on public.workspace_members (user_id);
+create index if not exists workspace_members_workspace_idx on public.workspace_members (workspace_id);
 
-create table public.workspace_invitations (
+create table if not exists public.workspace_invitations (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   email extensions.citext not null,
@@ -92,10 +98,10 @@ create table public.workspace_invitations (
   updated_at timestamptz not null default now()
 );
 
-create index workspace_invitations_workspace_idx on public.workspace_invitations (workspace_id);
-create index workspace_invitations_email_idx on public.workspace_invitations (workspace_id, email);
+create index if not exists workspace_invitations_workspace_idx on public.workspace_invitations (workspace_id);
+create index if not exists workspace_invitations_email_idx on public.workspace_invitations (workspace_id, email);
 
-create table public.audit_logs (
+create table if not exists public.audit_logs (
   id bigint generated always as identity primary key,
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   actor_id uuid references auth.users (id),
@@ -107,7 +113,7 @@ create table public.audit_logs (
   created_at timestamptz not null default now()
 );
 
-create index audit_logs_workspace_idx on public.audit_logs (workspace_id, created_at desc);
+create index if not exists audit_logs_workspace_idx on public.audit_logs (workspace_id, created_at desc);
 
 -- -----------------------------------------------------------------------------
 -- Funções auxiliares (security definer para evitar recursão de policy)
@@ -187,15 +193,15 @@ begin
 end;
 $$;
 
-create trigger set_updated_at before update on public.workspaces
+create or replace trigger set_updated_at before update on public.workspaces
   for each row execute function private.set_updated_at();
-create trigger set_updated_at before update on public.workspace_branding
+create or replace trigger set_updated_at before update on public.workspace_branding
   for each row execute function private.set_updated_at();
-create trigger set_updated_at before update on public.profiles
+create or replace trigger set_updated_at before update on public.profiles
   for each row execute function private.set_updated_at();
-create trigger set_updated_at before update on public.workspace_members
+create or replace trigger set_updated_at before update on public.workspace_members
   for each row execute function private.set_updated_at();
-create trigger set_updated_at before update on public.workspace_invitations
+create or replace trigger set_updated_at before update on public.workspace_invitations
   for each row execute function private.set_updated_at();
 
 -- Perfil criado automaticamente para cada novo usuário do Auth
@@ -213,7 +219,7 @@ begin
 end;
 $$;
 
-create trigger on_auth_user_created
+create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute function private.handle_new_user();
 
@@ -228,32 +234,36 @@ alter table public.workspace_members enable row level security;
 alter table public.workspace_invitations enable row level security;
 alter table public.audit_logs enable row level security;
 
--- workspaces: membros leem; admins atualizam nome/fuso; criação apenas via
--- service_role (onboarding de novos tenants é fluxo controlado).
+drop policy if exists "workspaces_select_member" on public.workspaces;
 create policy "workspaces_select_member" on public.workspaces
   for select to authenticated
   using (private.is_member(id) and deleted_at is null);
 
+drop policy if exists "workspaces_update_admin" on public.workspaces;
 create policy "workspaces_update_admin" on public.workspaces
   for update to authenticated
   using (private.is_admin(id))
   with check (private.is_admin(id));
 
 -- workspace_branding
+drop policy if exists "branding_select_member" on public.workspace_branding;
 create policy "branding_select_member" on public.workspace_branding
   for select to authenticated
   using (private.is_member(workspace_id));
 
+drop policy if exists "branding_insert_admin" on public.workspace_branding;
 create policy "branding_insert_admin" on public.workspace_branding
   for insert to authenticated
   with check (private.is_admin(workspace_id));
 
+drop policy if exists "branding_update_admin" on public.workspace_branding;
 create policy "branding_update_admin" on public.workspace_branding
   for update to authenticated
   using (private.is_admin(workspace_id))
   with check (private.is_admin(workspace_id));
 
 -- profiles: o próprio usuário e colegas de workspace podem ler; só o próprio edita.
+drop policy if exists "profiles_select_self_or_colleague" on public.profiles;
 create policy "profiles_select_self_or_colleague" on public.profiles
   for select to authenticated
   using (
@@ -265,6 +275,7 @@ create policy "profiles_select_self_or_colleague" on public.profiles
     )
   );
 
+drop policy if exists "profiles_update_self" on public.profiles;
 create policy "profiles_update_self" on public.profiles
   for update to authenticated
   using (id = (select auth.uid()))
@@ -272,16 +283,19 @@ create policy "profiles_update_self" on public.profiles
 
 -- workspace_members: membros veem a equipe do próprio workspace.
 -- Nenhuma escrita direta: mudanças de papel/ativação apenas via RPCs auditadas.
+drop policy if exists "members_select_member" on public.workspace_members;
 create policy "members_select_member" on public.workspace_members
   for select to authenticated
   using (private.is_member(workspace_id));
 
 -- workspace_invitations: apenas admins do workspace.
+drop policy if exists "invitations_select_admin" on public.workspace_invitations;
 create policy "invitations_select_admin" on public.workspace_invitations
   for select to authenticated
   using (private.is_admin(workspace_id));
 
 -- audit_logs: apenas admins leem; escrita apenas via private.log_audit.
+drop policy if exists "audit_select_admin" on public.audit_logs;
 create policy "audit_select_admin" on public.audit_logs
   for select to authenticated
   using (private.is_admin(workspace_id));

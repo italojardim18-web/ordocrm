@@ -29,12 +29,19 @@ export function AppNav({
   userEmail,
   isAdmin,
   channels = [],
+  notifications = { conversas: 0, pipeline: 0, agenda: 0, contatos: 0 },
 }: {
   workspaceName: string;
   userName: string | null;
   userEmail: string;
   isAdmin: boolean;
   channels?: ChannelItem[];
+  notifications?: {
+    conversas: number;
+    pipeline: number;
+    agenda: number;
+    contatos: number;
+  };
 }) {
   const pathname = usePathname();
 
@@ -83,19 +90,36 @@ export function AppNav({
                 ? pathname === "/dashboard"
                 : pathname.startsWith(link.href);
 
+            const count =
+              link.href === "/pipeline"
+                ? notifications.pipeline
+                : 0;
+
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-3.5 sm:px-5 py-1.5 text-xs font-semibold transition-all duration-150 shadow-2xs whitespace-nowrap",
+                  "relative rounded-full px-3.5 sm:px-5 py-1.5 text-xs font-semibold transition-all duration-150 shadow-2xs whitespace-nowrap flex items-center gap-1.5",
                   active
                     ? "bg-primary text-primary-foreground shadow-xs font-bold"
                     : "text-primary hover:bg-primary/10",
                 )}
               >
-                {link.label}
+                <span>{link.label}</span>
+                {count > 0 ? (
+                  <span
+                    className={cn(
+                      "flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 py-0.2 min-w-4 h-4 shadow-2xs",
+                      active
+                        ? "bg-white text-primary"
+                        : "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    {count > 99 ? "99+" : count}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

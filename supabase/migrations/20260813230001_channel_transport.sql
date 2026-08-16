@@ -8,7 +8,11 @@
 -- diferença: só o transporte muda.
 -- =============================================================================
 
-create type public.channel_transport as enum ('cloud_api', 'bridge');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'channel_transport') THEN
+    CREATE TYPE public.channel_transport AS ENUM ('cloud_api', 'bridge');
+  END IF;
+END $$;
 
 alter table public.channel_connections
   add column transport public.channel_transport not null default 'cloud_api',

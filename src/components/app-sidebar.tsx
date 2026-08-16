@@ -7,15 +7,36 @@ import { OrdoSymbol } from "@/components/ordo-mark";
 
 interface SidebarProps {
   isAdmin: boolean;
+  notifications?: {
+    conversas: number;
+    pipeline: number;
+    agenda: number;
+    contatos: number;
+  };
 }
 
-export function AppSidebar({ isAdmin }: SidebarProps) {
+export function AppSidebar({
+  isAdmin,
+  notifications = { conversas: 0, pipeline: 0, agenda: 0, contatos: 0 },
+}: SidebarProps) {
   const pathname = usePathname();
 
   // Itens da barra lateral solicitados pelo usuário (incluindo Origens do Lead)
   const sidebarItems = [
-    { href: "/conversas", label: "Conversas", icon: "💬" },
-    { href: "/agenda", label: "Agenda", icon: "📅" },
+    {
+      href: "/conversas",
+      label: "Conversas",
+      icon: "💬",
+      count: notifications.conversas,
+      badgeColor: "bg-rose-600 text-white",
+    },
+    {
+      href: "/agenda",
+      label: "Agenda",
+      icon: "📅",
+      count: notifications.agenda,
+      badgeColor: "bg-primary text-primary-foreground",
+    },
     { href: "/formularios", label: "ORDO Forms", icon: "📝" },
     { href: "/agente-ia", label: "Agente de IA", icon: "🤖" },
     { href: "/contatos", label: "Lista de Contatos", icon: "👥" },
@@ -46,6 +67,7 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
         <nav className="flex flex-col items-center gap-2.5 rounded-3xl bg-sidebar-accent/35 p-2 border border-sidebar-border/30 shadow-inner">
           {sidebarItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
+            const badgeCount = item.count ?? 0;
 
             return (
               <Link
@@ -61,9 +83,22 @@ export function AppSidebar({ isAdmin }: SidebarProps) {
               >
                 <span>{item.icon}</span>
 
+                {/* Bolinha discreta de Notificação no Canto Superior Direito */}
+                {badgeCount > 0 ? (
+                  <span
+                    className={cn(
+                      "absolute -top-1 -right-1 flex min-w-4 h-4 items-center justify-center rounded-full px-1 text-[9px] font-bold shadow-xs animate-in zoom-in-50 duration-200",
+                      item.badgeColor || "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                ) : null}
+
                 {/* Tooltip lateral flutuante */}
                 <span className="absolute left-14 hidden whitespace-nowrap rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xl group-hover:block z-50">
                   {item.label}
+                  {badgeCount > 0 ? ` (${badgeCount})` : ""}
                 </span>
               </Link>
             );

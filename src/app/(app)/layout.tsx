@@ -26,7 +26,11 @@ export default async function AppLayout({
     );
   }
 
-  const channelConnections = await getChannelConnections(context.workspace.id);
+  const [channelConnections, notifications] = await Promise.all([
+    getChannelConnections(context.workspace.id),
+    import("@/lib/crm/queries").then((m) => m.getNavNotificationCounts(context.workspace.id)),
+  ]);
+
   const channels = channelConnections.map((ch) => ({
     id: ch.id,
     label: ch.display_name ?? ch.provider,
@@ -38,7 +42,7 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-svh bg-background">
       {/* Barra Lateral Esquerda com Dock de Ferramentas / Configurações / Suporte */}
-      <AppSidebar isAdmin={isAdmin} />
+      <AppSidebar isAdmin={isAdmin} notifications={notifications} />
 
       {/* Área Principal de Conteúdo com Barra Superior Moderna */}
       <div className="flex flex-1 flex-col min-w-0">
@@ -48,6 +52,7 @@ export default async function AppLayout({
           userEmail={context.user.email}
           isAdmin={isAdmin}
           channels={channels}
+          notifications={notifications}
         />
         <main className="w-full max-w-[1600px] mx-auto flex-1 px-3 sm:px-6 lg:px-8 py-6 min-w-0">
           {children}

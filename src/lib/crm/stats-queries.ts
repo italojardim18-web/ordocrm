@@ -183,19 +183,39 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
   const mensagensEnviadas = msgs.filter((m) => m.direction === "outbound").length;
   const tarefasConcluidas = tasksList.filter((t) => Boolean(t.completed_at)).length;
   const tarefasPendentes = tasksList.filter((t) => !t.completed_at).length;
-  const sessoesAgendadas = appts.length;
-  const sessoesRealizadas = appts.filter((a) => a.status === "completed" || new Date(a.starts_at).getTime() < Date.now()).length;
+  // Só o que não foi cancelado conta como agendado.
+  const sessoesAgendadas = appts.filter(
+    (a) => a.status !== "cancelled",
+  ).length;
+  // Realizada é a que foi marcada como realizada. Data no passado não basta:
+  // no-show e cancelamento também ficam para trás no calendário, e contá-los
+  // aqui inflava o número de atendimentos.
+  const sessoesRealizadas = appts.filter((a) => a.status === "completed").length;
+
+  // Recorte do mês corrente. A meta é mensal: comparada com o histórico
+  // inteiro, ela bateria 100% em algum momento e nunca mais sairia de lá.
+  const inicioDoMes = new Date();
+  inicioDoMes.setDate(1);
+  inicioDoMes.setHours(0, 0, 0, 0);
+
+  const ganhasNoMes = ganhas.filter(
+    (o) => o.closed_at && new Date(o.closed_at) >= inicioDoMes,
+  );
+  const receitaMesAtual = ganhasNoMes.reduce(
+    (sum, o) => sum + (Number(o.sold_value) || Number(o.potential_value) || 0),
+    0,
+  );
 
   // Metas (Padrão: Meta de R$ 30.000 / mês e 15 novos pacientes)
   const metaFaturamentoMensal = 30000;
   const metaNovosPacientes = 15;
-  const percentualAtingido = Math.min(100, Math.round((receitaTotal / metaFaturamentoMensal) * 100));
-  const percentualPacientes = Math.min(100, Math.round((ganhas.length / metaNovosPacientes) * 100));
+  const percentualAtingido = Math.min(100, Math.round((receitaMesAtual / metaFaturamentoMensal) * 100));
+  const percentualPacientes = Math.min(100, Math.round((ganhasNoMes.length / metaNovosPacientes) * 100));
 
   return {
     vendas: {
       receitaTotal,
-      receitaMesAtual: receitaTotal,
+      receitaMesAtual,
       ticketMedio,
       totalOportunidades: opps.length,
       oportunidadesGanhas: ganhas.length,
@@ -215,10 +235,10 @@ export async function getAnalyticsData(workspaceId: string): Promise<AnalyticsDa
     vendasPorProduto,
     metas: {
       metaFaturamentoMensal,
-      faturamentoAtual: receitaTotal,
+      faturamentoAtual: receitaMesAtual,
       percentualAtingido,
       metaNovosPacientes,
-      novosPacientesAtual: ganhas.length,
+      novosPacientesAtual: ganhasNoMes.length,
       percentualPacientes,
     },
     origensLead,

@@ -9,12 +9,16 @@
 -- precisa ser listável, editável e cancelável antes da hora.
 -- =============================================================================
 
-create type public.scheduled_message_status as enum (
-  'pending',
-  'sent',
-  'cancelled',
-  'failed'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'scheduled_message_status') THEN
+    CREATE TYPE public.scheduled_message_status AS ENUM (
+      'pending',
+      'sent',
+      'cancelled',
+      'failed'
+    );
+  END IF;
+END $$;
 
 create table public.scheduled_messages (
   id uuid primary key default gen_random_uuid(),

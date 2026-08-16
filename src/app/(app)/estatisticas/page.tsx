@@ -28,9 +28,12 @@ export default async function StatisticsPage() {
   const currentRevenueGoal = wsData?.monthly_revenue_goal ? Number(wsData.monthly_revenue_goal) : data.metas.metaFaturamentoMensal;
   const currentClientsGoal = wsData?.monthly_clients_goal ? Number(wsData.monthly_clients_goal) : data.metas.metaNovosPacientes;
 
-  // Recalcula percentuais com base nas metas salvas pelo usuário
-  const percentualAtingido = Math.min(100, Math.round((data.vendas.receitaTotal / currentRevenueGoal) * 100));
-  const percentualPacientes = Math.min(100, Math.round((data.vendas.oportunidadesGanhas / currentClientsGoal) * 100));
+  // Recalcula percentuais com base nas metas salvas pelo usuário.
+  // A meta é mensal, então o numerador é o mês corrente — não o histórico.
+  const realizadoNoMes = data.vendas.receitaMesAtual;
+  const pacientesNoMes = data.metas.novosPacientesAtual;
+  const percentualAtingido = Math.min(100, Math.round((realizadoNoMes / currentRevenueGoal) * 100));
+  const percentualPacientes = Math.min(100, Math.round((pacientesNoMes / currentClientsGoal) * 100));
 
   const isAdmin = context.membership.role === "admin";
 
@@ -63,7 +66,7 @@ export default async function StatisticsPage() {
               Estatísticas & Relatórios
             </h1>
             <span className="rounded-full bg-secondary px-3 py-0.5 text-xs font-semibold text-secondary-foreground">
-              Mês Atual
+              Todo o período
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -165,7 +168,7 @@ export default async function StatisticsPage() {
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-foreground">Meta de Faturamento</span>
                 <span className="text-primary font-bold">
-                  {formatBRL(data.vendas.receitaTotal)} / {formatBRL(currentRevenueGoal)}
+                  {formatBRL(realizadoNoMes)} / {formatBRL(currentRevenueGoal)}
                 </span>
               </div>
               <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
@@ -181,7 +184,7 @@ export default async function StatisticsPage() {
               <div className="flex items-center justify-between text-xs font-medium">
                 <span className="text-foreground">Meta de Novos Pacientes</span>
                 <span className="text-primary font-bold">
-                  {data.vendas.oportunidadesGanhas} / {currentClientsGoal} pacientes
+                  {pacientesNoMes} / {currentClientsGoal} pacientes
                 </span>
               </div>
               <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
@@ -194,7 +197,7 @@ export default async function StatisticsPage() {
           </div>
 
           <p className="text-[11px] text-muted-foreground bg-muted/30 p-2.5 rounded-xl border border-border/50">
-            💡 Faltam <strong>{formatBRL(Math.max(0, currentRevenueGoal - data.vendas.receitaTotal))}</strong> para bater 100% da meta mensal.
+            💡 Faltam <strong>{formatBRL(Math.max(0, currentRevenueGoal - realizadoNoMes))}</strong> para bater 100% da meta deste mês.
           </p>
         </div>
 
@@ -330,7 +333,7 @@ export default async function StatisticsPage() {
               <span className="font-heading text-xl font-bold text-primary">
                 {data.atividades.sessoesRealizadas}
               </span>
-              <span className="text-[10px] text-emerald-700 font-semibold">100% no horário</span>
+              <span className="text-[10px] text-muted-foreground">Status concluído</span>
             </div>
           </div>
         </div>

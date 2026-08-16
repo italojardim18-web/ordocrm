@@ -9,36 +9,42 @@
 -- -----------------------------------------------------------------------------
 
 -- Tipo semântico interno da etapa: relatórios usam este valor, nunca o nome
--- visível — renomear/reordenar colunas não quebra métricas.
-create type public.stage_type as enum (
-  'new',
-  'qualification',
-  'follow_up_pre_session',
-  'alignment_session',
-  'follow_up_post_session',
-  'won',
-  'lost',
-  'custom'
-);
-
-create type public.lead_channel as enum (
-  'form',
-  'whatsapp',
-  'instagram',
-  'paid_traffic',
-  'manual'
-);
-
-create type public.note_visibility as enum ('team', 'admin_only');
-
-create type public.activity_type as enum (
-  'call',
-  'message',
-  'note',
-  'task',
-  'stage_change',
-  'system'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'stage_type') THEN
+    CREATE TYPE public.stage_type AS ENUM (
+      'new',
+      'qualification',
+      'follow_up_pre_session',
+      'alignment_session',
+      'follow_up_post_session',
+      'won',
+      'lost',
+      'custom'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lead_channel') THEN
+    CREATE TYPE public.lead_channel AS ENUM (
+      'form',
+      'whatsapp',
+      'instagram',
+      'paid_traffic',
+      'manual'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'note_visibility') THEN
+    CREATE TYPE public.note_visibility AS ENUM ('team', 'admin_only');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'activity_type') THEN
+    CREATE TYPE public.activity_type AS ENUM (
+      'call',
+      'message',
+      'note',
+      'task',
+      'stage_change',
+      'system'
+    );
+  END IF;
+END $$;
 
 alter type public.audit_action add value if not exists 'lead_merged';
 alter type public.audit_action add value if not exists 'lead_lost';

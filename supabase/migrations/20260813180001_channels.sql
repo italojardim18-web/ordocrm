@@ -3,26 +3,34 @@
 -- conversas/mensagens de WhatsApp e Instagram, fila de saída (outbox).
 -- =============================================================================
 
-create type public.channel_provider as enum (
-  'whatsapp',
-  'instagram',
-  'form',
-  'meta_lead_ads'
-);
-
-create type public.message_direction as enum ('inbound', 'outbound');
-
-create type public.message_status as enum (
-  'pending',
-  'sent',
-  'delivered',
-  'read',
-  'failed'
-);
-
-create type public.webhook_status as enum ('received', 'processed', 'failed');
-
-create type public.outbox_status as enum ('pending', 'sent', 'failed');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'channel_provider') THEN
+    CREATE TYPE public.channel_provider AS ENUM (
+      'whatsapp',
+      'instagram',
+      'form',
+      'meta_lead_ads'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'message_direction') THEN
+    CREATE TYPE public.message_direction AS ENUM ('inbound', 'outbound');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'message_status') THEN
+    CREATE TYPE public.message_status AS ENUM (
+      'pending',
+      'sent',
+      'delivered',
+      'read',
+      'failed'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'webhook_status') THEN
+    CREATE TYPE public.webhook_status AS ENUM ('received', 'processed', 'failed');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'outbox_status') THEN
+    CREATE TYPE public.outbox_status AS ENUM ('pending', 'sent', 'failed');
+  END IF;
+END $$;
 
 alter type public.audit_action add value if not exists 'channel_connected';
 alter type public.audit_action add value if not exists 'channel_disconnected';

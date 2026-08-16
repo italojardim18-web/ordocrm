@@ -427,3 +427,64 @@ export async function getMyAssignedTasks(
 
   return data ?? [];
 }
+
+export interface NavNotificationCounts {
+  conversas: number;
+  pipeline: number;
+  agenda: number;
+  contatos: number;
+}
+
+/** Busca contadores de notificações/alertas ativos para exibir badges nas abas e navegação. */
+export async function getNavNotificationCounts(
+  workspaceId: string,
+): Promise<NavNotificationCounts> {
+  const supabase = await createClient();
+
+  const [
+    { data: unreadConv },
+    { count: overdueTasks },
+    { count: dueFollowups },
+    { count: todayAppointments },
+  ] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select("unread_count")
+      .eq("workspace_id", workspaceId)
+      .gt("unread_count", 0),
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .is("completed_at", null)
+      .is("deleted_at", null)
+      .lte("due_at", new Date().toISOString()),
+    supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .is("deleted_at", null)
+      .is("archived_at", null)
+      .lte("follow_up_at", new Date().toISOString()),
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("status", "scheduled")
+      .gte("starts_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+      .lt("starts_at", new Date(new Date().setHours(23, 59, 59, 999)).toISOString()),
+  ]);
+
+  const totalUnread = (unreadConv ?? []).reduce(
+    (acc, curr) => acc + (curr.unread_count || 0),
+    0,
+  );
+  const totalPipelineAlerts = (overdueTasks || 0) + (dueFollowups || 0);
+
+  return {
+    conversas: totalUnread,
+    pipeline: totalPipelineAlerts,
+    agenda: todayAppointments || 0,
+    contatos: 0,
+  };
+}

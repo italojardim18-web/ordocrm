@@ -7,16 +7,22 @@
 -- Tipos
 -- -----------------------------------------------------------------------------
 
-create type public.appointment_status as enum (
-  'scheduled',
-  'completed',
-  'cancelled',
-  'no_show'
-);
-
-create type public.opportunity_status as enum ('open', 'won', 'lost');
-
-create type public.sync_status as enum ('pending', 'synced', 'error');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appointment_status') THEN
+    CREATE TYPE public.appointment_status AS ENUM (
+      'scheduled',
+      'completed',
+      'cancelled',
+      'no_show'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'opportunity_status') THEN
+    CREATE TYPE public.opportunity_status AS ENUM ('open', 'won', 'lost');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sync_status') THEN
+    CREATE TYPE public.sync_status AS ENUM ('pending', 'synced', 'error');
+  END IF;
+END $$;
 
 alter type public.audit_action add value if not exists 'sale_registered';
 alter type public.audit_action add value if not exists 'opportunity_lost';
