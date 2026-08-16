@@ -247,10 +247,13 @@ export async function iniciarSessao(sessionId) {
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
+  const nomeAparelho = sessionId === "secretaria" ? "ORDO CRM (Secretária)" : "ORDO CRM (Dr. Ítalo)";
+
   const socket = makeWASocket({
     version,
     auth: state,
     logger,
+    browser: [nomeAparelho, "Chrome", "1.0.0"],
     markOnlineOnConnect: false,
     syncFullHistory: false,
   });
