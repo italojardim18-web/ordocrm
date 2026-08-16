@@ -96,6 +96,13 @@ export function WhatsAppSessions() {
     } catch { /* silent */ }
   }
 
+  async function handleReset(sessionId: string) {
+    try {
+      await fetch(`${BRIDGE_BASE}/sessions/${sessionId}/reset`, { method: "POST" });
+      await fetchSessions();
+    } catch { /* silent */ }
+  }
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Conectando à ponte…</p>;
   }
@@ -132,16 +139,28 @@ export function WhatsAppSessions() {
                     </span>
                     <Badge variant={estado.variant}>{estado.label}</Badge>
                   </div>
-                  {s.estado === "conectado" ? (
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => handleStop(s.sessionId)}
-                      className="text-xs text-destructive hover:text-destructive"
-                    >
-                      Desconectar
-                    </Button>
-                  ) : null}
+                  <div className="flex items-center gap-2">
+                    {s.estado === "desconectado" ? (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => handleReset(s.sessionId)}
+                        className="text-xs font-semibold text-[#521D2A] border-[#521D2A]/30 hover:bg-[#521D2A]/10 dark:text-amber-300"
+                      >
+                        ⚡ Reconectar / Gerar QR
+                      </Button>
+                    ) : null}
+                    {s.estado === "conectado" ? (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => handleStop(s.sessionId)}
+                        className="text-xs text-destructive hover:text-destructive"
+                      >
+                        Desconectar
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {/* QR Code para escanear */}

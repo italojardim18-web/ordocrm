@@ -401,6 +401,23 @@ export async function pararSessao(sessionId) {
   console.log(`[whatsapp:${sessionId}] sessão encerrada`);
 }
 
+/**
+ * Reseta uma sessão: encerra o socket, apaga a pasta de autenticação
+ * e inicia um novo socket gerando um QR Code fresco para pareamento.
+ */
+export async function resetarSessao(sessionId) {
+  await pararSessao(sessionId);
+  const sessionDir = join(config.sessionDir, sessionId);
+  try {
+    const { rm } = await import("node:fs/promises");
+    await rm(sessionDir, { recursive: true, force: true });
+    console.log(`[whatsapp:${sessionId}] pasta de credenciais resetada`);
+  } catch (err) {
+    console.warn(`[whatsapp:${sessionId}] erro ao limpar pasta:`, err.message);
+  }
+  return await iniciarSessao(sessionId);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Compatibilidade: iniciarWhatsapp() sobe todas as sessões existentes
 // ─────────────────────────────────────────────────────────────────────────────

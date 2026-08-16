@@ -9,6 +9,7 @@ import {
   estadoSessao,
   iniciarSessao,
   pararSessao,
+  resetarSessao,
   obterQrBase64,
 } from "./whatsapp.js";
 import { iniciarAgendador, pararAgendador } from "./agendador.js";
@@ -83,6 +84,17 @@ const servidor = createServer(async (req, res) => {
   if (req.method === "POST" && stopMatch) {
     await pararSessao(stopMatch[1]);
     return responder(200, { ok: true });
+  }
+
+  // ── POST /sessions/:id/reset ─────────────────────────────────
+  const resetMatch = path.match(/^\/sessions\/([a-zA-Z0-9_-]+)\/reset$/);
+  if (req.method === "POST" && resetMatch) {
+    try {
+      await resetarSessao(resetMatch[1]);
+      return responder(200, { ok: true, sessionId: resetMatch[1] });
+    } catch (erro) {
+      return responder(500, { erro: erro.message });
+    }
   }
 
   // ── POST /send ───────────────────────────────────────────────
