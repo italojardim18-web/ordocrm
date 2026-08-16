@@ -51,7 +51,7 @@ export function AppSidebar({
 
   // Todas as funcionalidades do sistema abertas pelo ícone do ORDO
   const allAppFeatures = [
-    { href: "/pipeline", label: "Pipeline Kanban", icon: "📋", desc: "Gestão do funil de pacientes" },
+    { href: "/pipeline", label: "Pipeline Kanban", icon: "📋", desc: "Gestão e funil de pacientes" },
     { href: "/conversas", label: "Conversas (WhatsApp)", icon: "💬", desc: "Central de atendimento multi-linhas", count: notifications.conversas },
     { href: "/agenda", label: "Agenda & Google Meet", icon: "📅", desc: "Sessões e videoconferências", count: notifications.agenda },
     { href: "/formularios", label: "ORDO Forms", icon: "📝", desc: "Triagens e anamneses públicas" },
@@ -72,17 +72,21 @@ export function AppSidebar({
     { href: "/configuracoes/workspace", label: "Configurações Gerais", icon: "⚙️", desc: "Membros, equipe e dados clínicos", adminOnly: true },
   ];
 
-  // Atalhos rápidos fixos na barra lateral minimizada (apenas os 3 essenciais)
-  const quickItems = [
-    { href: "/pipeline", label: "Pipeline", icon: "📋" },
-    { href: "/conversas", label: "Conversas", icon: "💬", count: notifications.conversas, badgeColor: "bg-rose-600 text-white" },
-    { href: "/agenda", label: "Agenda", icon: "📅", count: notifications.agenda, badgeColor: "bg-primary text-primary-foreground" },
+  // Botões principais fixos e centralizados na barra (Tamanho ergonômico e confortável)
+  const fixedMainItems = [
+    { href: "/pipeline", label: "Pipeline Kanban", icon: "📋" },
+    { href: "/conversas", label: "Conversas (WhatsApp)", icon: "💬", count: notifications.conversas, badgeColor: "bg-rose-600 text-white" },
+    { href: "/agenda", label: "Agenda & Meet", icon: "📅", count: notifications.agenda, badgeColor: "bg-primary text-primary-foreground" },
+    { href: "/formularios", label: "ORDO Forms", icon: "📝" },
+    { href: "/estatisticas", label: "Estatísticas & Relatórios", icon: "📈" },
   ];
 
   return (
-    <aside className="hidden lg:flex flex-col items-center justify-between w-16 py-4 bg-[#291015] border-r border-[#521D2A] shrink-0 sticky top-0 h-screen z-30 shadow-xl select-none print:hidden">
-      {/* TOPO: Logo ORDO (ao clicar abre todas as funcionalidades) */}
-      <div className="flex flex-col items-center gap-5 relative w-full" ref={appsMenuRef}>
+    <aside className="hidden lg:flex flex-col items-center justify-between w-20 py-5 bg-[#291015] border-r border-[#521D2A]/80 shrink-0 sticky top-0 h-screen z-30 shadow-2xl select-none print:hidden">
+      {/* ========================================================================= */}
+      {/* TOPO: Símbolo Oficial ORDO com Abertura do Menu Completo                   */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col items-center relative w-full" ref={appsMenuRef}>
         <button
           type="button"
           onClick={() => {
@@ -90,128 +94,163 @@ export function AppSidebar({
             setConfigMenuOpen(false);
           }}
           className={cn(
-            "flex size-11 items-center justify-center rounded-2xl transition-all shadow-md group relative",
+            "flex size-12 items-center justify-center rounded-2xl transition-all shadow-md group relative",
             appsMenuOpen
-              ? "bg-[#B2966F] text-[#291015] scale-105 ring-2 ring-[#B2966F]/80"
-              : "bg-[#521D2A] text-white hover:scale-105 border border-[#B2966F]/40"
+              ? "bg-[#B2966F] text-[#291015] scale-105 ring-2 ring-[#B2966F]/90 shadow-lg"
+              : "bg-[#521D2A] text-white hover:scale-105 border border-[#B2966F]/40 hover:border-[#B2966F]"
           )}
-          title="Abrir Todas as Funcionalidades do ORDO"
+          title="Clique para ver todos os módulos do ORDO"
         >
-          <OrdoSymbol className={cn("size-6 transition-colors", appsMenuOpen ? "text-[#291015]" : "text-[#B2966F]")} />
+          <OrdoSymbol className={cn("size-7 transition-colors", appsMenuOpen ? "text-[#291015]" : "text-[#B2966F]")} />
           
-          {/* Indicador de expansão */}
-          <span className="absolute -bottom-1 -right-1 size-3.5 bg-[#B2966F] text-[#291015] rounded-full flex items-center justify-center text-[9px] font-bold shadow-xs">
-            {appsMenuOpen ? "✕" : "▼"}
+          {/* Indicador de expansão sutil */}
+          <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#B2966F] text-[10px] font-bold text-[#291015] shadow-xs">
+            {appsMenuOpen ? "✕" : "✦"}
           </span>
         </button>
 
-        {/* POPOVER / MENU FLUTUANTE EXPANSÍVEL: TODAS AS FUNCIONALIDADES */}
+        {/* POPOVER / DRAWER LATERAL: TODAS AS FUNCIONALIDADES (Sem cortes no topo) */}
         {appsMenuOpen && (
-          <div className="absolute left-16 top-0 w-72 rounded-3xl bg-[#1E0B10]/95 backdrop-blur-xl border-2 border-[#521D2A] p-3 shadow-2xl z-50 text-white animate-in fade-in slide-in-from-left-4 duration-200">
-            <div className="flex items-center justify-between border-b border-white/10 px-2.5 pb-2.5 mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">🏛️</span>
-                <span className="font-heading text-xs font-bold uppercase tracking-wider text-[#B2966F]">
-                  Módulos do Sistema
-                </span>
+          <div className="fixed left-24 top-5 bottom-5 w-80 rounded-3xl bg-[#1E0B10]/95 backdrop-blur-2xl border-2 border-[#521D2A] p-4 shadow-2xl z-50 text-white animate-in fade-in slide-in-from-left-4 duration-200 flex flex-col justify-between">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3 px-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-7 items-center justify-center rounded-xl bg-[#521D2A] text-[#B2966F] border border-[#B2966F]/30 text-xs">
+                    🏛️
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="font-heading text-xs font-bold uppercase tracking-wider text-[#B2966F]">
+                      Ecossistema ORDO
+                    </span>
+                    <span className="text-[10px] text-stone-400">Todos os Módulos Clínicos</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAppsMenuOpen(false)}
+                  className="text-stone-400 hover:text-white text-xs p-1 rounded-lg hover:bg-white/10"
+                >
+                  ✕
+                </button>
               </div>
-              <span className="text-[10px] text-stone-400">9 Recursos</span>
+
+              <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[calc(100vh-140px)] pr-1 kanban-scroll">
+                {allAppFeatures.map((f) => {
+                  const isActive = pathname.startsWith(f.href);
+                  return (
+                    <Link
+                      key={f.href}
+                      href={f.href}
+                      onClick={() => setAppsMenuOpen(false)}
+                      className={cn(
+                        "flex items-center justify-between p-2.5 rounded-2xl transition-all text-left group",
+                        isActive
+                          ? "bg-[#521D2A] text-white font-bold border border-[#B2966F]/50 shadow-md scale-[1.02]"
+                          : "hover:bg-white/10 text-stone-200 hover:text-white"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xl shrink-0 p-1 rounded-xl bg-white/5 border border-white/5">{f.icon}</span>
+                        <div className="flex flex-col min-w-0 truncate">
+                          <span className="text-xs font-semibold truncate leading-tight group-hover:text-[#B2966F] transition-colors">
+                            {f.label}
+                          </span>
+                          <span className="text-[10px] text-stone-400 truncate leading-tight mt-0.5">
+                            {f.desc}
+                          </span>
+                        </div>
+                      </div>
+                      {f.count && f.count > 0 ? (
+                        <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                          {f.count}
+                        </span>
+                      ) : null}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-1 max-h-[75vh] overflow-y-auto pr-1 kanban-scroll">
-              {allAppFeatures.map((f) => {
-                const isActive = pathname.startsWith(f.href);
-                return (
-                  <Link
-                    key={f.href}
-                    href={f.href}
-                    onClick={() => setAppsMenuOpen(false)}
-                    className={cn(
-                      "flex items-center justify-between p-2 rounded-xl transition-all text-left group",
-                      isActive
-                        ? "bg-[#521D2A] text-white font-bold border border-[#B2966F]/40 shadow-xs"
-                        : "hover:bg-white/10 text-stone-200 hover:text-white"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-lg shrink-0">{f.icon}</span>
-                      <div className="flex flex-col min-w-0 truncate">
-                        <span className="text-xs font-semibold truncate leading-tight group-hover:text-[#B2966F] transition-colors">
-                          {f.label}
-                        </span>
-                        <span className="text-[10px] text-stone-400 truncate leading-tight mt-0.5">
-                          {f.desc}
-                        </span>
-                      </div>
-                    </div>
-                    {f.count && f.count > 0 ? (
-                      <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[9px] font-bold text-white shadow-xs">
-                        {f.count}
-                      </span>
-                    ) : null}
-                  </Link>
-                );
-              })}
+            <div className="border-t border-white/10 pt-3 px-1 text-[11px] text-stone-400 flex items-center justify-between">
+              <span>ORDO by Práxis Mentis</span>
+              <span className="text-[#B2966F] font-semibold">v2.5</span>
             </div>
           </div>
         )}
-
-        {/* ATALHOS RÁPIDOS PRINCIPAIS (Super Compactos) */}
-        <nav className="flex flex-col items-center gap-2 rounded-2xl bg-white/5 p-1.5 border border-white/10">
-          {quickItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            const badgeCount = item.count ?? 0;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "group relative flex size-9 items-center justify-center rounded-xl text-base transition-all duration-150",
-                  isActive
-                    ? "bg-[#521D2A] text-white shadow-xs scale-105 border border-[#B2966F]/50"
-                    : "text-stone-300 hover:bg-white/10 hover:text-white hover:scale-105"
-                )}
-                title={item.label}
-              >
-                <span>{item.icon}</span>
-
-                {badgeCount > 0 && (
-                  <span
-                    className={cn(
-                      "absolute -top-1 -right-1 flex min-w-3.5 h-3.5 items-center justify-center rounded-full px-1 text-[8px] font-bold shadow-xs",
-                      item.badgeColor || "bg-primary text-primary-foreground"
-                    )}
-                  >
-                    {badgeCount > 99 ? "99+" : badgeCount}
-                  </span>
-                )}
-
-                {/* Tooltip lateral */}
-                <span className="absolute left-12 hidden whitespace-nowrap rounded-xl bg-[#521D2A] px-2.5 py-1 text-xs font-semibold text-white shadow-xl group-hover:block z-50 border border-[#B2966F]/40">
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
       </div>
 
-      {/* RODAPÉ DA BARRA LATERAL: Engrenagem de Configurações + Suporte WhatsApp */}
-      <div className="flex flex-col items-center gap-2 relative w-full" ref={configMenuRef}>
-        {/* POPOVER / MENU FLUTUANTE EXPANSÍVEL: CONFIGURAÇÕES & ECOSSISTEMA */}
-        {configMenuOpen && (
-          <div className="absolute left-16 bottom-2 w-72 rounded-3xl bg-[#1E0B10]/95 backdrop-blur-xl border-2 border-[#521D2A] p-3 shadow-2xl z-50 text-white animate-in fade-in slide-in-from-left-4 duration-200">
-            <div className="flex items-center justify-between border-b border-white/10 px-2.5 pb-2.5 mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">⚙️</span>
-                <span className="font-heading text-xs font-bold uppercase tracking-wider text-[#B2966F]">
-                  Configurações & Gestão
+      {/* ========================================================================= */}
+      {/* CENTRO: Botões Principais Confortáveis e Centralizados Verticalmente       */}
+      {/* ========================================================================= */}
+      <nav className="flex flex-col items-center gap-3.5 my-auto py-2">
+        {fixedMainItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          const badgeCount = item.count ?? 0;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "group relative flex size-12 items-center justify-center rounded-2xl text-xl transition-all duration-150 shadow-sm",
+                isActive
+                  ? "bg-[#521D2A] text-white shadow-md scale-105 ring-2 ring-[#B2966F]/60 border border-[#B2966F]"
+                  : "text-stone-300 bg-white/5 hover:bg-white/15 hover:text-white hover:scale-105 border border-white/5"
+              )}
+              title={item.label}
+            >
+              <span>{item.icon}</span>
+
+              {/* Badge de notificação destacado */}
+              {badgeCount > 0 && (
+                <span
+                  className={cn(
+                    "absolute -top-1 -right-1 flex min-w-4 h-4 items-center justify-center rounded-full px-1 text-[9px] font-bold shadow-md ring-1 ring-black/40",
+                    item.badgeColor || "bg-primary text-primary-foreground"
+                  )}
+                >
+                  {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
+              )}
+
+              {/* Tooltip lateral flutuante */}
+              <span className="absolute left-16 hidden whitespace-nowrap rounded-xl bg-[#521D2A] px-3 py-1.5 text-xs font-semibold text-white shadow-2xl group-hover:block z-50 border border-[#B2966F]/50">
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* ========================================================================= */}
+      {/* RODAPÉ: Engrenagem de Configurações & Botão de Suporte WhatsApp            */}
+      {/* ========================================================================= */}
+      <div className="flex flex-col items-center gap-3 relative w-full pt-2 border-t border-white/10" ref={configMenuRef}>
+        {/* POPOVER / DRAWER LATERAL: CONFIGURAÇÕES & ECOSSISTEMA */}
+        {configMenuOpen && (
+          <div className="fixed left-24 bottom-5 w-80 rounded-3xl bg-[#1E0B10]/95 backdrop-blur-2xl border-2 border-[#521D2A] p-4 shadow-2xl z-50 text-white animate-in fade-in slide-in-from-left-4 duration-200">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3 px-1">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-7 items-center justify-center rounded-xl bg-[#521D2A] text-[#B2966F] border border-[#B2966F]/30 text-xs">
+                  ⚙️
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="font-heading text-xs font-bold uppercase tracking-wider text-[#B2966F]">
+                    Configurações & Gestão
+                  </span>
+                  <span className="text-[10px] text-stone-400">Preferências do Consultório</span>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setConfigMenuOpen(false)}
+                className="text-stone-400 hover:text-white text-xs p-1 rounded-lg hover:bg-white/10"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-1">
+            <div className="flex flex-col gap-1.5">
               {configFeatures
                 .filter((item) => !item.adminOnly || isAdmin)
                 .map((item) => {
@@ -222,13 +261,13 @@ export function AppSidebar({
                       href={item.href}
                       onClick={() => setConfigMenuOpen(false)}
                       className={cn(
-                        "flex items-center gap-2.5 p-2 rounded-xl transition-all text-left group",
+                        "flex items-center gap-3 p-2.5 rounded-2xl transition-all text-left group",
                         isActive
-                          ? "bg-[#521D2A] text-white font-bold border border-[#B2966F]/40 shadow-xs"
+                          ? "bg-[#521D2A] text-white font-bold border border-[#B2966F]/50 shadow-md scale-[1.02]"
                           : "hover:bg-white/10 text-stone-200 hover:text-white"
                       )}
                     >
-                      <span className="text-lg shrink-0">{item.icon}</span>
+                      <span className="text-xl shrink-0 p-1 rounded-xl bg-white/5 border border-white/5">{item.icon}</span>
                       <div className="flex flex-col min-w-0 truncate">
                         <span className="text-xs font-semibold truncate leading-tight group-hover:text-[#B2966F] transition-colors">
                           {item.label}
@@ -244,7 +283,7 @@ export function AppSidebar({
           </div>
         )}
 
-        {/* Botão da Engrenagem que abre o menu inferior */}
+        {/* Botão da Engrenagem */}
         <button
           type="button"
           onClick={() => {
@@ -252,29 +291,29 @@ export function AppSidebar({
             setAppsMenuOpen(false);
           }}
           className={cn(
-            "group relative flex size-9 items-center justify-center rounded-xl text-base transition-all duration-150",
+            "group relative flex size-11 items-center justify-center rounded-2xl text-lg transition-all duration-150 shadow-sm",
             configMenuOpen
-              ? "bg-[#B2966F] text-[#291015] scale-105 shadow-md"
-              : "text-stone-300 hover:bg-white/10 hover:text-white hover:scale-105"
+              ? "bg-[#B2966F] text-[#291015] scale-105 shadow-md ring-2 ring-[#B2966F]/80"
+              : "text-stone-300 bg-white/5 hover:bg-white/15 hover:text-white hover:scale-105 border border-white/5"
           )}
           title="Configurações & Ecossistema"
         >
           <span>⚙️</span>
-          <span className="absolute left-12 hidden whitespace-nowrap rounded-xl bg-[#521D2A] px-2.5 py-1 text-xs font-semibold text-white shadow-xl group-hover:block z-50 border border-[#B2966F]/40">
+          <span className="absolute left-16 hidden whitespace-nowrap rounded-xl bg-[#521D2A] px-3 py-1.5 text-xs font-semibold text-white shadow-2xl group-hover:block z-50 border border-[#B2966F]/50">
             Configurações
           </span>
         </button>
 
-        {/* Botão de Suporte WhatsApp (Compacto e contido) */}
+        {/* Botão de Suporte WhatsApp (Compacto, elegante e 100% contido) */}
         <a
           href="https://wa.me/5567999110001?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20ORDO%20CRM"
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative flex size-9 items-center justify-center rounded-full bg-white/10 text-stone-300 hover:bg-[#521D2A] hover:text-white transition-all hover:scale-105 border border-white/10 text-sm shadow-xs"
-          title="Suporte WhatsApp"
+          className="group relative flex size-11 items-center justify-center rounded-2xl bg-white/10 text-stone-300 hover:bg-[#521D2A] hover:text-white transition-all hover:scale-105 border border-white/10 text-base shadow-sm"
+          title="Suporte & Ajuda WhatsApp"
         >
           <span>🎧</span>
-          <span className="absolute left-12 bottom-0 hidden whitespace-nowrap rounded-xl bg-[#521D2A] px-2.5 py-1 text-xs font-semibold text-white shadow-xl group-hover:block z-50 border border-[#B2966F]/40">
+          <span className="absolute left-16 bottom-0 hidden whitespace-nowrap rounded-xl bg-[#521D2A] px-3 py-1.5 text-xs font-semibold text-white shadow-2xl group-hover:block z-50 border border-[#B2966F]/50">
             Suporte WhatsApp ↗
           </span>
         </a>

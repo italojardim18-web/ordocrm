@@ -200,21 +200,45 @@ export async function getRemoteBusy(
   }
 }
 
+const googleEventsCache = new Map<string, { data: import("./google").GoogleEventResumo[]; timestamp: number }>();
+
+/** Limpa cache de eventos quando há novo agendamento ou sincronização forçada */
+export function invalidateGoogleEventsCache(workspaceId?: string) {
+  if (!workspaceId) {
+    googleEventsCache.clear();
+    return;
+  }
+  for (const key of googleEventsCache.keys()) {
+    if (key.startsWith(workspaceId)) {
+      googleEventsCache.delete(key);
+    }
+  }
+}
+
 /**
  * Eventos do Google no intervalo.
  * Busca os eventos de TODAS as agendas do usuário (Pessoal, PsicoManager, etc.)
  * e anexa o nome do calendário de origem a cada evento.
+ * Possui cache em memória de 60s para renderização instantânea da agenda.
  */
 export async function listarEventosGoogle(
   workspaceId: string,
   timeMin: string,
   timeMax: string,
+  forceRefresh = false,
 ) {
+  const cacheKey = `${workspaceId}:${timeMin}:${timeMax}`;
+  const cached = googleEventsCache.get(cacheKey);
+
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < 60_000) {
+    return cached.data;
+  }
+
   const connection = await getWorkspaceConnection(workspaceId);
   if (!connection?.calendar_id) return [];
 
   try {
-    // Timeout de 2500ms para nunca travar a página caso a API do Google esteja lenta
+    // Timeout de 2000ms para nunca travar a página caso a API do Google esteja lenta
     const fetchPromise = (async () => {
       const accessToken = await getFreshAccessToken(connection);
       const { listCalendars, listEvents } = await import("./google");
@@ -244,15 +268,18 @@ export async function listarEventosGoogle(
         }
       }
 
+      // Salva no cache por 60 segundos
+      googleEventsCache.set(cacheKey, { data: todosEventos, timestamp: Date.now() });
+
       return todosEventos;
     })();
 
     const timeoutPromise = new Promise<import("./google").GoogleEventResumo[]>((resolve) =>
-      setTimeout(() => resolve([]), 2500),
+      setTimeout(() => resolve(cached?.data ?? []), 2000),
     );
 
     return await Promise.race([fetchPromise, timeoutPromise]);
   } catch {
-    return [];
+    return cached?.data ?? [];
   }
 }
