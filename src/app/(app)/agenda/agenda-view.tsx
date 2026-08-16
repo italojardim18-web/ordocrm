@@ -97,6 +97,14 @@ export function AgendaView({
     return parseInt(formatter.format(date), 10);
   };
 
+  const formatTimezoneMinute = (date: Date): number => {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: workspaceTimezone,
+      minute: "numeric",
+    });
+    return parseInt(formatter.format(date), 10) || 0;
+  };
+
   const formatTimezoneDateStr = (date: Date): string => {
     const formatter = new Intl.DateTimeFormat("pt-BR", {
       timeZone: workspaceTimezone,
@@ -489,17 +497,29 @@ export function AgendaView({
                             handleSlotClick(dia, hour);
                           }
                         }}
-                        className={`group relative min-h-[58px] cursor-pointer border-b border-r border-stone-100/90 p-1 transition-colors last:border-r-0 hover:bg-stone-50/60 dark:border-stone-800/60 dark:hover:bg-stone-900/40 ${
+                        className={`group relative h-[60px] cursor-pointer border-b border-r border-stone-100/90 transition-colors last:border-r-0 hover:bg-stone-50/60 dark:border-stone-800/60 dark:hover:bg-stone-900/40 ${
                           ehHoje ? "bg-amber-50/15 dark:bg-amber-950/10" : ""
                         }`}
                       >
                         {eventosNoSlot.map((ev) => {
                           const horaInicio = formatTimezoneTime(ev.starts_at.toISOString());
+                          const horaFim = ev.ends_at ? formatTimezoneTime(ev.ends_at.toISOString()) : null;
+                          const horarioTexto = horaFim ? `${horaInicio} – ${horaFim}` : horaInicio;
+
+                          const minutoInicio = formatTimezoneMinute(ev.starts_at);
+                          const duracaoMinutos = ev.ends_at
+                            ? Math.max(25, Math.round((ev.ends_at.getTime() - ev.starts_at.getTime()) / 60000))
+                            : 50;
+
+                          const topOffset = Math.round((minutoInicio / 60) * 60) + 2;
+                          const cardHeight = Math.max(36, Math.round((duracaoMinutos / 60) * 60) - 4);
+                          const isLongEvent = duracaoMinutos >= 60;
+
                           const statusInfo = STATUS_LABELS[ev.status] || {
                             label: ev.status,
-                            bg: "bg-stone-100",
-                            text: "text-stone-700",
-                            border: "border-stone-200",
+                            bg: "bg-stone-100 dark:bg-stone-800",
+                            text: "text-stone-700 dark:text-stone-300",
+                            border: "border-stone-200 dark:border-stone-700",
                           };
 
                           if (ev.source === "ordo") {
@@ -510,23 +530,36 @@ export function AgendaView({
                                   e.stopPropagation();
                                   handleEventClick(ev);
                                 }}
-                                className={`mb-1 block rounded-lg border p-1.5 text-xs shadow-xs transition-transform hover:scale-[1.02] cursor-pointer ${statusInfo.bg} ${statusInfo.border}`}
+                                style={{
+                                  top: `${topOffset}px`,
+                                  height: `${cardHeight}px`,
+                                }}
+                                className={`absolute left-1 right-1 z-20 flex flex-col justify-between overflow-hidden rounded-lg border p-1.5 text-xs shadow-xs transition-all hover:z-30 hover:shadow-md cursor-pointer ${statusInfo.bg} ${statusInfo.border}`}
                               >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-semibold text-stone-900 dark:text-stone-100">
-                                    {horaInicio}
-                                  </span>
-                                  <span className={`text-[9px] font-medium ${statusInfo.text}`}>
-                                    {statusInfo.label}
-                                  </span>
-                                </div>
-                                <p className="truncate font-medium text-stone-800 dark:text-stone-200">
-                                  {ev.lead_name || ev.title}
-                                </p>
-                                {ev.lead_name && ev.title !== ev.lead_name && (
-                                  <p className="truncate text-[10px] text-stone-500 dark:text-stone-400">
-                                    {ev.title}
+                                <div>
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="font-semibold text-stone-900 dark:text-stone-100 text-[11px]">
+                                      {horarioTexto}
+                                    </span>
+                                    <span className={`text-[9px] font-medium px-1 rounded ${statusInfo.text} bg-white/70 dark:bg-stone-900/70`}>
+                                      {statusInfo.label}
+                                    </span>
+                                  </div>
+                                  <p className="truncate font-semibold text-stone-800 dark:text-stone-200 mt-0.5">
+                                    {ev.lead_name || ev.title}
                                   </p>
+                                  {isLongEvent && ev.lead_name && ev.title !== ev.lead_name && (
+                                    <p className="truncate text-[10px] text-stone-500 dark:text-stone-400">
+                                      {ev.title}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {isLongEvent && (
+                                  <div className="flex items-center justify-between text-[9px] text-stone-400 border-t border-stone-200/50 dark:border-stone-700/50 pt-0.5 mt-1">
+                                    <span>{duracaoMinutos >= 60 ? `${Math.floor(duracaoMinutos / 60)}h${duracaoMinutos % 60 ? `${duracaoMinutos % 60}m` : ""}` : `${duracaoMinutos} min`}</span>
+                                    <span>Detalhes →</span>
+                                  </div>
                                 )}
                               </div>
                             );
@@ -540,22 +573,35 @@ export function AgendaView({
                                 e.stopPropagation();
                                 handleEventClick(ev);
                               }}
-                              className="mb-1 rounded-lg border border-dashed border-stone-300 bg-stone-50/90 p-1.5 text-xs shadow-2xs transition-transform hover:scale-[1.01] cursor-pointer dark:border-stone-700 dark:bg-stone-800/70"
+                              style={{
+                                top: `${topOffset}px`,
+                                height: `${cardHeight}px`,
+                              }}
+                              className="absolute left-1 right-1 z-20 flex flex-col justify-between overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50/95 p-1.5 text-xs shadow-xs transition-all hover:z-30 hover:shadow-md cursor-pointer dark:border-stone-700 dark:bg-stone-800/90"
                               title={`Google Calendar: ${ev.calendarName || "Agenda Google"}`}
                             >
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-semibold text-stone-700 dark:text-stone-300">
-                                  {horaInicio}
-                                </span>
-                                {ev.calendarName && (
-                                  <span className="truncate max-w-[80px] rounded bg-stone-200/80 px-1 py-0.5 text-[9px] font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
-                                    {ev.calendarName}
+                              <div>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-semibold text-stone-700 dark:text-stone-300 text-[11px]">
+                                    {horarioTexto}
                                   </span>
-                                )}
+                                  {ev.calendarName && (
+                                    <span className="truncate max-w-[70px] rounded bg-stone-200/80 px-1 py-0.5 text-[9px] font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                                      {ev.calendarName}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="truncate font-medium text-stone-800 dark:text-stone-200 mt-0.5">
+                                  {ev.title}
+                                </p>
                               </div>
-                              <p className="truncate font-medium text-stone-800 dark:text-stone-200 mt-0.5">
-                                {ev.title}
-                              </p>
+
+                              {isLongEvent && (
+                                <div className="flex items-center justify-between text-[9px] text-stone-400 border-t border-stone-200/40 dark:border-stone-700/40 pt-0.5 mt-1">
+                                  <span>{duracaoMinutos >= 60 ? `${Math.floor(duracaoMinutos / 60)}h${duracaoMinutos % 60 ? `${duracaoMinutos % 60}m` : ""}` : `${duracaoMinutos} min`}</span>
+                                  <span>Google Calendar</span>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
