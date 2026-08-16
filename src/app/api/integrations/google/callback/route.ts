@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
         user_id: context.user.id,
         provider: "google",
         account_email: emailFromIdToken(tokens.id_token),
+        calendar_id: "primary",
+        calendar_name: "Principal",
         status: "connected",
         access_token_enc: encryptToken(tokens.access_token),
         refresh_token_enc: encryptToken(tokens.refresh_token),

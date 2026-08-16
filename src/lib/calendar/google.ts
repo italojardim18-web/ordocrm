@@ -23,7 +23,7 @@ export function getGoogleConfig(): GoogleConfig | null {
 export const GOOGLE_SCOPES = [
   "openid",
   "email",
-  "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/calendar.events",
 ].join(" ");
 
@@ -147,11 +147,29 @@ export interface GoogleCalendarInfo {
 export async function listCalendars(
   accessToken: string,
 ): Promise<GoogleCalendarInfo[]> {
-  const data = await googleFetch<{ items?: GoogleCalendarInfo[] }>(
-    accessToken,
-    "/users/me/calendarList?minAccessRole=writer",
-  );
-  return data.items ?? [];
+  try {
+    const data = await googleFetch<{ items?: GoogleCalendarInfo[] }>(
+      accessToken,
+      "/users/me/calendarList?minAccessRole=writer",
+    );
+    if (data.items && data.items.length > 0) {
+      return data.items;
+    }
+  } catch (err) {
+    console.warn("[google] falha ao buscar calendarList, tentando obter calendário primary:", err);
+  }
+
+  // Fallback seguro: obter os dados da agenda principal 'primary'
+  try {
+    const primary = await googleFetch<GoogleCalendarInfo>(accessToken, "/calendars/primary");
+    if (primary?.id) {
+      return [{ id: primary.id, summary: primary.summary || "Agenda Principal", primary: true }];
+    }
+  } catch (err) {
+    console.error("[google] falha ao obter calendário primary:", err);
+  }
+
+  return [{ id: "primary", summary: "Agenda Principal (Padrão)", primary: true }];
 }
 
 export interface AppointmentEventInput {
