@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { AppointmentDialog, type AppointmentDialogData } from "./appointment-dialog";
+import { syncGoogleCalendarAction } from "./agenda-actions";
 
 export interface SessaoItem {
   id: string;
@@ -52,6 +53,13 @@ export function AgendaView({
 }: AgendaViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isSyncing, startSyncTransition] = useTransition();
+
+  // Estado do Modal de Agendamento
+  const [dialogState, setDialogState] = useState<AppointmentDialogData>({
+    isOpen: false,
+    mode: "create",
+  });
 
   // Modo de visualização: "semana" (default), "mes", "dia"
   const [viewMode, setViewMode] = useState<"mes" | "semana" | "dia">(
@@ -74,7 +82,6 @@ export function AgendaView({
   // Scroll automático inicial para o horário comercial (~08:00)
   useEffect(() => {
     if (scrollContainerRef.current) {
-      // Cada hora tem aproximadamente 64px, 8h = ~512px
       scrollContainerRef.current.scrollTop = 480;
     }
   }, [viewMode]);
@@ -217,6 +224,42 @@ export function AgendaView({
     router.push(`/agenda?data=${iso}&view=${mode}`);
   };
 
+  // Sincronização Google Agenda (estilo PsicoManager / Sintropia)
+  const handleSyncGoogle = () => {
+    if (!isGoogleConnected) {
+      router.push("/configuracoes/integracoes");
+      return;
+    }
+
+    startSyncTransition(async () => {
+      const res = await syncGoogleCalendarAction();
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    });
+  };
+
+  // Abrir modal de criação para um slot específico
+  const handleSlotClick = (date: Date, hour: number) => {
+    setDialogState({
+      isOpen: true,
+      mode: "create",
+      initialDate: date,
+      initialHour: hour,
+    });
+  };
+
+  // Abrir modal de detalhes
+  const handleEventClick = (event: typeof allEvents[0]) => {
+    setDialogState({
+      isOpen: true,
+      mode: "view",
+      appointment: event,
+    });
+  };
+
   // Texto do cabeçalho central
   const headerPeriodText = useMemo(() => {
     if (viewMode === "dia") {
@@ -249,7 +292,6 @@ export function AgendaView({
     return `${mesCap} de ${currentDate.getFullYear()}`;
   }, [viewMode, currentDate, startOfWeek]);
 
-  // Checar se é hoje
   const isToday = (d: Date) => {
     const today = new Date();
     return (
@@ -259,15 +301,14 @@ export function AgendaView({
     );
   };
 
-  // Lista de horas do dia (00h a 23h)
   const hoursOfDay = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
   return (
     <div className="flex flex-col gap-4">
       {/* Barra de Controles Superior Estilo ORDO */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-md dark:border-stone-800 dark:bg-stone-900/80">
-        {/* Navegação < > e Hoje */}
-        <div className="flex items-center gap-2">
+        {/* Navegação < > e Hoje + Botão de Ação Rápida */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex items-center rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-800/80">
             <button
               onClick={handlePrev}
@@ -291,9 +332,18 @@ export function AgendaView({
 
           <button
             onClick={handleToday}
-            className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-300 hover:bg-white dark:border-stone-700 dark:bg-stone-800/80 dark:text-stone-200 dark:hover:bg-stone-700"
+            className="rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-300 hover:bg-white dark:border-stone-700 dark:bg-stone-800/80 dark:text-stone-200 dark:hover:bg-stone-700"
           >
             hoje
+          </button>
+
+          {/* Botão de Novo Agendamento */}
+          <button
+            onClick={() => setDialogState({ isOpen: true, mode: "create", initialDate: currentDate, initialHour: 9 })}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#521D2A] px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#6b2737] dark:bg-[#722a3b]"
+          >
+            <span>+</span>
+            <span>Novo Agendamento</span>
           </button>
         </div>
 
@@ -307,38 +357,54 @@ export function AgendaView({
           </p>
         </div>
 
-        {/* Seletor de Modo: mês | semana | dia */}
-        <div className="inline-flex items-center rounded-xl border border-stone-200 bg-stone-100/80 p-1 dark:border-stone-700 dark:bg-stone-800/80">
+        {/* Seletor de Modo + Botão de Sincronização com Google */}
+        <div className="flex items-center gap-2.5">
           <button
-            onClick={() => handleViewChange("mes")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all ${
-              viewMode === "mes"
-                ? "bg-[#521D2A] text-white shadow-sm dark:bg-[#722a3b]"
-                : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+            onClick={handleSyncGoogle}
+            disabled={isSyncing}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all ${
+              isGoogleConnected
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                : "border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800"
             }`}
+            title={isGoogleConnected ? "Sincronizar com Google Agenda agora" : "Conectar conta Google Agenda"}
           >
-            mês
+            <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
+            <span>{isSyncing ? "Sincronizando..." : isGoogleConnected ? "Sincronizar Google" : "Conectar Google"}</span>
           </button>
-          <button
-            onClick={() => handleViewChange("semana")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all ${
-              viewMode === "semana"
-                ? "bg-[#521D2A] text-white shadow-sm dark:bg-[#722a3b]"
-                : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
-            }`}
-          >
-            semana
-          </button>
-          <button
-            onClick={() => handleViewChange("dia")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all ${
-              viewMode === "dia"
-                ? "bg-[#521D2A] text-white shadow-sm dark:bg-[#722a3b]"
-                : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
-            }`}
-          >
-            dia
-          </button>
+
+          <div className="inline-flex items-center rounded-xl border border-stone-200 bg-stone-100/80 p-1 dark:border-stone-700 dark:bg-stone-800/80">
+            <button
+              onClick={() => handleViewChange("mes")}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all ${
+                viewMode === "mes"
+                  ? "bg-[#521D2A] text-white shadow-sm dark:bg-[#722a3b]"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              mês
+            </button>
+            <button
+              onClick={() => handleViewChange("semana")}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all ${
+                viewMode === "semana"
+                  ? "bg-[#521D2A] text-white shadow-sm dark:bg-[#722a3b]"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              semana
+            </button>
+            <button
+              onClick={() => handleViewChange("dia")}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all ${
+                viewMode === "dia"
+                  ? "bg-[#521D2A] text-white shadow-sm dark:bg-[#722a3b]"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+              }`}
+            >
+              dia
+            </button>
+          </div>
         </div>
       </div>
 
@@ -414,7 +480,13 @@ export function AgendaView({
                     return (
                       <div
                         key={diaIdx}
-                        className={`group relative min-h-[58px] border-b border-r border-stone-100/90 p-1 transition-colors last:border-r-0 hover:bg-stone-50/50 dark:border-stone-800/60 dark:hover:bg-stone-900/40 ${
+                        onClick={(e) => {
+                          // Se clicou na célula vazia (não no compromisso), abre modal de criação
+                          if (e.target === e.currentTarget) {
+                            handleSlotClick(dia, hour);
+                          }
+                        }}
+                        className={`group relative min-h-[58px] cursor-pointer border-b border-r border-stone-100/90 p-1 transition-colors last:border-r-0 hover:bg-stone-50/60 dark:border-stone-800/60 dark:hover:bg-stone-900/40 ${
                           ehHoje ? "bg-amber-50/15 dark:bg-amber-950/10" : ""
                         }`}
                       >
@@ -429,10 +501,13 @@ export function AgendaView({
 
                           if (ev.source === "ordo") {
                             return (
-                              <Link
+                              <div
                                 key={ev.id}
-                                href={ev.lead_id ? `/pipeline/lead/${ev.lead_id}` : "#"}
-                                className={`mb-1 block rounded-lg border p-1.5 text-xs shadow-xs transition-transform hover:scale-[1.02] ${statusInfo.bg} ${statusInfo.border}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEventClick(ev);
+                                }}
+                                className={`mb-1 block rounded-lg border p-1.5 text-xs shadow-xs transition-transform hover:scale-[1.02] cursor-pointer ${statusInfo.bg} ${statusInfo.border}`}
                               >
                                 <div className="flex items-center justify-between gap-1">
                                   <span className="font-semibold text-stone-900 dark:text-stone-100">
@@ -450,7 +525,7 @@ export function AgendaView({
                                     {ev.title}
                                   </p>
                                 )}
-                              </Link>
+                              </div>
                             );
                           }
 
@@ -458,7 +533,11 @@ export function AgendaView({
                           return (
                             <div
                               key={ev.id}
-                              className="mb-1 rounded-lg border border-dashed border-stone-300 bg-stone-50/90 p-1.5 text-xs dark:border-stone-700 dark:bg-stone-800/70"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEventClick(ev);
+                              }}
+                              className="mb-1 rounded-lg border border-dashed border-stone-300 bg-stone-50/90 p-1.5 text-xs cursor-pointer dark:border-stone-700 dark:bg-stone-800/70"
                               title="Google Calendar"
                             >
                               <span className="font-semibold text-stone-700 dark:text-stone-300">
@@ -490,7 +569,7 @@ export function AgendaView({
               {DIAS_SEMANA_COMPLETO[currentDate.getDay()]}, {currentDate.getDate()} de {MESES[currentDate.getMonth()]}
             </h3>
             <p className="text-xs text-stone-500">
-              Grade horária de atendimentos e compromissos do dia
+              Clique em qualquer horário para agendar ou em um compromisso para gerenciar
             </p>
           </div>
 
@@ -515,9 +594,18 @@ export function AgendaView({
                     {hourStr}:00
                   </div>
 
-                  <div className="min-h-[70px] border-b border-stone-100 p-2 hover:bg-stone-50/40 dark:border-stone-800/80 dark:hover:bg-stone-900/30">
+                  <div
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget) {
+                        handleSlotClick(currentDate, hour);
+                      }
+                    }}
+                    className="min-h-[70px] cursor-pointer border-b border-stone-100 p-2 hover:bg-stone-50/50 dark:border-stone-800/80 dark:hover:bg-stone-900/30"
+                  >
                     {eventosNoSlot.length === 0 ? (
-                      <div className="h-full" />
+                      <div className="h-full flex items-center text-[11px] text-stone-300 dark:text-stone-700 opacity-0 hover:opacity-100 transition-opacity">
+                        + Clique para agendar às {hourStr}:00
+                      </div>
                     ) : (
                       <div className="flex flex-col gap-2">
                         {eventosNoSlot.map((ev) => {
@@ -531,10 +619,13 @@ export function AgendaView({
 
                           if (ev.source === "ordo") {
                             return (
-                              <Link
+                              <div
                                 key={ev.id}
-                                href={ev.lead_id ? `/pipeline/lead/${ev.lead_id}` : "#"}
-                                className={`flex items-center justify-between rounded-xl border p-3 shadow-xs transition-all hover:scale-[1.01] ${statusInfo.bg} ${statusInfo.border}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEventClick(ev);
+                                }}
+                                className={`flex items-center justify-between rounded-xl border p-3 shadow-xs transition-all hover:scale-[1.01] cursor-pointer ${statusInfo.bg} ${statusInfo.border}`}
                               >
                                 <div className="flex items-center gap-3">
                                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/80 font-serif text-sm font-bold text-[#521D2A] shadow-xs dark:bg-stone-800 dark:text-amber-300">
@@ -554,16 +645,20 @@ export function AgendaView({
                                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusInfo.text} bg-white/80 dark:bg-stone-900`}>
                                     {statusInfo.label}
                                   </span>
-                                  <span className="text-xs text-stone-400">Abrir Lead →</span>
+                                  <span className="text-xs text-stone-400">Gerenciar →</span>
                                 </div>
-                              </Link>
+                              </div>
                             );
                           }
 
                           return (
                             <div
                               key={ev.id}
-                              className="flex items-center justify-between rounded-xl border border-dashed border-stone-300 bg-stone-50/90 p-3 text-xs dark:border-stone-700 dark:bg-stone-800/80"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEventClick(ev);
+                              }}
+                              className="flex items-center justify-between rounded-xl border border-dashed border-stone-300 bg-stone-50/90 p-3 text-xs cursor-pointer dark:border-stone-700 dark:bg-stone-800/80"
                             >
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-stone-700 dark:text-stone-300">
@@ -613,19 +708,16 @@ export function AgendaView({
               const startOffset = firstDayOfMonth.getDay(); // 0 = Domingo
               const totalDays = lastDayOfMonth.getDate();
 
-              // Dias do mês anterior para preencher
               const prevMonthDays = Array.from({ length: startOffset }, (_, i) => {
                 const d = new Date(year, month, 0 - (startOffset - 1 - i));
                 return { date: d, isCurrentMonth: false };
               });
 
-              // Dias do mês atual
               const currentMonthDays = Array.from({ length: totalDays }, (_, i) => {
                 const d = new Date(year, month, i + 1);
                 return { date: d, isCurrentMonth: true };
               });
 
-              // Completar até fechar semanas completas (múltiplo de 7)
               const remaining = (7 - ((prevMonthDays.length + currentMonthDays.length) % 7)) % 7;
               const nextMonthDays = Array.from({ length: remaining }, (_, i) => {
                 const d = new Date(year, month + 1, i + 1);
@@ -677,7 +769,11 @@ export function AgendaView({
                       {eventosDoDia.slice(0, 3).map((ev) => (
                         <div
                           key={ev.id}
-                          className="truncate rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-800 dark:bg-stone-800 dark:text-stone-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEventClick(ev);
+                          }}
+                          className="truncate rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-800 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-200"
                         >
                           <span className="font-semibold">{formatTimezoneTime(ev.starts_at.toISOString())}</span>{" "}
                           {ev.lead_name || ev.title}
@@ -696,6 +792,14 @@ export function AgendaView({
           </div>
         </div>
       )}
+
+      {/* Modal Interativo de Agendamento (Criação e Gestão) */}
+      <AppointmentDialog
+        data={dialogState}
+        onClose={() => setDialogState({ isOpen: false, mode: "create" })}
+        workspaceTimezone={workspaceTimezone}
+        isGoogleConnected={isGoogleConnected}
+      />
     </div>
   );
 }
