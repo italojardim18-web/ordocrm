@@ -666,11 +666,11 @@ export function AgendaView({
                                       {statusInfo.label}
                                     </span>
                                   </div>
-                                  <p className="truncate font-semibold text-stone-900 dark:text-stone-100 mt-0.5">
+                                  <p className="truncate font-semibold text-stone-900 dark:text-stone-100 mt-0.5 privacy-lead-name">
                                     {ev.lead_name || ev.title}
                                   </p>
                                   {isLongEvent && ev.lead_name && ev.title !== ev.lead_name && (
-                                    <p className="truncate text-[10px] text-stone-600 dark:text-stone-400">
+                                    <p className="truncate text-[10px] text-stone-600 dark:text-stone-400 privacy-agenda">
                                       {ev.title}
                                     </p>
                                   )}
@@ -745,7 +745,7 @@ export function AgendaView({
                                     </span>
                                   )}
                                 </div>
-                                <p className="truncate font-medium text-stone-900 dark:text-stone-100 mt-0.5">
+                                <p className="truncate font-medium text-stone-900 dark:text-stone-100 mt-0.5 privacy-agenda">
                                   {ev.title}
                                 </p>
                               </div>

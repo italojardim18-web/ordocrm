@@ -182,6 +182,49 @@
     background: rgba(82, 29, 42, 0.5);
   }
 
+  /* ========================================================================= */
+  /* MODO DE PRIVACIDADE & SIGILO CLÍNICO (OLHINHO DE SEGURANÇA)               */
+  /* ========================================================================= */
+  html.privacy-mode .privacy-blur,
+  html.privacy-mode [data-privacy="true"],
+  html.privacy-mode .privacy-lead-name,
+  html.privacy-mode [data-lead-name],
+  html.privacy-mode .privacy-contact,
+  html.privacy-mode [data-phone],
+  html.privacy-mode [data-email],
+  html.privacy-mode .privacy-financial,
+  html.privacy-mode [data-financial],
+  html.privacy-mode .privacy-chat,
+  html.privacy-mode [data-chat-preview],
+  html.privacy-mode [data-message-content],
+  html.privacy-mode .privacy-agenda,
+  html.privacy-mode [data-agenda-title],
+  html.privacy-mode .privacy-clinical-notes,
+  html.privacy-mode [data-clinical-notes] {
+    filter: blur(7px) !important;
+    user-select: none !important;
+    pointer-events: auto;
+    transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Espiadinha rápida ao passar o mouse (hover) de forma controlada */
+  html.privacy-mode .privacy-blur:hover,
+  html.privacy-mode [data-privacy="true"]:hover,
+  html.privacy-mode .privacy-lead-name:hover,
+  html.privacy-mode [data-lead-name]:hover,
+  html.privacy-mode .privacy-contact:hover,
+  html.privacy-mode [data-phone]:hover,
+  html.privacy-mode [data-email]:hover,
+  html.privacy-mode .privacy-financial:hover,
+  html.privacy-mode [data-financial]:hover,
+  html.privacy-mode .privacy-chat:hover,
+  html.privacy-mode [data-chat-preview]:hover,
+  html.privacy-mode [data-message-content]:hover,
+  html.privacy-mode .privacy-agenda:hover,
+  html.privacy-mode [data-agenda-title]:hover {
+    filter: blur(0px) !important;
+  }
+
   /* Respeita quem pediu menos animação no sistema. */
   @media (prefers-reduced-motion: reduce) {
     *,

@@ -128,7 +128,7 @@ function LeadCardView({
       <div className="flex items-start justify-between gap-2">
         <Link
           href={`/pipeline/lead/${lead.id}`}
-          className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground hover:text-primary hover:underline transition-colors"
+          className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground hover:text-primary hover:underline transition-colors privacy-lead-name"
         >
           {lead.name}
         </Link>
@@ -205,7 +205,7 @@ function LeadCardView({
 
       {/* Rodapé do Card: Valor em Destaque e Avatar */}
       <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
-        <span className="font-heading font-semibold text-primary tracking-tight">
+        <span className="font-heading font-semibold text-primary tracking-tight privacy-financial">
           {formatBRL(lead.potential_value)}
         </span>
         {owner ? (

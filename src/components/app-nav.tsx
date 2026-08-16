@@ -17,6 +17,7 @@ import { initials } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 import { OrdoSymbol } from "@/components/ordo-mark";
 import { NavChannelSelector, type ChannelItem } from "./nav-channel-selector";
+import { PrivacyModeToggle } from "./privacy-mode-toggle";
 
 const TOP_LINKS = [
   { href: "/pipeline", label: "⚡ Pipeline" },
@@ -125,12 +126,15 @@ export function AppNav({
           })}
         </nav>
 
-        {/* Lado Direito: Seletor de Linha WhatsApp + Avatar */}
+        {/* Lado Direito: Seletor de Linha WhatsApp + Olhinho de Modo Sigilo + Avatar */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Seletor de Linha WhatsApp em Pílula Flutuante Burgundy */}
           <div className="flex items-center">
             <NavChannelSelector channels={channels} />
           </div>
+
+          {/* Botão de Modo Sigilo / Privacidade (Olhinho) */}
+          <PrivacyModeToggle />
 
           {/* Avatar do Usuário com Dropdown */}
           <DropdownMenu>

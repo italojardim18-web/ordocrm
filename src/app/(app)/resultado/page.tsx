@@ -108,7 +108,7 @@ export default async function ResultPage({
           <span className="text-xs font-semibold text-muted-foreground">
             RECEITA
           </span>
-          <span className="font-heading text-3xl font-bold tabular-nums text-primary">
+          <span className="font-heading text-3xl font-bold tabular-nums text-primary privacy-financial">
             {formatBRL(summary.revenue)}
           </span>
           <span className="text-[11px] text-muted-foreground">
@@ -120,7 +120,7 @@ export default async function ResultPage({
           <span className="text-xs font-semibold text-muted-foreground">
             TICKET MÉDIO
           </span>
-          <span className="font-heading text-3xl font-bold tabular-nums text-primary">
+          <span className="font-heading text-3xl font-bold tabular-nums text-primary privacy-financial">
             {formatBRL(summary.averageTicket)}
           </span>
           <span className="text-[11px] text-muted-foreground">
@@ -259,7 +259,7 @@ export default async function ResultPage({
                   <td className="py-2.5">
                     <Link
                       href={`/pipeline/lead/${row.lead_id}`}
-                      className="font-semibold text-foreground hover:underline"
+                      className="font-semibold text-foreground hover:underline privacy-lead-name"
                     >
                       {row.lead_name}
                     </Link>
@@ -289,7 +289,7 @@ export default async function ResultPage({
                   <td className="py-2.5 text-muted-foreground">
                     {row.owner_id ? (nomePorId.get(row.owner_id) ?? "—") : "—"}
                   </td>
-                  <td className="py-2.5 text-right font-bold tabular-nums">
+                  <td className="py-2.5 text-right font-bold tabular-nums privacy-financial">
                     {/* Ganha mostra o que entrou; perdida, o que deixou de entrar. */}
                     {row.status === "won"
                       ? formatBRL(row.sold_value)

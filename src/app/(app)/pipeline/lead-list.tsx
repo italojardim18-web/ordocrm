@@ -182,7 +182,7 @@ export function LeadList({
                   <td className="px-3 py-2">
                     <Link
                       href={`/pipeline/lead/${lead.id}`}
-                      className="font-medium hover:underline"
+                      className="font-medium hover:underline privacy-lead-name"
                     >
                       {lead.name}
                     </Link>
@@ -213,11 +213,11 @@ export function LeadList({
                     )}
                   </td>
                   <td className="px-3 py-2">{channelLabel(lead.channel)}</td>
-                  <td className="max-w-48 truncate px-3 py-2 text-muted-foreground">
+                  <td className="max-w-48 truncate px-3 py-2 text-muted-foreground privacy-contact">
                     {lead.phone ?? lead.email ?? "—"}
                   </td>
                   <td className="px-3 py-2">{owner?.fullName ?? "—"}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right font-medium privacy-financial">
                     {formatBRL(lead.potential_value)}
                   </td>
                   <td className="px-3 py-2 text-right text-muted-foreground">
