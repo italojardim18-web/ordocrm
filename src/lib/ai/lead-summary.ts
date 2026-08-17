@@ -23,23 +23,38 @@ export async function generateLeadAISummary(
   try {
     const supabase = await createClient();
 
-    // 1. Busca dados do Lead
+    // 1. Busca dados do Lead de forma direta e segura (sem joins frágeis)
     const { data: lead, error: leadError } = await supabase
       .from("leads")
-      .select("id, name, phone, email, status, temperature, origin, notes_summary, metadata, pipeline_stages(name)")
+      .select("id, name, phone, email, status, temperature, origin, notes_summary, metadata, stage_id, workspace_id")
       .eq("id", leadId)
-      .eq("workspace_id", workspaceId)
-      .single();
+      .is("deleted_at", null)
+      .maybeSingle();
 
-    if (leadError || !lead) {
-      return { success: false, error: "Lead não encontrado." };
+    if (leadError) {
+      console.error("Erro na busca do lead:", leadError);
+      return { success: false, error: `Erro no banco de dados: ${leadError.message}` };
     }
 
-    // 2. Busca conversa e mensagens
+    if (!lead) {
+      return { success: false, error: "Lead não encontrado no consultório." };
+    }
+
+    // Busca nome da etapa do pipeline
+    let stageName = "Em atendimento";
+    if (lead.stage_id) {
+      const { data: stage } = await supabase
+        .from("pipeline_stages")
+        .select("name")
+        .eq("id", lead.stage_id)
+        .maybeSingle();
+      if (stage?.name) stageName = stage.name;
+    }
+
+    // 2. Busca conversa e mensagens do WhatsApp
     const { data: conversation } = await supabase
       .from("conversations")
       .select("id")
-      .eq("workspace_id", workspaceId)
       .eq("lead_id", leadId)
       .maybeSingle();
 
@@ -55,15 +70,16 @@ export async function generateLeadAISummary(
       if (msgData) messages = msgData;
     }
 
-    // 3. Busca anotações do Lead
+    // 3. Busca anotações do Lead (tabela notes)
     const { data: notes } = await supabase
-      .from("lead_notes")
-      .select("content, created_at")
+      .from("notes")
+      .select("body, created_at")
       .eq("lead_id", leadId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true })
       .limit(20);
 
-    // 4. Busca agendamentos
+    // 4. Busca agendamentos (tabela appointments)
     const { data: appointments } = await supabase
       .from("appointments")
       .select("title, status, starts_at")
@@ -88,15 +104,15 @@ export async function generateLeadAISummary(
 
     if (notes && notes.length > 0) {
       notes.forEach((n) => {
-        if (n.content?.trim()) {
-          historyLines.push(`[Nota Interna]: ${n.content.trim()}`);
+        if (n.body?.trim()) {
+          historyLines.push(`[Anotação Clínica/Comercial]: ${n.body.trim()}`);
         }
       });
     }
 
     if (appointments && appointments.length > 0) {
       appointments.forEach((a) => {
-        historyLines.push(`[Sessão/Agendamento]: ${a.title} (Status: ${a.status}, Data: ${a.starts_at})`);
+        historyLines.push(`[Sessão Agendada]: ${a.title} (Status: ${a.status}, Data: ${a.starts_at})`);
       });
     }
 
@@ -125,7 +141,7 @@ export async function generateLeadAISummary(
 
     // TENTATIVA 4: Motor Heurístico Especializado Clínico (Fallback Local)
     if (!result) {
-      result = generateHeuristicSummary(lead, messages, notes || [], appointments || [], sourceCount);
+      result = generateHeuristicSummary(lead, stageName, messages, notes || [], appointments || [], sourceCount);
     }
 
     // Salvar no Banco de Dados
@@ -154,11 +170,11 @@ export async function generateLeadAISummary(
     return { success: true, data: result };
   } catch (err: any) {
     console.error("Erro em generateLeadAISummary:", err);
-    return { success: false, error: err.message || "Erro desconhecido ao gerar resumo." };
+    return { success: false, error: err.message || "Erro desconhecido ao processar resumo." };
   }
 }
 
-/** Chamada Groq */
+/** Chamada Groq Llama 3.3 70B */
 async function callGroqSummary(patientName: string, history: string, sourceCount: number): Promise<AISummaryResult | null> {
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -200,7 +216,7 @@ async function callGroqSummary(patientName: string, history: string, sourceCount
   }
 }
 
-/** Chamada OpenAI */
+/** Chamada OpenAI GPT-4o-mini */
 async function callOpenAISummary(patientName: string, history: string, sourceCount: number): Promise<AISummaryResult | null> {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -242,7 +258,7 @@ async function callOpenAISummary(patientName: string, history: string, sourceCou
   }
 }
 
-/** Chamada Gemini */
+/** Chamada Gemini 1.5 Flash */
 async function callGeminiSummary(patientName: string, history: string, apiKey: string, sourceCount: number): Promise<AISummaryResult | null> {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -286,9 +302,10 @@ async function callGeminiSummary(patientName: string, history: string, apiKey: s
   }
 }
 
-/** Motor Heurístico Local Inteligente Clínico */
+/** Motor Heurístico Local Especializado em Clínicas de Psicologia & Saúde Mental */
 function generateHeuristicSummary(
   lead: any,
+  stageName: string,
   messages: any[],
   notes: any[],
   appointments: any[],
@@ -296,7 +313,7 @@ function generateHeuristicSummary(
 ): AISummaryResult {
   const allText = [
     ...messages.map((m) => `${m.body || ""} ${m.transcript || ""}`),
-    ...notes.map((n) => n.content || ""),
+    ...notes.map((n) => n.body || ""),
   ].join(" ").toLowerCase();
 
   // 1. Necessidade
@@ -353,7 +370,6 @@ function generateHeuristicSummary(
   }
 
   // 5. Síntese Geral
-  const stageName = lead.pipeline_stages?.name || "Novo Lead";
   const notesSummary = `Paciente ${lead.name}, captado(a) via ${lead.origin || "Indicação/WhatsApp"}. Encontra-se na etapa "${stageName}". ${need} ${moment}`;
 
   return {
