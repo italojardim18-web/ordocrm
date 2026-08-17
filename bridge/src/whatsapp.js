@@ -101,6 +101,25 @@ function resolverTelefone(sessao, jid, alternativo) {
   return null;
 }
 
+function extrairNomeSaudacao(texto) {
+  if (!texto) return null;
+  const match = texto.match(
+    /^(?:ol[aá]|oi|bom dia|boa tarde|boa noite|fala|prezado|prezada)[,\s]+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)?)/i,
+  );
+  if (match && match[1]) {
+    const nome = match[1].trim();
+    const blacklist = [
+      "meu", "minha", "amigo", "amiga", "mestre", "doutor", "doutora",
+      "dr", "dra", "pessoal", "todos", "tudo", "como", "gente", "galera", "bom", "boa",
+    ];
+    const primeiro = nome.split(" ")[0].toLowerCase();
+    if (!blacklist.includes(primeiro)) {
+      return nome;
+    }
+  }
+  return null;
+}
+
 function resolverNomeContato(sessao, jid, telefone, message, fromMe, alternativo) {
   if (!jid) return null;
   const usuario = jid.split("@")[0].split(":")[0];
@@ -122,7 +141,13 @@ function resolverNomeContato(sessao, jid, telefone, message, fromMe, alternativo
     return message.pushName.trim();
   }
 
-  // 3. Se for fromMe: true (mensagem enviada pelo médico/secretária), NUNCA usar pushName da própria conta
+  // 3. Se for fromMe: true (mensagem enviada pelo médico/secretária), tenta extrair o nome do cliente pela saudação
+  if (fromMe) {
+    const texto = extrairTexto(message);
+    const nomeSaudacao = extrairNomeSaudacao(texto);
+    if (nomeSaudacao) return nomeSaudacao;
+  }
+
   return null;
 }
 

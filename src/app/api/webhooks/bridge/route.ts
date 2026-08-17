@@ -24,9 +24,52 @@ interface BridgeConnection {
   display_name: string | null;
 }
 
+function ehTelefoneValido(numero?: string | null): boolean {
+  if (!numero) return false;
+  const clean = String(numero).replace(/\D/g, "");
+  // Telefones válidos têm entre 10 e 13 dígitos
+  // LIDs do WhatsApp têm 14 ou mais dígitos (ex: 154648904220865)
+  return clean.length >= 10 && clean.length <= 13;
+}
+
+function extrairNomeSaudacao(texto?: string | null): string | null {
+  if (!texto) return null;
+  const match = texto.match(
+    /^(?:ol[aá]|oi|bom dia|boa tarde|boa noite|fala|prezado|prezada)[,\s]+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)?)/i,
+  );
+  if (match && match[1]) {
+    const nome = match[1].trim();
+    const blacklist = [
+      "meu", "minha", "amigo", "amiga", "mestre", "doutor", "doutora",
+      "dr", "dra", "pessoal", "todos", "tudo", "como", "gente", "galera", "bom", "boa",
+    ];
+    const primeiro = nome.split(" ")[0].toLowerCase();
+    if (!blacklist.includes(primeiro)) {
+      return nome;
+    }
+  }
+  return null;
+}
+
+function ehNomeProprioOuInvalido(nome: string | null): boolean {
+  if (!nome) return true;
+  const n = nome.toLowerCase();
+  const digits = nome.replace(/\D/g, "");
+  return (
+    digits.length >= 14 ||
+    nome.startsWith("+") ||
+    n.includes("neuropsicologo") ||
+    n.includes("ítalo p jardim") ||
+    n.includes("italo jardim") ||
+    n.includes("secretária") ||
+    n.includes("secretaria") ||
+    n.includes("assistente virtual")
+  );
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
-  const signature = request.headers.get("x-ordo-signature");
+  const signature = request.headers.get("x-ordo-signature") ?? "";
 
   const admin = createAdminClient();
   const { data: connections } = await admin
@@ -121,20 +164,26 @@ export async function POST(request: NextRequest) {
       payload: { ...message, media: message.media ? "[arquivo]" : null } as unknown as Record<string, unknown>,
     });
 
-    // Se a mensagem for outbound ou senderName for o nome da própria conta,
-    // o nome do lead deve ser o telefone do contato ou o nome salvo na agenda.
-    let nomeSender = message.senderName?.trim() || null;
-    const phoneContato = message.phone || message.externalConversationId || null;
+    // Resolve o telefone real: NUNCA usar LID como telefone!
+    let phoneContato: string | null = null;
+    if (ehTelefoneValido(message.phone)) {
+      phoneContato = message.phone;
+    } else if (ehTelefoneValido(message.externalConversationId)) {
+      phoneContato = message.externalConversationId;
+    }
 
-    if (
-      !nomeSender ||
-      message.outbound ||
-      nomeSender.toLowerCase().includes("neuropsicologo") ||
-      nomeSender.toLowerCase().includes("ítalo p jardim") ||
-      nomeSender.toLowerCase().includes("italo jardim")
-    ) {
-      // Se não tem nome do cliente, usa o telefone do contato
-      nomeSender = phoneContato ? `+${phoneContato}` : null;
+    let nomeSender = message.senderName?.trim() || null;
+
+    if (!nomeSender || message.outbound || ehNomeProprioOuInvalido(nomeSender)) {
+      // 1. Tenta extrair o nome do cliente pela saudação na mensagem (ex: "Olá, Matheus!")
+      const nomeSaudacao = extrairNomeSaudacao(message.body);
+      if (nomeSaudacao) {
+        nomeSender = nomeSaudacao;
+      } else if (phoneContato) {
+        nomeSender = `+${phoneContato}`;
+      } else {
+        nomeSender = "Contato WhatsApp";
+      }
     }
 
     const { data: ingested, error: ingestError } = await admin.rpc("ingest_channel_message", {
@@ -157,7 +206,7 @@ export async function POST(request: NextRequest) {
     const outConversationId = ingested?.[0]?.out_conversation_id;
     const outLeadId = ingested?.[0]?.out_lead_id;
 
-    // Se o lead já existia mas estava com nome genérico/médico e agora recebemos o nome real do cliente
+    // Atualização de Lead existente caso venham novos dados reais
     if (outLeadId) {
       const updateLead: Record<string, any> = {};
       if (phoneContato) {
@@ -166,10 +215,17 @@ export async function POST(request: NextRequest) {
       if (
         !message.outbound &&
         message.senderName &&
-        !message.senderName.toLowerCase().includes("neuropsicologo") &&
-        !message.senderName.toLowerCase().includes("ítalo p jardim")
+        !ehNomeProprioOuInvalido(message.senderName)
       ) {
         updateLead.name = message.senderName.trim();
+      } else if (message.outbound) {
+        const nomeSaudacao = extrairNomeSaudacao(message.body);
+        if (nomeSaudacao) {
+          const { data: leadAtual } = await admin.from("leads").select("name").eq("id", outLeadId).single();
+          if (!leadAtual?.name || ehNomeProprioOuInvalido(leadAtual.name) || leadAtual.name === "Contato WhatsApp") {
+            updateLead.name = nomeSaudacao;
+          }
+        }
       }
 
       // NUNCA sobrescrever a linha de um lead que já possui canal atribuído!
