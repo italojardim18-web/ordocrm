@@ -28,12 +28,25 @@ import { sendToOrdo } from "./ordo-client.js";
 
 const logger = pino({ level: "silent" });
 
-/** @type {Map<string, { socket: any, estado: string, lidMap: Map<string, string>, qrData: string|null }>} */
+/** @type {Map<string, { socket: any, estado: string, lidMap: Map<string, string>, contactMap: Map<string, string>, qrData: string|null, retryCache: Map<string, number> }>} */
 const sessoes = new Map();
+
+/** Cache global de mensagens recentes para atender ao protocolo de retry/descriptografia do Baileys */
+const messageStore = new Map();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers (compartilhados entre sessões)
 // ─────────────────────────────────────────────────────────────────────────────
+
+function normalizarMensagemInterna(m) {
+  if (!m) return null;
+  if (m.ephemeralMessage?.message) return normalizarMensagemInterna(m.ephemeralMessage.message);
+  if (m.viewOnceMessage?.message) return normalizarMensagemInterna(m.viewOnceMessage.message);
+  if (m.viewOnceMessageV2?.message) return normalizarMensagemInterna(m.viewOnceMessageV2.message);
+  if (m.viewOnceMessageV2Extension?.message) return normalizarMensagemInterna(m.viewOnceMessageV2Extension.message);
+  if (m.documentWithCaptionMessage?.message) return normalizarMensagemInterna(m.documentWithCaptionMessage.message);
+  return m;
+}
 
 function registrarContato(sessao, contato) {
   if (!contato) return;
@@ -114,7 +127,7 @@ function resolverNomeContato(sessao, jid, telefone, message, fromMe, alternativo
 }
 
 function extrairTexto(message) {
-  const m = message?.message;
+  const m = normalizarMensagemInterna(message?.message);
   if (!m) return null;
   return (
     m.conversation ??
@@ -122,12 +135,16 @@ function extrairTexto(message) {
     m.imageMessage?.caption ??
     m.videoMessage?.caption ??
     m.documentMessage?.caption ??
+    m.buttonsResponseMessage?.selectedDisplayText ??
+    m.templateButtonReplyMessage?.selectedDisplayText ??
+    m.listResponseMessage?.title ??
+    m.reactionMessage?.text ??
     null
   );
 }
 
 function extrairMetadadosMidia(message) {
-  const m = message?.message;
+  const m = normalizarMensagemInterna(message?.message);
   if (!m) return null;
   const node =
     m.imageMessage ?? m.videoMessage ?? m.audioMessage ??
@@ -142,7 +159,7 @@ function extrairMetadadosMidia(message) {
 }
 
 function extrairTipoMidia(message) {
-  const m = message?.message;
+  const m = normalizarMensagemInterna(message?.message);
   if (!m) return null;
   if (m.imageMessage) return "image";
   if (m.videoMessage) return "video";
@@ -249,6 +266,8 @@ export async function iniciarSessao(sessionId) {
 
   const nomeAparelho = sessionId === "secretaria" ? "ORDO CRM (Secretária)" : "ORDO CRM (Dr. Ítalo)";
 
+  const msgRetryCounterCache = new Map();
+
   const socket = makeWASocket({
     version,
     auth: state,
@@ -256,6 +275,17 @@ export async function iniciarSessao(sessionId) {
     browser: [nomeAparelho, "Chrome", "1.0.0"],
     markOnlineOnConnect: false,
     syncFullHistory: false,
+    msgRetryCounterCache: {
+      get: (key) => msgRetryCounterCache.get(key),
+      set: (key, val) => msgRetryCounterCache.set(key, val),
+      del: (key) => msgRetryCounterCache.delete(key),
+    },
+    getMessage: async (key) => {
+      if (key?.id && messageStore.has(key.id)) {
+        return messageStore.get(key.id);
+      }
+      return undefined;
+    },
   });
 
   sessao.socket = socket;
@@ -322,11 +352,22 @@ export async function iniciarSessao(sessionId) {
   });
 
   socket.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify") return;
+    // Processa 'notify' (mensagens recebidas/enviadas ao vivo)
+    // e 'append' (mensagens enviadas pelo próprio celular do usuário sincronizadas pelo WhatsApp)
+    if (type !== "notify" && type !== "append") return;
 
     const normalizadas = [];
 
     for (const message of messages) {
+      // Guarda no cache para descriptografia / retry
+      if (message.key?.id && message.message) {
+        messageStore.set(message.key.id, message.message);
+        if (messageStore.size > 1000) {
+          const firstKey = messageStore.keys().next().value;
+          messageStore.delete(firstKey);
+        }
+      }
+
       const jid = message.key?.remoteJid;
       if (!jid) continue;
       if (jid.endsWith("@g.us") || jid === "status@broadcast") continue;
