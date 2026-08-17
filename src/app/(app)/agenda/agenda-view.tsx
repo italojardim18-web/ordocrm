@@ -196,12 +196,15 @@ export function AgendaView({
   const [currentDate, setCurrentDate] = useState<Date>(initialDate);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Scroll automático inicial para o horário comercial (~08:00)
+  // Horário em tempo real (atualizado a cada 10s para mover a barra ao vivo)
+  const [now, setNow] = useState<Date>(new Date());
+
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 480;
-    }
-  }, [viewMode]);
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Auxiliares de fuso horário
   const formatTimezoneHour = (date: Date): number => {
@@ -239,6 +242,41 @@ export function AgendaView({
       minute: "2-digit",
     });
   };
+
+  const nowHour = formatTimezoneHour(now);
+  const nowMinute = formatTimezoneMinute(now);
+  const nowTopOffset = (nowHour * 60) + nowMinute;
+  const currentTimeStr = now.toLocaleTimeString("pt-BR", {
+    timeZone: workspaceTimezone,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const currentDayOfWeekStr = DIAS_SEMANA_COMPLETO[now.getDay()];
+  const currentDateFormattedStr = `${now.getDate()} de ${MESES[now.getMonth()]}`;
+
+  const isToday = (d: Date) => {
+    const today = new Date();
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const scrollToCurrentTime = () => {
+    if (scrollContainerRef.current) {
+      const target = Math.max(0, nowTopOffset - 180);
+      scrollContainerRef.current.scrollTo({ top: target, behavior: "smooth" });
+    }
+  };
+
+  // Scroll automático inicial para o horário atual
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const target = Math.max(0, nowTopOffset - 180);
+      scrollContainerRef.current.scrollTop = target;
+    }
+  }, [viewMode]);
 
   // Obter início da semana (Domingo)
   const startOfWeek = useMemo(() => {
@@ -333,6 +371,25 @@ export function AgendaView({
     return list;
   }, [sessoes, googleEventsList, configMap]);
 
+  // Compromisso em andamento neste instante
+  const currentOngoingEvent = useMemo(() => {
+    const nowMs = now.getTime();
+    return allEvents.find((ev) => {
+      const startMs = ev.starts_at.getTime();
+      const endMs = ev.ends_at ? ev.ends_at.getTime() : startMs + 50 * 60 * 1000;
+      return nowMs >= startMs && nowMs <= endMs;
+    });
+  }, [allEvents, now]);
+
+  // Próximo compromisso hoje
+  const nextUpcomingEvent = useMemo(() => {
+    const nowMs = now.getTime();
+    const future = allEvents
+      .filter((ev) => ev.starts_at.getTime() > nowMs && isToday(ev.starts_at))
+      .sort((a, b) => a.starts_at.getTime() - b.starts_at.getTime());
+    return future[0] || null;
+  }, [allEvents, now]);
+
   // Navegação
   const handlePrev = () => {
     const d = new Date(currentDate);
@@ -340,7 +397,7 @@ export function AgendaView({
       d.setDate(d.getDate() - 1);
     } else if (viewMode === "semana") {
       d.setDate(d.getDate() - 7);
-    } else if (viewMode === "mes") {
+    } else {
       d.setMonth(d.getMonth() - 1);
     }
     setCurrentDate(d);
@@ -353,7 +410,7 @@ export function AgendaView({
       d.setDate(d.getDate() + 1);
     } else if (viewMode === "semana") {
       d.setDate(d.getDate() + 7);
-    } else if (viewMode === "mes") {
+    } else {
       d.setMonth(d.getMonth() + 1);
     }
     setCurrentDate(d);
@@ -364,11 +421,12 @@ export function AgendaView({
     const today = new Date();
     setCurrentDate(today);
     updateUrl(today, viewMode);
+    scrollToCurrentTime();
   };
 
-  const handleViewChange = (mode: "mes" | "semana" | "dia") => {
-    setViewMode(mode);
-    updateUrl(currentDate, mode);
+  const handleViewChange = (newView: "mes" | "semana" | "dia") => {
+    setViewMode(newView);
+    updateUrl(currentDate, newView);
   };
 
   const updateUrl = (date: Date, mode: "mes" | "semana" | "dia") => {
@@ -443,15 +501,6 @@ export function AgendaView({
     const mesCap = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
     return `${mesCap} de ${currentDate.getFullYear()}`;
   }, [viewMode, currentDate, startOfWeek]);
-
-  const isToday = (d: Date) => {
-    const today = new Date();
-    return (
-      d.getDate() === today.getDate() &&
-      d.getMonth() === today.getMonth() &&
-      d.getFullYear() === today.getFullYear()
-    );
-  };
 
   const hoursOfDay = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
@@ -573,6 +622,84 @@ export function AgendaView({
         </div>
       </div>
 
+      {/* Barra de Acompanhamento em Tempo Real & Live Status */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-gradient-to-r from-stone-50/90 via-card to-stone-50/90 p-3 shadow-2xs dark:border-stone-800 dark:from-stone-900/60 dark:to-stone-900/60">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Relógio Ao Vivo */}
+          <div className="flex items-center gap-2 rounded-xl bg-white dark:bg-stone-800 border border-stone-200/80 dark:border-stone-700 px-3 py-1.5 shadow-2xs">
+            <span className="relative flex size-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-rose-600" />
+            </span>
+            <span className="font-mono text-xs font-bold text-stone-900 dark:text-stone-100">
+              {currentTimeStr}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              · {currentDayOfWeekStr}, {currentDateFormattedStr}
+            </span>
+          </div>
+
+          {/* Status do Evento Atual */}
+          {currentOngoingEvent ? (
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+              <span className="flex size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-bold">Em andamento:</span>
+              <button
+                type="button"
+                onClick={() => handleEventClick(currentOngoingEvent)}
+                className="font-semibold underline cursor-pointer hover:text-emerald-950 dark:hover:text-white"
+              >
+                {currentOngoingEvent.lead_name || currentOngoingEvent.title}
+              </button>
+              <span className="text-[11px] opacity-80">
+                ({formatTimezoneTime(currentOngoingEvent.starts_at.toISOString())} – {currentOngoingEvent.ends_at ? formatTimezoneTime(currentOngoingEvent.ends_at.toISOString()) : "em andamento"})
+              </span>
+              {currentOngoingEvent.meet_link && (
+                <a
+                  href={currentOngoingEvent.meet_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-emerald-700 shadow-2xs"
+                >
+                  🎥 Entrar no Meet
+                </a>
+              )}
+            </div>
+          ) : nextUpcomingEvent ? (
+            <div className="flex items-center gap-2 rounded-xl bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 px-3 py-1.5 text-xs text-stone-700 dark:text-stone-300">
+              <span className="text-stone-400">⏳</span>
+              <span className="font-semibold">Próximo compromisso:</span>
+              <button
+                type="button"
+                onClick={() => handleEventClick(nextUpcomingEvent)}
+                className="font-medium hover:underline text-primary"
+              >
+                {nextUpcomingEvent.lead_name || nextUpcomingEvent.title}
+              </button>
+              <span className="text-[11px] text-muted-foreground">
+                às {formatTimezoneTime(nextUpcomingEvent.starts_at.toISOString())}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2">
+              <span>✨</span>
+              <span>Nenhum outro compromisso agendado para hoje.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Botão de Foco Rápido */}
+        <button
+          type="button"
+          onClick={scrollToCurrentTime}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 hover:bg-rose-100 transition-colors shadow-2xs cursor-pointer"
+          title="Focar no horário atual na grade da agenda"
+        >
+          <span>🎯</span>
+          <span>Ir para agora</span>
+        </button>
+      </div>
+
       {/* ========================================================================= */}
       {/* 1. VISUALIZAÇÃO: SEMANA COMPLETA (GRADE HORÁRIA 24H)                     */}
       {/* ========================================================================= */}
@@ -618,6 +745,37 @@ export function AgendaView({
             ref={scrollContainerRef}
             className="relative grid max-h-[720px] grid-cols-[60px_repeat(7,1fr)] overflow-y-auto"
           >
+            {/* Linha do Horário Atual (Current Time Line) na Semana */}
+            {weekDays.some(isToday) && (
+              <>
+                {/* Badge de Horário Atual na Coluna de Horas à Esquerda */}
+                <div
+                  style={{ top: `${nowTopOffset - 9}px` }}
+                  className="absolute left-1 z-30 flex items-center justify-center rounded bg-rose-600 px-1 py-0.2 font-mono text-[9px] font-bold text-white shadow-xs pointer-events-none"
+                >
+                  {currentTimeStr}
+                </div>
+
+                {/* Linha Vermelha Atravessando a Grade */}
+                <div
+                  style={{ top: `${nowTopOffset}px` }}
+                  className="absolute left-[60px] right-0 z-30 h-[2px] bg-rose-500 shadow-xs pointer-events-none"
+                >
+                  {/* Marcador Pulsante posicionado no dia de hoje */}
+                  {(() => {
+                    const todayIdx = weekDays.findIndex(isToday);
+                    if (todayIdx === -1) return null;
+                    return (
+                      <div
+                        style={{ left: `calc((100% / 7) * ${todayIdx})` }}
+                        className="absolute -top-[5px] size-3 rounded-full bg-rose-600 shadow-md ring-4 ring-rose-500/30 animate-pulse"
+                      />
+                    );
+                  })()}
+                </div>
+              </>
+            )}
+
             {/* Linhas de Horas */}
             {hoursOfDay.map((hour) => {
               const hourStr = hour.toString().padStart(2, "0");
@@ -851,8 +1009,29 @@ export function AgendaView({
 
           <div
             ref={scrollContainerRef}
-            className="grid max-h-[720px] grid-cols-[80px_1fr] overflow-y-auto"
+            className="relative grid max-h-[720px] grid-cols-[80px_1fr] overflow-y-auto"
           >
+            {/* Linha do Horário Atual (Current Time Line) no Dia */}
+            {isToday(currentDate) && (
+              <>
+                {/* Badge de Horário Atual na Coluna de Horas à Esquerda */}
+                <div
+                  style={{ top: `${nowTopOffset - 9}px` }}
+                  className="absolute left-2 z-30 flex items-center justify-center rounded bg-rose-600 px-1.5 py-0.2 font-mono text-[9px] font-bold text-white shadow-xs pointer-events-none"
+                >
+                  {currentTimeStr}
+                </div>
+
+                {/* Linha Vermelha Atravessando o Dia */}
+                <div
+                  style={{ top: `${nowTopOffset}px` }}
+                  className="absolute left-[80px] right-0 z-30 h-[2px] bg-rose-500 shadow-xs pointer-events-none"
+                >
+                  <div className="absolute -left-[5px] -top-[4px] size-2.5 rounded-full bg-rose-600 shadow-md ring-4 ring-rose-500/30 animate-pulse" />
+                </div>
+              </>
+            )}
+
             {hoursOfDay.map((hour) => {
               const hourStr = hour.toString().padStart(2, "0");
               const diaStr = formatTimezoneDateStr(currentDate);
