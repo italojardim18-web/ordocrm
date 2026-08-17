@@ -644,6 +644,29 @@ export async function updateLeadSummary(
   return {};
 }
 
+/**
+ * Dispara a geração inteligente do Resumo Comercial 360° do Lead
+ * com IA / Motor Clínico NLP.
+ */
+export async function generateLeadAISummaryAction(leadId: string): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = uuid.safeParse(leadId);
+  if (!parsed.success) return { error: "ID do lead inválido." };
+
+  const { generateLeadAISummary } = await import("@/lib/ai/lead-summary");
+  const res = await generateLeadAISummary(context.workspace.id, leadId);
+
+  if (!res.success) {
+    return { error: res.error || "Não foi possível gerar o resumo inteligente." };
+  }
+
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/pipeline");
+  return {};
+}
+
 // -----------------------------------------------------------------------------
 // Gerenciamento de Tags / Etiquetas Coloridas
 // -----------------------------------------------------------------------------
