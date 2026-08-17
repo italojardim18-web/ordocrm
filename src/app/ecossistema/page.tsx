@@ -9,14 +9,14 @@ import { FaqSection } from "@/components/landing/faq-section";
 import { LandingFooter } from "@/components/landing/landing-footer";
 
 export const metadata: Metadata = {
-  title: "Ecossistema ORDO by Práxis Mentis · Gestão clínica e comercial integrada",
+  title: "Ecossistema ORDO by Práxis Mentis · Gestão Clínica & Comercial Integrada",
   description:
     "O ecossistema completo para psicólogos, neuropsicólogos e clínicas: ORDO Forms, ORDO CRM, ORDO Manager e ORDO Analytics.",
 };
 
 export default function EcosystemPage() {
   return (
-    <main className="min-h-screen bg-[#F2EEE7] selection:bg-[#521D2A] selection:text-[#F2EEE7]">
+    <main className="min-h-screen bg-[#FBF9F6] selection:bg-[#521D2A] selection:text-white">
       <LandingNav activeTab="ecossistema" />
       <LandingHero />
       <EcosystemShowcase />

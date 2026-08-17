@@ -1,87 +1,108 @@
 "use client";
 
 import Link from "next/link";
-import { SectionLabel, Tick } from "./landing-atoms";
-
-const FRAGMENTADA = [
-  "WhatsApp pessoal misturado com o do consultório, sem separar profissional e recepção.",
-  "Mensagens perdidas no meio do dia e pacientes que somem sem retorno.",
-  "Links de videochamada gerados manualmente, um a um.",
-  "Prontuário em um lugar, formulários em outro, financeiro na planilha.",
-  "Horas por semana em retrabalho e digitação repetida.",
-];
-
-const ORDENADA = [
-  "Linhas separadas na mesma tela: profissional e recepção atendem juntos.",
-  "Funil com lembrete de retorno — o paciente não some no meio do caminho.",
-  "Sala do Meet criada no agendamento, com link pronto para copiar.",
-  "Forms, CRM, prontuário e financeiro em um só acesso.",
-  "Modo de sigilo para abrir o sistema diante de quem quer que seja.",
-];
+import { Badge } from "@/components/ui/badge";
 
 export function ComparisonSection() {
   return (
-    <section id="comparativo" className="border-t border-[#181716]/10 bg-white py-24 text-[#181716]">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="max-w-2xl">
-          <SectionLabel tone="light">Antes e depois</SectionLabel>
-          <h2 className="mt-6 font-heading text-3xl font-normal leading-tight tracking-tight text-[#291015] sm:text-4xl lg:text-5xl">
-            A mesma rotina, com e sem ordem.
+    <section id="comparativo" className="py-24 bg-white text-stone-900 border-t border-stone-200/80">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
+          <Badge className="bg-[#B2966F] text-[#291015] font-bold text-xs px-3 py-1 mb-4">
+            Comparativo de Produtividade
+          </Badge>
+          <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#291015]">
+            Como é a sua rotina hoje vs. com o Ecossistema ORDO
           </h2>
-          <p className="mt-5 text-base leading-relaxed text-[#181716]/70">
-            A diferença entre ferramentas que não conversam e um ecossistema em que
-            o cadastro atravessa tudo.
+          <p className="mt-4 text-base text-stone-600 font-sans leading-relaxed">
+            Veja a diferença prática entre ter ferramentas desconexas e operar com um ecossistema clínico centralizado.
           </p>
         </div>
 
-        <div className="mt-14 grid grid-cols-1 gap-px border border-[#181716]/12 bg-[#181716]/12 lg:grid-cols-2">
-          {/* Rotina fragmentada — tratada em stone, nunca em vermelho de alerta. */}
-          <div className="flex flex-col justify-between gap-8 bg-[#F2EEE7] p-8 lg:p-10">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[#181716]/45">
-                Hoje, sem o ecossistema
-              </p>
-              <ul className="mt-8 flex flex-col gap-5">
-                {FRAGMENTADA.map((item) => (
-                  <li key={item} className="flex gap-3 text-sm leading-relaxed text-[#181716]/65">
-                    <Tick tone="stone" />
-                    <span>{item}</span>
-                  </li>
-                ))}
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          {/* LADO 1: ROTINA FRAGMENTADA (SEM ORDO) */}
+          <div className="rounded-3xl border-2 border-rose-200/80 bg-rose-50/40 p-6 sm:p-8 flex flex-col justify-between gap-6 shadow-sm">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
+                <span className="text-xl">❌</span>
+                <span>Sem o Ecossistema ORDO (Rotina Fragmentada)</span>
+              </div>
+
+              <ul className="space-y-3.5 text-xs sm:text-sm text-stone-700">
+                <li className="flex items-start gap-2.5">
+                  <span className="text-rose-500 font-bold">✕</span>
+                  <span>WhatsApp pessoal misturado com pacientes, sem separação entre Dr. e Secretária.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-rose-500 font-bold">✕</span>
+                  <span>Mensagens perdidas no meio do dia e pacientes que somem sem retorno (sem follow-up).</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-rose-500 font-bold">✕</span>
+                  <span>Links do Google Meet gerados manualmente um a um, copiando e colando nos chats.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-rose-500 font-bold">✕</span>
+                  <span>Prontuários em um software, formulários em outro e financeiro em planilhas do Excel.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-rose-500 font-bold">✕</span>
+                  <span>Horas perdidas toda semana com retrabalho e digitação manual repetitiva.</span>
+                </li>
               </ul>
             </div>
-            <p className="border-t border-[#181716]/12 pt-6 text-sm text-[#181716]/55">
-              Sobrecarga, pacientes perdidos e tempo clínico gasto fora da clínica.
-            </p>
+
+            <div className="rounded-xl bg-white p-3 border border-rose-200 text-xs text-rose-800 font-medium text-center">
+              Resultado: Sobrecarga mental, perda de pacientes e tempo clínico desperdiçado.
+            </div>
           </div>
 
-          {/* Rotina ordenada — burgundy lidera. */}
-          <div className="flex flex-col justify-between gap-8 bg-[#521D2A] p-8 text-[#F2EEE7] lg:p-10">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[#B2966F]">
-                Com o Ecossistema ORDO
-              </p>
-              <ul className="mt-8 flex flex-col gap-5">
-                {ORDENADA.map((item) => (
-                  <li key={item} className="flex gap-3 text-sm leading-relaxed text-[#F2EEE7]/85">
-                    <Tick />
-                    <span>{item}</span>
-                  </li>
-                ))}
+          {/* LADO 2: COM O ECOSSISTEMA ORDO */}
+          <div className="rounded-3xl border-2 border-[#521D2A] bg-gradient-to-b from-[#521D2A] to-[#291015] p-6 sm:p-8 flex flex-col justify-between gap-6 shadow-2xl text-white">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-[#B2966F] font-bold text-sm">
+                <span className="text-xl">✨</span>
+                <span>Com o Ecossistema ORDO (Ordem & Clareza)</span>
+              </div>
+
+              <ul className="space-y-3.5 text-xs sm:text-sm text-stone-200">
+                <li className="flex items-start gap-2.5">
+                  <span className="text-[#B2966F] font-bold">✓</span>
+                  <span>WhatsApp Multi-Linhas oficial: Dr. e Secretária atendem juntos sem desconectar iPad ou celular.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-[#B2966F] font-bold">✓</span>
+                  <span>Funil de pacientes no Kanban com lembretes automáticos de retorno e temperatura do lead.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-[#B2966F] font-bold">✓</span>
+                  <span>Google Meet automático gerado na hora do agendamento com cópia em 1 clique.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-[#B2966F] font-bold">✓</span>
+                  <span>Formulários, CRM, Prontuário e Financeiro 100% integrados em um só login.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-[#B2966F] font-bold">✓</span>
+                  <span>Modo Sigilo Clínico (Olhinho) para abrir o sistema com segurança diante de pacientes e terceiros.</span>
+                </li>
               </ul>
             </div>
-            <p className="border-t border-[#F2EEE7]/20 pt-6 text-sm text-[#F2EEE7]/70">
-              Mais tempo para atender, pacientes acolhidos e faturamento previsível.
-            </p>
+
+            <div className="rounded-xl bg-white/10 p-3 border border-[#B2966F]/40 text-xs text-[#E2D2BC] font-medium text-center">
+              Resultado: Mais tempo para os atendimentos, pacientes acolhidos e faturamento previsível.
+            </div>
           </div>
         </div>
 
-        <div className="mt-12">
+        {/* CTA Intermediário */}
+        <div className="mt-12 text-center">
           <Link
             href="/planos"
-            className="inline-block rounded-lg bg-[#521D2A] px-8 py-4 text-sm font-medium text-[#F2EEE7] transition-colors hover:bg-[#6B2737]"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#521D2A] px-8 py-4 text-sm font-bold text-white shadow-lg hover:bg-[#6b2737] hover:scale-105 transition-all"
           >
-            Ver planos e combinações
+            <span>Ver Planos & Economizar com o Combo</span>
+            <span>→</span>
           </Link>
         </div>
       </div>
