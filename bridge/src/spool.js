@@ -56,11 +56,13 @@ export async function drenar(entregar) {
       continue;
     }
 
-    const ok = await entregar(envelope);
-    if (!ok) break; // ORDO ainda indisponível: tenta de novo na próxima rodada
-
-    await unlink(caminho).catch(() => {});
-    entregues += 1;
+    const resultado = await entregar(envelope);
+    if (resultado.ok || resultado.unrecoverable) {
+      await unlink(caminho).catch(() => {});
+      if (resultado.ok) entregues += 1;
+    } else {
+      break; // ORDO ainda indisponível (ex: servidor desligado ou erro 500)
+    }
   }
 
   const pendentes = arquivos.length - entregues;

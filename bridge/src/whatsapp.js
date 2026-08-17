@@ -373,7 +373,7 @@ export async function iniciarSessao(sessionId) {
         from: jid,
         phone,
         pushName: nomeContato,
-        text: texto,
+        text: texto || (midia ? `[${midia.charAt(0).toUpperCase() + midia.slice(1)}]` : null),
         mediaType: midia,
         media: anexo,
         timestamp: Number(message.messageTimestamp ?? 0) || null,

@@ -30,14 +30,21 @@ async function entregar(envelope, attempts = 3) {
         body,
       });
 
-      if (response.ok) return true;
+      if (response.ok) return { ok: true };
 
-      // 401 é erro de configuração: repetir não resolve.
+      // Erros 400, 401, 413, 422 são irrecuperáveis por repetição do mesmo payload
       if (response.status === 401) {
         console.error(
           "[ordo] assinatura recusada — o segredo daqui não confere com o do ORDO",
         );
-        return false;
+        return { ok: false, unrecoverable: true };
+      }
+
+      if (response.status === 400 || response.status === 413 || response.status === 422) {
+        console.error(
+          `[ordo] payload recusado (${response.status}) — descartando para não travar a fila`,
+        );
+        return { ok: false, unrecoverable: true };
       }
 
       console.warn(`[ordo] resposta ${response.status} (tentativa ${attempt})`);
@@ -51,7 +58,7 @@ async function entregar(envelope, attempts = 3) {
     }
   }
 
-  return false;
+  return { ok: false, unrecoverable: false };
 }
 
 /**
@@ -60,8 +67,8 @@ async function entregar(envelope, attempts = 3) {
  * Eventos de estado (`state`) são descartáveis: o próximo já corrige.
  */
 export async function sendToOrdo(envelope, { attempts = 3 } = {}) {
-  const ok = await entregar(envelope, attempts);
-  if (ok) return true;
+  const resultado = await entregar(envelope, attempts);
+  if (resultado.ok || resultado.unrecoverable) return resultado.ok;
 
   if (envelope.event === "state") return false;
 
