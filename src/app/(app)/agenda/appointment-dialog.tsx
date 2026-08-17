@@ -122,6 +122,16 @@ export function AppointmentDialog({
     };
   }, [leadQuery, data.isOpen, data.mode]);
 
+  // Suporte a tecla Esc para fechar modal
+  useEffect(() => {
+    if (!data.isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [data.isOpen, onClose]);
+
   if (!data.isOpen) return null;
 
   const handleSubmitCreate = (force = false) => {
@@ -150,7 +160,7 @@ export function AppointmentDialog({
       }
 
       if (res.warning && !force) {
-        setConflictWarning(res.warning);
+        setConflictWarning(res.warning || "Conflito de horário detectado.");
         return;
       }
 
@@ -159,11 +169,11 @@ export function AppointmentDialog({
     });
   };
 
-  const handleStatusChange = (newStatus: "scheduled" | "completed" | "cancelled" | "no_show") => {
+  const handleStatusChange = (newStatus: string) => {
     if (!data.appointment?.id) return;
 
     startTransition(async () => {
-      const res = await updateAppointmentStatusAction(data.appointment!.id, newStatus);
+      const res = await updateAppointmentStatusAction(data.appointment!.id, newStatus as any);
       if (res.error) {
         toast.error(res.error);
       } else {
@@ -189,12 +199,19 @@ export function AppointmentDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl dark:border-stone-800 dark:bg-stone-900">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-lg rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl dark:border-stone-800 dark:bg-stone-900 animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Botão Fechar */}
         <button
+          type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
+          className="absolute right-4 top-4 rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200 transition-colors"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

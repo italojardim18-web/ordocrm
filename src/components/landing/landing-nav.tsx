@@ -3,19 +3,30 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { OrdoSymbol } from "@/components/ordo-mark";
+import { BrandSignature } from "./landing-atoms";
 import { cn } from "@/lib/utils";
+
+const LINKS = [
+  { key: "ecossistema", href: "/ecossistema", label: "O Ecossistema" },
+  { key: "pilares", href: "/ecossistema#pilares", label: "Os 4 Sistemas" },
+  { key: "comparativo", href: "/ecossistema#comparativo", label: "Comparativo" },
+  { key: "planos", href: "/planos", label: "Planos" },
+  { key: "faq", href: "/ecossistema#faq", label: "Dúvidas" },
+] as const;
 
 export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossistema" | "planos" }) {
   const pathname = usePathname();
+  const isPlanos = pathname.includes("/planos");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentActive, setCurrentActive] = useState<string>(activeTab === "planos" ? "planos" : "ecossistema");
+  const [scrollActive, setScrollActive] = useState<string>(
+    activeTab === "planos" ? "planos" : "ecossistema"
+  );
+
+  // Na página de planos a seção ativa é derivada da rota, não do scroll.
+  const currentActive = isPlanos ? "planos" : scrollActive;
 
   useEffect(() => {
-    if (pathname.includes("/planos")) {
-      setCurrentActive("planos");
-      return;
-    }
+    if (isPlanos) return;
 
     const sections = [
       { id: "faq", key: "faq" },
@@ -27,9 +38,8 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 180;
 
-      // Se estiver bem no topo
       if (window.scrollY < 300) {
-        setCurrentActive("ecossistema");
+        setScrollActive("ecossistema");
         return;
       }
 
@@ -39,7 +49,7 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
           const top = element.offsetTop;
           const height = element.offsetHeight;
           if (scrollPosition >= top && scrollPosition < top + height) {
-            setCurrentActive(section.key);
+            setScrollActive(section.key);
             return;
           }
         }
@@ -47,194 +57,115 @@ export function LandingNav({ activeTab = "ecossistema" }: { activeTab?: "ecossis
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Checagem inicial
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [pathname]);
+  }, [isPlanos]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#291015] border-b border-[#521D2A] py-3.5 shadow-2xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo Oficial ORDO by Práxis Mentis */}
-        <Link href="/ecossistema" className="flex items-center gap-3 group">
-          <div className="flex size-10 items-center justify-center rounded-2xl bg-[#521D2A] text-white shadow-md transition-transform group-hover:scale-105 border border-[#B2966F]/40">
-            <OrdoSymbol className="size-6 text-[#B2966F]" />
-          </div>
-          <div className="flex flex-col text-left">
-            <div className="flex items-baseline gap-1.5 leading-none">
-              <span className="font-heading text-2xl font-bold tracking-[0.20em] text-white">
-                ORDO
-              </span>
-              <span className="text-[10px] tracking-widest font-semibold uppercase text-[#B2966F]">
-                Ecossistema
-              </span>
-            </div>
-            <span className="text-[9px] tracking-wider text-stone-300 font-sans mt-0.5">
-              by Práxis Mentis
-            </span>
-          </div>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-[#F2EEE7]/12 bg-[#291015]">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+        <Link href="/ecossistema" aria-label="ORDO by Práxis Mentis">
+          <BrandSignature tone="light" />
         </Link>
 
-        {/* Links Centrais de Navegação Dinâmicos com ScrollSpy */}
-        <nav className="hidden md:flex items-center gap-1.5 rounded-full bg-white/10 p-1.5 backdrop-blur-md border border-white/15 shadow-inner text-xs font-semibold text-stone-200">
-          <Link
-            href="/ecossistema"
-            onClick={() => setCurrentActive("ecossistema")}
-            className={cn(
-              "rounded-full px-4 py-2 transition-all",
-              currentActive === "ecossistema"
-                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
-                : "hover:bg-white/10 hover:text-white"
-            )}
-          >
-            🏛️ O Ecossistema
-          </Link>
-          <Link
-            href="/ecossistema#pilares"
-            onClick={() => setCurrentActive("pilares")}
-            className={cn(
-              "rounded-full px-4 py-2 transition-all",
-              currentActive === "pilares"
-                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
-                : "hover:bg-white/10 hover:text-white"
-            )}
-          >
-            🧩 Os 4 Sistemas
-          </Link>
-          <Link
-            href="/ecossistema#comparativo"
-            onClick={() => setCurrentActive("comparativo")}
-            className={cn(
-              "rounded-full px-4 py-2 transition-all",
-              currentActive === "comparativo"
-                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
-                : "hover:bg-white/10 hover:text-white"
-            )}
-          >
-            ⚖️ Comparativo
-          </Link>
-          <Link
-            href="/planos"
-            onClick={() => setCurrentActive("planos")}
-            className={cn(
-              "rounded-full px-4 py-2 transition-all flex items-center gap-1.5",
-              currentActive === "planos"
-                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
-                : "hover:bg-white/10 hover:text-white"
-            )}
-          >
-            <span>💎 Planos & Preços</span>
-            <span className="rounded-full bg-[#B2966F] px-1.5 py-0.2 text-[9px] font-black text-[#291015]">
-              -20%
-            </span>
-          </Link>
-          <Link
-            href="/ecossistema#faq"
-            onClick={() => setCurrentActive("faq")}
-            className={cn(
-              "rounded-full px-4 py-2 transition-all",
-              currentActive === "faq"
-                ? "bg-[#521D2A] text-white font-bold shadow-xs border border-[#B2966F]/50"
-                : "hover:bg-white/10 hover:text-white"
-            )}
-          >
-            ❓ Dúvidas
-          </Link>
+        {/* Navegação: a linha em brass marca a seção ativa. Sem pílulas, sem vidro. */}
+        <nav className="hidden items-center gap-8 md:flex">
+          {LINKS.map((link) => (
+            <Link
+              key={link.key}
+              href={link.href}
+              onClick={() => setScrollActive(link.key)}
+              className={cn(
+                "relative py-1 text-[13px] tracking-wide transition-colors",
+                currentActive === link.key
+                  ? "text-[#F2EEE7]"
+                  : "text-[#F2EEE7]/60 hover:text-[#F2EEE7]"
+              )}
+            >
+              {link.label}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute -bottom-1 left-0 h-px w-full origin-left bg-[#B2966F] transition-transform duration-300",
+                  currentActive === link.key ? "scale-x-100" : "scale-x-0"
+                )}
+              />
+            </Link>
+          ))}
         </nav>
 
-        {/* Ações Direitas (Login + CTA Começar) */}
-        <div className="hidden sm:flex items-center gap-3">
+        <div className="hidden items-center gap-6 sm:flex">
           <Link
             href="/login"
-            className="rounded-xl px-4 py-2.5 text-xs font-semibold text-stone-200 hover:text-white hover:bg-white/10 transition-all border border-transparent hover:border-white/20"
+            className="text-[13px] text-[#F2EEE7]/60 transition-colors hover:text-[#F2EEE7]"
           >
-            Entrar no Sistema
+            Entrar
           </Link>
           <Link
             href="/planos"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#B2966F] via-[#C9B18F] to-[#B2966F] px-5 py-2.5 text-xs font-bold text-[#291015] shadow-lg shadow-black/40 transition-all hover:scale-105 hover:shadow-xl border border-[#B2966F]"
+            className="rounded-lg border border-[#B2966F] px-5 py-2.5 text-[13px] font-medium text-[#B2966F] transition-colors hover:bg-[#B2966F] hover:text-[#291015]"
           >
-            <span>Começar Agora</span>
-            <span>↗</span>
+            Ver planos
           </Link>
         </div>
 
-        {/* Botão Mobile */}
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex md:hidden size-10 items-center justify-center rounded-xl bg-white/10 text-white border border-white/20"
-          aria-label="Abrir menu"
+          className="flex size-10 items-center justify-center rounded-lg border border-[#F2EEE7]/20 text-[#F2EEE7] md:hidden"
+          aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+          aria-expanded={mobileMenuOpen}
         >
-          {mobileMenuOpen ? "✕" : "☰"}
+          <span aria-hidden className="flex flex-col gap-[5px]">
+            <span
+              className={cn(
+                "block h-px w-5 bg-current transition-transform",
+                mobileMenuOpen && "translate-y-[6px] rotate-45"
+              )}
+            />
+            <span className={cn("block h-px w-5 bg-current", mobileMenuOpen && "opacity-0")} />
+            <span
+              className={cn(
+                "block h-px w-5 bg-current transition-transform",
+                mobileMenuOpen && "-translate-y-[6px] -rotate-45"
+              )}
+            />
+          </span>
         </button>
       </div>
 
-      {/* Menu Dropdown Mobile */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#291015] border-t border-[#521D2A] mt-3 px-4 py-4 flex flex-col gap-3 text-sm text-stone-200 animate-in fade-in slide-in-from-top-4">
-          <Link
-            href="/ecossistema"
-            onClick={() => {
-              setCurrentActive("ecossistema");
-              setMobileMenuOpen(false);
-            }}
-            className={cn("py-2.5 border-b border-white/10", currentActive === "ecossistema" && "text-[#B2966F] font-bold")}
-          >
-            🏛️ O Ecossistema
-          </Link>
-          <Link
-            href="/ecossistema#pilares"
-            onClick={() => {
-              setCurrentActive("pilares");
-              setMobileMenuOpen(false);
-            }}
-            className={cn("py-2.5 border-b border-white/10", currentActive === "pilares" && "text-[#B2966F] font-bold")}
-          >
-            🧩 Os 4 Sistemas (Forms, CRM, Manager, Analytics)
-          </Link>
-          <Link
-            href="/ecossistema#comparativo"
-            onClick={() => {
-              setCurrentActive("comparativo");
-              setMobileMenuOpen(false);
-            }}
-            className={cn("py-2.5 border-b border-white/10", currentActive === "comparativo" && "text-[#B2966F] font-bold")}
-          >
-            ⚖️ Comparativo de Rotina
-          </Link>
-          <Link
-            href="/planos"
-            onClick={() => {
-              setCurrentActive("planos");
-              setMobileMenuOpen(false);
-            }}
-            className={cn("py-2.5 border-b border-white/10 flex items-center justify-between", currentActive === "planos" && "text-[#B2966F] font-bold")}
-          >
-            <span>💎 Planos & Preços Oficiais</span>
-            <span className="rounded bg-[#B2966F] px-2 py-0.5 text-xs font-bold text-[#291015]">-20% Anual</span>
-          </Link>
-          <Link
-            href="/ecossistema#faq"
-            onClick={() => {
-              setCurrentActive("faq");
-              setMobileMenuOpen(false);
-            }}
-            className={cn("py-2.5 border-b border-white/10", currentActive === "faq" && "text-[#B2966F] font-bold")}
-          >
-            ❓ Perguntas Frequentes
-          </Link>
-          <div className="pt-3 flex flex-col gap-2.5">
+        <div className="border-t border-[#F2EEE7]/12 bg-[#291015] px-6 py-2 md:hidden">
+          {LINKS.map((link) => (
             <Link
-              href="/login"
-              className="rounded-xl border border-white/20 text-center py-3 text-xs font-semibold text-white bg-white/5"
+              key={link.key}
+              href={link.href}
+              onClick={() => {
+                setScrollActive(link.key);
+                setMobileMenuOpen(false);
+              }}
+              className={cn(
+                "block border-b border-[#F2EEE7]/10 py-4 text-sm",
+                currentActive === link.key ? "text-[#B2966F]" : "text-[#F2EEE7]/75"
+              )}
             >
-              Entrar no Sistema
+              {link.label}
             </Link>
+          ))}
+          <div className="flex flex-col gap-3 py-5">
             <Link
               href="/planos"
-              className="rounded-xl bg-gradient-to-r from-[#B2966F] to-[#C9B18F] text-center py-3 text-xs font-bold text-[#291015] shadow-md border border-[#B2966F]"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded-lg bg-[#B2966F] py-3 text-center text-sm font-medium text-[#291015]"
             >
-              Ver Planos & Experimentar ↗
+              Ver planos
+            </Link>
+            <Link
+              href="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded-lg border border-[#F2EEE7]/25 py-3 text-center text-sm text-[#F2EEE7]"
+            >
+              Entrar
             </Link>
           </div>
         </div>

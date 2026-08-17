@@ -19,7 +19,7 @@ export default async function HomePage() {
 
   // Se for visitante público, apresenta a Landing Page Comercial do Ecossistema
   return (
-    <main className="min-h-screen bg-[#FBF9F6] selection:bg-[#521D2A] selection:text-white">
+    <main className="min-h-screen bg-[#F2EEE7] selection:bg-[#521D2A] selection:text-[#F2EEE7]">
       <LandingNav activeTab="ecossistema" />
       <LandingHero />
       <EcosystemShowcase />

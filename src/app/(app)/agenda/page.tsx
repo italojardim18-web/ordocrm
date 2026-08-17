@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth";
-import { listarEventosGoogle } from "@/lib/calendar/service";
 import { isCalendarConnected } from "@/lib/crm/queries";
 import { createClient } from "@/lib/supabase/server";
 import { AgendaView, SessaoItem } from "./agenda-view";
@@ -34,7 +33,7 @@ export default async function AgendaPage({
   const referencia = dataParam ? new Date(`${dataParam}T12:00:00`) : new Date();
   const baseDate = Number.isNaN(referencia.getTime()) ? new Date() : referencia;
 
-  // Janela de busca otimizada: 14 dias antes até 28 dias depois (cobre o mês corrente e semanas vizinhas)
+  // Janela de busca otimizada: 14 dias antes até 28 dias depois
   const inicioBusca = new Date(baseDate);
   inicioBusca.setDate(inicioBusca.getDate() - 14);
   inicioBusca.setHours(0, 0, 0, 0);
@@ -45,8 +44,8 @@ export default async function AgendaPage({
 
   const supabase = await createClient();
 
-  // Buscar sessões do CRM e eventos do Google Calendar
-  const [{ data: sessoesRows }, eventosGoogle, conectado] = await Promise.all([
+  // Carrega apenas dados locais do Supabase (Resposta ultra-rápida em ~30ms)
+  const [{ data: sessoesRows }, conectado] = await Promise.all([
     supabase
       .from("appointments")
       .select("id, title, description, starts_at, ends_at, status, lead_id, meet_link, leads (name)")
@@ -56,11 +55,6 @@ export default async function AgendaPage({
       .lte("starts_at", fimBusca.toISOString())
       .order("starts_at")
       .returns<SessaoRow[]>(),
-    listarEventosGoogle(
-      context.workspace.id,
-      inicioBusca.toISOString(),
-      fimBusca.toISOString(),
-    ),
     isCalendarConnected(context.workspace.id),
   ]);
 
@@ -88,7 +82,7 @@ export default async function AgendaPage({
           <p className="text-xs text-stone-500">
             {conectado ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
-                ● Google Calendar conectado e sincronizado
+                ● Google Calendar sincronizado
               </span>
             ) : (
               <span>
@@ -105,12 +99,13 @@ export default async function AgendaPage({
         </div>
       </div>
 
-      {/* Componente Interativo de Agenda: Semana / Mês / Dia */}
+      {/* Componente Interativo de Agenda com carregamento instantâneo */}
       <AgendaView
         sessoes={sessoesFormatadas}
-        eventosGoogle={eventosGoogle}
         workspaceTimezone={context.workspace.timezone || "America/Campo_Grande"}
         isGoogleConnected={conectado}
+        initialTimeMin={inicioBusca.toISOString()}
+        initialTimeMax={fimBusca.toISOString()}
       />
     </section>
   );

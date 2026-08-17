@@ -23,7 +23,7 @@ export interface SessaoItem {
 
 interface AgendaViewProps {
   sessoes: SessaoItem[];
-  eventosGoogle: Array<{
+  eventosGoogle?: Array<{
     id: string;
     titulo: string;
     inicio: string | null;
@@ -35,6 +35,8 @@ interface AgendaViewProps {
   }>;
   workspaceTimezone: string;
   isGoogleConnected: boolean;
+  initialTimeMin?: string;
+  initialTimeMax?: string;
 }
 
 const DIAS_SEMANA_ABREV = ["dom.", "seg.", "ter.", "qua.", "qui.", "sex.", "sáb."];
@@ -53,13 +55,52 @@ const STATUS_LABELS: Record<string, { label: string; bg: string; text: string; b
 
 export function AgendaView({
   sessoes,
-  eventosGoogle,
+  eventosGoogle: initialEventosGoogle = [],
   workspaceTimezone,
   isGoogleConnected,
+  initialTimeMin,
+  initialTimeMax,
 }: AgendaViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSyncing, startSyncTransition] = useTransition();
+
+  // Estado dos eventos do Google (carregados assincronamente em background)
+  const [googleEventsList, setGoogleEventsList] = useState<Array<{
+    id: string;
+    titulo: string;
+    inicio: string | null;
+    fim: string | null;
+    diaInteiro: boolean;
+    calendarName?: string;
+    meetLink?: string | null;
+    link?: string | null;
+  }>>(initialEventosGoogle);
+
+  // Busca assíncrona em background para NUNCA travar a renderização
+  useEffect(() => {
+    if (!isGoogleConnected) return;
+
+    let active = true;
+    const fetchEvents = async () => {
+      try {
+        const url = `/api/calendar/events?timeMin=${encodeURIComponent(initialTimeMin || "")}&timeMax=${encodeURIComponent(initialTimeMax || "")}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active && Array.isArray(data.eventos)) {
+          setGoogleEventsList(data.eventos);
+        }
+      } catch (err) {
+        console.error("Falha ao carregar eventos em background:", err);
+      }
+    };
+
+    fetchEvents();
+    return () => {
+      active = false;
+    };
+  }, [isGoogleConnected, initialTimeMin, initialTimeMax]);
 
   // Estado do Modal de Agendamento
   const [dialogState, setDialogState] = useState<AppointmentDialogData>({
@@ -96,7 +137,7 @@ export function AgendaView({
       const defaultGoogleColors = ["#0D9488", "#2563EB", "#7C3AED", "#D97706", "#EA580C", "#0891B2"];
       let colorIdx = 0;
 
-      eventosGoogle.forEach((ev) => {
+      googleEventsList.forEach((ev) => {
         const calName = ev.calendarName || "Google Agenda";
         const calId = calName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
 
@@ -121,7 +162,7 @@ export function AgendaView({
     } catch {
       /* fallback silencioso */
     }
-  }, [eventosGoogle]);
+  }, [googleEventsList]);
 
   const handleSaveCalendarConfigs = (updated: CalendarConfigItem[]) => {
     setCalendarConfigs(updated);
@@ -265,7 +306,7 @@ export function AgendaView({
     const titulosOrdo = new Set(sessoes.map((s) => s.title));
 
     // Eventos do Google (sem duplicar os do ORDO)
-    eventosGoogle.forEach((e) => {
+    googleEventsList.forEach((e) => {
       const calName = e.calendarName || "Google Agenda";
       const calId = calName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
       const calConfig = configMap.get(calId);
@@ -290,7 +331,7 @@ export function AgendaView({
     });
 
     return list;
-  }, [sessoes, eventosGoogle, configMap]);
+  }, [sessoes, googleEventsList, configMap]);
 
   // Navegação
   const handlePrev = () => {
@@ -1039,6 +1080,7 @@ export function AgendaView({
 
       {/* Modal Interativo de Agendamento (Criação e Gestão) */}
       <AppointmentDialog
+        key={dialogState.isOpen ? `modal-${dialogState.mode}-${dialogState.appointment?.id || "new"}` : "closed"}
         data={dialogState}
         onClose={() => setDialogState({ isOpen: false, mode: "create" })}
         workspaceTimezone={workspaceTimezone}
@@ -1047,6 +1089,7 @@ export function AgendaView({
 
       {/* Modal de Personalização de Cores e Visibilidade de Agendas */}
       <AgendaColorsDialog
+        key={isColorsDialogOpen ? "colors-open" : "colors-closed"}
         isOpen={isColorsDialogOpen}
         onClose={() => setIsColorsDialogOpen(false)}
         calendars={calendarConfigs}
