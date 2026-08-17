@@ -41,12 +41,14 @@ export default async function PipelinePage({
     );
   }
 
-  const [stages, leads, products, members, channelConnections] = await Promise.all([
+  const channelConnections = await getChannelConnections(context.workspace.id);
+  const activeChannelId = selectedChannel || channelConnections[0]?.id || null;
+
+  const [stages, leads, products, members] = await Promise.all([
     getStages(pipeline.id),
-    getBoardLeads(pipeline.id, selectedChannel),
+    getBoardLeads(pipeline.id, activeChannelId),
     getProducts(context.workspace.id, true),
     getMembers(context.workspace.id),
-    getChannelConnections(context.workspace.id),
   ]);
 
   const channelOptions = channelConnections.map((ch) => ({
@@ -64,6 +66,8 @@ export default async function PipelinePage({
       leads={leads}
       products={products}
       members={members}
+      channelOptions={channelOptions}
+      activeChannelId={activeChannelId}
     />
   );
 }

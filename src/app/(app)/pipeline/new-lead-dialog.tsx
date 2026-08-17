@@ -21,10 +21,12 @@ export function NewLeadDialog({
   stages,
   products,
   members,
+  defaultChannelConnectionId,
 }: {
   stages: Stage[];
   products: Product[];
   members: Member[];
+  defaultChannelConnectionId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [force, setForce] = useState(false);
@@ -72,6 +74,11 @@ export function NewLeadDialog({
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
+          <input
+            type="hidden"
+            name="channelConnectionId"
+            value={defaultChannelConnectionId ?? ""}
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor="leadName">Nome *</Label>
             <Input id="leadName" name="name" required maxLength={160} />

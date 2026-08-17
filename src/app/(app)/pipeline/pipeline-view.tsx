@@ -25,6 +25,8 @@ function subscribeToMobile(onChange: () => void) {
   return () => media.removeEventListener("change", onChange);
 }
 
+import { ChannelSelector, type ChannelOption } from "@/components/channel-selector";
+
 export interface BoardFilters {
   search: string;
   channel: string;
@@ -40,6 +42,8 @@ export function PipelineView({
   leads,
   products,
   members,
+  channelOptions,
+  activeChannelId,
 }: {
   workspaceId: string;
   pipelineId: string;
@@ -48,6 +52,8 @@ export function PipelineView({
   leads: LeadCard[];
   products: Product[];
   members: Member[];
+  channelOptions?: ChannelOption[];
+  activeChannelId?: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -136,13 +142,19 @@ export function PipelineView({
     <section className="flex min-w-0 flex-col gap-5">
       {/* Cabeçalho do Pipeline com Alternância e Novo Lead */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold text-primary tracking-tight">
             Pipeline
           </h1>
           <span className="rounded-full bg-secondary px-3 py-0.5 text-xs font-semibold text-secondary-foreground">
             {filtered.length} leads
           </span>
+
+          {channelOptions && channelOptions.length > 0 ? (
+            <div className="ml-1">
+              <ChannelSelector channels={channelOptions} />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -184,6 +196,7 @@ export function PipelineView({
             stages={stages}
             products={products}
             members={members}
+            defaultChannelConnectionId={activeChannelId}
           />
         </div>
       </div>

@@ -8,6 +8,8 @@ import { channelLabel, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/validation";
 
+import { ChannelSelector } from "@/components/channel-selector";
+
 export const metadata: Metadata = { title: "Conversas" };
 
 interface ConversationRow {
@@ -33,49 +35,60 @@ export default async function ConversationsPage({
   const selectedChannel = typeof sp.linha === "string" ? sp.linha : null;
 
   const supabase = await createClient();
+  const channelConnections = await getChannelConnections(context.workspace.id);
+  const activeChannelId = selectedChannel || channelConnections[0]?.id || null;
 
-  const [channelConnections, { data: conversations }] = await Promise.all([
-    getChannelConnections(context.workspace.id),
-    (() => {
-      let query = supabase
-        .from("conversations")
-        .select(
-          "id, provider, lead_id, last_message_at, last_message_preview, unread_count, channel_connection_id, leads (name)",
-        )
-        .eq("workspace_id", context.workspace.id)
-        .order("last_message_at", { ascending: false, nullsFirst: false })
-        .limit(100);
+  const { data: conversations } = await (() => {
+    let query = supabase
+      .from("conversations")
+      .select(
+        "id, provider, lead_id, last_message_at, last_message_preview, unread_count, channel_connection_id, leads (name)",
+      )
+      .eq("workspace_id", context.workspace.id)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .limit(100);
 
-      if (selectedChannel) {
-        query = query.eq("channel_connection_id", selectedChannel);
-      }
+    if (activeChannelId) {
+      query = query.eq("channel_connection_id", activeChannelId);
+    }
 
-      return query.returns<ConversationRow[]>();
-    })(),
-  ]);
+    return query.returns<ConversationRow[]>();
+  })();
+
+  const channelOptions = channelConnections.map((ch) => ({
+    id: ch.id,
+    label: ch.display_name ?? ch.provider,
+    phoneNumber: ch.phone_number,
+  }));
 
   const channelMap = new Map(channelConnections.map((c) => [c.id, c.display_name ?? c.provider]));
 
   return (
     <section className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-2xl font-bold text-primary tracking-tight">
             Conversas
           </h1>
           <span className="rounded-full bg-secondary px-3 py-0.5 text-xs font-semibold text-secondary-foreground">
             {conversations?.length ?? 0} ativas
           </span>
+
+          {channelOptions.length > 0 ? (
+            <div className="ml-1">
+              <ChannelSelector channels={channelOptions} />
+            </div>
+          ) : null}
         </div>
       </div>
 
       {(conversations ?? []).length === 0 ? (
         <div className="ordo-card flex min-h-64 flex-col items-center justify-center gap-3 p-8 text-center">
           <span className="text-3xl">💬</span>
-          <p className="font-semibold text-sm">Nenhuma conversa encontrada</p>
+          <p className="font-semibold text-sm">Nenhuma conversa nesta linha</p>
           <p className="max-w-md text-xs text-muted-foreground">
-            {selectedChannel
-              ? "Nenhuma conversa registrada nesta linha. Troque o filtro no topo ou aguarde novas mensagens."
+            {activeChannelId
+              ? "Nenhuma conversa registrada nesta linha de atendimento. Novas mensagens aparecerão aqui automaticamente."
               : "As conversas aparecem aqui quando o WhatsApp ou o Instagram estiverem conectados em Configurações → Integrações."}
           </p>
         </div>

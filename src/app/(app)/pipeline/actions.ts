@@ -64,6 +64,7 @@ const createLeadSchema = z.object({
   productId: z.union([uuid, z.literal("")]).optional(),
   ownerId: z.union([uuid, z.literal("")]).optional(),
   potentialValue: z.string().optional(),
+  channelConnectionId: z.union([uuid, z.literal("")]).optional(),
 });
 
 export interface CreateLeadState {
@@ -89,6 +90,7 @@ export async function createLead(
     productId: formData.get("productId") ?? "",
     ownerId: formData.get("ownerId") ?? "",
     potentialValue: formData.get("potentialValue") ?? "",
+    channelConnectionId: formData.get("channelConnectionId") ?? "",
   });
 
   if (!parsed.success) {
@@ -136,6 +138,7 @@ export async function createLead(
       phone,
       email,
       owner_id: parsed.data.ownerId || null,
+      channel_connection_id: parsed.data.channelConnectionId || null,
       potential_value:
         potentialValue !== null && Number.isFinite(potentialValue)
           ? potentialValue
