@@ -16,24 +16,29 @@ interface ChatMessage {
 
 const CATEGORY_SHORTCUTS = [
   {
+    icon: "🛡️",
+    label: "Quebra de Objeções",
+    prompt: "O paciente achou o valor da sessão caro e perguntou se aceitamos convênio. Como a secretária/terapeuta deve responder para quebrar essa objeção com elegância e converter o atendimento?",
+  },
+  {
+    icon: "💬",
+    label: "Follow-up Paciente Sumido",
+    prompt: "Escreva uma mensagem acolhedora e elegante de follow-up para um paciente que não respondeu há 3 dias após enviarmos os valores.",
+  },
+  {
     icon: "🧠",
-    label: "Casos Clínicos",
-    prompt: "Como fortalecer a aliança terapêutica e manejar a resistência inicial em pacientes ansiosos?",
+    label: "Casos Clínicos & DSM-5",
+    prompt: "Como fortalecer a aliança terapêutica e manejar a resistência inicial em pacientes com alta ansiedade?",
   },
   {
     icon: "💰",
     label: "Finanças & Hora Clínica",
-    prompt: "Como calcular o valor ideal da minha hora clínica e estruturar pacotes mensais sustentáveis?",
+    prompt: "Como calcular o valor ideal da minha hora clínica e estruturar pacotes mensais sustentáveis para evitar faltas?",
   },
   {
     icon: "📄",
     label: "Documentos CFP",
     prompt: "Quais os requisitos éticos e a estrutura obrigatória para emitir um Relatório Psicológico (Resolução CFP 06/2019)?",
-  },
-  {
-    icon: "💬",
-    label: "Follow-up WhatsApp",
-    prompt: "Escreva uma mensagem acolhedora e elegante de follow-up para um paciente que não respondeu há 3 dias.",
   },
   {
     icon: "🚨",
@@ -50,7 +55,7 @@ export function AppAssistantChatbot() {
     {
       id: "welcome",
       sender: "assistant",
-      text: "Olá! Sou seu **Especialista & Copiloto Clínico ORDO** 🌿\n\nEstou conectado à sua **IA Local (Ollama)** e pronto para te apoiar em:\n• 🧠 **Manejo Clínico & Hipóteses DSM-5**\n• 💰 **Precificação, Honorários & Finanças**\n• 📄 **Elaboração de Documentos CFP (Laudos/Atestados)**\n• 💬 **Comunicação Humanizada & WhatsApp**\n• 🚀 **Gestão e Desenvolvimento da Carreira**\n\nEm que posso te auxiliar hoje?",
+      text: "Olá! Sou seu **Especialista em Vendas Consultivas, Quebra de Objeções & Prática Clínica ORDO** 🌿\n\nEstou conectado à sua **IA Local (Ollama)** e treinado em metodologias de negociação ética (NEPQ, SPIN Selling) para te apoiar em:\n• 🛡️ **Quebra de Objeções (Preço, Convênio, Online vs Presencial, 'Vou Pensar')**\n• 💬 **Condução de Atendimento & Scripts de WhatsApp**\n• 🧠 **Manejo Clínico & Hipóteses DSM-5**\n• 💰 **Precificação, Honorários & Finanças**\n• 📄 **Documentos CFP (Laudos/Relatórios/Atestados)**\n\nQual situação ou dúvida você gostaria de conduzir agora?",
       timestamp: "Agora",
       model: "Ollama Local (qwen2.5:7b)",
     },

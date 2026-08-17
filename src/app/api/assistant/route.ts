@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/auth";
 import { generateAICompletion } from "@/lib/ai/client";
+import { matchObjection, SALES_OBJECTIONS_PLAYBOOK } from "@/lib/ai/sales-playbook";
 
 export async function POST(req: NextRequest) {
   const context = await getSessionContext();
@@ -18,56 +19,90 @@ export async function POST(req: NextRequest) {
     const stageContext = stage ? `Etapa no CRM: ${stage}. ` : "";
     const categoryContext = category ? `Área da consulta: ${category}. ` : "";
 
+    // Objeção identificada no playbook
+    const matched = matchObjection(prompt);
+    let objectionContext = "";
+    if (matched) {
+      objectionContext = `
+FRAMEWORK RECOMENDADO PARA ESTA OBJEÇÃO:
+- Objeção: ${matched.objection}
+- Diagnóstico: ${matched.diagnosis}
+- Estratégia: ${matched.strategy}
+- Script Sugerido para Secretária: ${matched.scriptSecretary}
+- Script Sugerido para Terapeuta: ${matched.scriptTherapist}
+`;
+    }
+
     const systemPrompt = `
-Você é o ORDO Assistant, o Copiloto Clínico, Financeiro e Estratégico de Inteligência Artificial integrado ao ORDO CRM.
-Você é um especialista sênior em Psicologia Clínica, Psiquiatria, Gestão de Consultórios de Saúde Mental, Legislação do CFP/CFM e Inteligência Financeira para profissionais da saúde.
+Você é o ORDO Assistant, o Copiloto Especialista Sênior em Vendas Consultivas, Quebra de Objeções, Prática Clínica e Gestão Financeira para Consultórios e Clínicas de Saúde Mental.
 
-Você auxilia terapeutas, psicólogos e médicos em 4 grandes pilares fundamentais:
+Você domina as metodologias de vendas éticas mais respeitadas do mundo (NEPQ - Neuro-Emotional Persuasion Questions, SPIN Selling, Harvard Negotiation Project e Comunicação Não-Violenta), adaptadas estritamente ao Código de Ética Profissional (CFP/CFM).
 
-1. 🧠 PRÁTICA CLÍNICA & SAÚDE MENTAL:
-   - Discussão de hipóteses diagnósticas e critérios do DSM-5-TR e CID-11.
-   - Sugestões de intervenções e técnicas baseadas em evidências (TCC, Psicanálise, ACT, DBT, Sistêmica, Humanista, Fenomenologia, Gestalt, etc.).
-   - Protocolos de manejo de crises, ideação suicida, surtos psicóticos, ataques de pânico e encaminhamento psiquiátrico.
-   - Estruturação de documentos psicológicos conforme a Resolução CFP nº 06/2019 (Declaração, Atestado, Relatório Psicológico, Laudo e Parecer).
-   - Manejo do setting terapêutico, enquadre, faltas, transferência/contratransferência e término de tratamento.
+SEUS 5 PILARES DE ATUAÇÃO:
 
-2. 💰 FINANÇAS, TRIBUTAÇÃO & PRECIFICAÇÃO:
-   - Cálculo de valor de hora clínica, custos fixos/variáveis e formação de honorários.
-   - Modelos de cobrança (sessão avulsa, pacote mensal pré-pago, reajuste anual).
-   - Tributação do profissional de saúde: Carnê-Leão, Livro Caixa, deduções legais, DMED, Simples Nacional vs. PF.
-   - Emissão de recibos e notas fiscais para reembolso de convênios (Unimed, Bradesco, Amil, SulAmérica, etc.).
-   - Gestão ética e elegante de inadimplência e atrasos.
+1. 🛡️ QUEBRA DE OBJEÇÕES & CONDUÇÃO DE VENDAS (MÁXIMA PRIORIDADE):
+   - **Objeção de Preço ("Achei caro / Sem dinheiro"):** Validação empática + reformulação do custo da inação + pacote mensal pré-pago + recibo para reembolso de 60% a 100% no convênio.
+   - **Objeção de Convênio ("Só passo por convênio / Vocês aceitam meu plano?"):** Valorizar o atendimento particular de 50 min dedicados x consultas rápidas + instruir o passo a passo simples do Reembolso Livre Escolha no app do convênio (Unimed, Bradesco, Amil, SulAmérica).
+   - **Objeção de Terapia Online ("Prefiro presencial / Não sei se funciona"):** Citar validação do CFP, conforto no próprio lar, zero trânsito e propor 1ª sessão experimental no Google Meet.
+   - **Objeção de Tempo ("Estou sem tempo / Rotina corrida"):** Reposicionar a terapia como alívio da sobrecarga e economia de estresse; oferecer horários alternativos (manhã, almoço, noturno).
+   - **Objeção de Indecisão ("Vou pensar / Depois aviso"):** Não pressionar; abrir espaço para dúvidas ocultas e oferecer pré-reserva temporária de horário para evitar perda da vaga.
+   - **Objeção de Terceiros ("Vou falar com meu marido/esposa"):** Apoiar a decisão conjunta e munir o lead com resumo de reembolso e horários.
+   - **Supervisão Clínica B2B:** Demonstrar o retorno prático: segurança nos manejos, retenção de pacientes por 4x mais tempo e valorização da hora clínica.
 
-3. 🚀 DESENVOLVIMENTO DE CARREIRA & GESTÃO:
-   - Posicionamento profissional ético e atração de pacientes particulares qualificados.
-   - Prevenção do Burnout do terapeuta, organização da rotina clínica e supervisão.
-   - Estratégias de fidelização e redução de abandono de tratamento.
+2. 🧠 PRÁTICA CLÍNICA & SAÚDE MENTAL:
+   - Hipóteses diagnósticas (DSM-5-TR, CID-11), intervenções por abordagem (TCC, Psicanálise, ACT, DBT, Sistêmica, Humanista).
+   - Manejo de crises, risco de suicídio, quebra ética de sigilo e documentos CFP (Resolução CFP 06/2019).
 
-4. 💬 COMUNICAÇÃO & OPERAÇÃO NO WHATSAPP:
-   - Redação de mensagens humanizadas, acolhedoras, empáticas e sem tom apelativo ou puramente comercial.
-   - Confirmações de sessões com link do Google Meet, follow-ups de pacientes inativos e informativos de recesso.
+3. 💰 FINANÇAS & PRECIFICAÇÃO:
+   - Cálculo de hora clínica, honorários, Carnê-Leão, Livro Caixa, DMED e gestão de inadimplência.
+
+4. 🚀 DESENVOLVIMENTO & CARREIRA:
+   - Posicionamento de autoridade ética, captação de particulares e prevenção de Burnout.
+
+5. 💬 WHATSAPP & COMUNICAÇÃO:
+   - Respostas humanizadas, follow-ups de pacientes sumidos e confirmações de consultas.
 
 DIRETRIZES DE RESPOSTA:
-- Responda em português do Brasil com linguagem sofisticada, acolhedora, precisa e prática.
-- Use formatação Markdown rica (títulos, marcadores, passos práticos e blocos de destaque).
-- Quando o usuário pedir um texto de mensagem ou modelo de documento, forneça o texto pronto e formatado para cópia.
-${patientContext}${stageContext}${categoryContext}
+- Forneça sempre o **diagnóstico da objeção**, a **estratégia recomendada** e o **script pronto e formatado para copiar e colar no WhatsApp**.
+- Linguagem elegante, empática, acolhedora e altamente persuasiva sem ser agressiva ou antiética.
+${patientContext}${stageContext}${categoryContext}${objectionContext}
 `;
 
     // 1. Tenta gerar via Cliente de IA Unificado (Ollama Local prioritário -> Groq -> OpenAI -> Gemini)
     const aiResponse = await generateAICompletion({
       systemPrompt,
       userPrompt: prompt,
-      temperature: 0.5,
+      temperature: 0.4,
     });
 
     if (aiResponse && aiResponse.text) {
       return NextResponse.json({ reply: aiResponse.text, model: aiResponse.model });
     }
 
-    // 2. Fallback para Motor Clínico Heurístico Estruturado
-    const reply = generateComprehensiveClinicalResponse(prompt, patientName);
-    return NextResponse.json({ reply, model: "Motor Clínico ORDO (NLP Integrado)" });
+    // 2. Fallback para Motor Heurístico com Playbook
+    if (matched) {
+      const fallbackReply = `### 🛡️ Estratégia de Quebra de Objeção: "${matched.objection}"
+
+**Diagnóstico:** ${matched.diagnosis}
+**Estratégia:** ${matched.strategy}
+
+---
+
+#### 💬 Script Pronto para a Secretária / WhatsApp:
+${matched.scriptSecretary}
+
+---
+
+#### 👨‍⚕️ Script para o Terapeuta / Alinhamento Clínico:
+${matched.scriptTherapist}
+
+💡 *Fundamentação Clínica:* ${matched.clinicalRationale}`;
+
+      return NextResponse.json({ reply: fallbackReply, model: "Playbook ORDO de Vendas (Integrado)" });
+    }
+
+    const genericReply = generateComprehensiveClinicalResponse(prompt, patientName);
+    return NextResponse.json({ reply: genericReply, model: "Motor Clínico ORDO (NLP Integrado)" });
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Erro ao processar consulta com o assistente." },
@@ -76,92 +111,15 @@ ${patientContext}${stageContext}${categoryContext}
   }
 }
 
-/** Motor Heurístico de Fallback Amplo para Clínico, Financeiro e Gestão */
 function generateComprehensiveClinicalResponse(prompt: string, patientName?: string): string {
-  const name = patientName || "[Nome do Paciente]";
-  const lower = prompt.toLowerCase();
+  const name = patientName || "[Nome do Contato]";
+  return `### 🌿 Condução Consultiva & Estratégica ORDO
 
-  // 1. FINANÇAS & PRECIFICAÇÃO
-  if (lower.includes("precificar") || lower.includes("hora clínica") || lower.includes("honorário") || lower.includes("quanto cobrar")) {
-    return `### 💡 Guia de Precificação da Hora Clínica
+Para conduzir a situação sobre "${prompt}" com excelência:
 
-Para calcular o valor justo da sua sessão, utilize a fórmula recomendada de gestão para consultórios:
+1. **Acolha e Valide:** Comece demonstrando escuta ativa e acolhimento sobre a demanda do paciente/contato.
+2. **Apresente o Caminho Claro:** Explique como funciona o processo, horários disponíveis e o investimento de forma transparente.
+3. **Chame para a Ação:** Finalize com uma pergunta aberta convidativa (ex: "Você prefere o período da manhã ou da tarde para agendarmos sua sessão?").
 
-$$\\text{Valor da Sessão} = \\frac{\\text{Custos Fixos} + \\text{Investimentos/Supervisão} + \\text{Meta de Pró-Labore}}{\\text{Horas Atendidas no Mês (com margem de 15\\% de faltas)}}$$
-
-**Passo a Passo Prático:**
-1. **Calcule os custos fixos mensais:** Aluguel, sublocação, plataformas (ORDO CRM, prontuário), CRP/CFM, anuidade e contabilidade.
-2. **Defina seu teto de atendimento sustentável:** Entre 20 e 25 sessões semanais para evitar exaustão e sobrecarga emocional.
-3. **Considere a margem de oscilação:** Preveja 15% de cancelamentos ou semanas de recesso.
-4. **Formato de Contratação:** Oferecer pacotes mensais pré-pagos (ex: 4 sessões mensais pagas no início do mês) garante fluxo de caixa estável e reduz faltas em mais de 70%.`;
-  }
-
-  if (lower.includes("imposto") || lower.includes("carnê-leão") || lower.includes("carne leao") || lower.includes("livro caixa") || lower.includes("dmed")) {
-    return `### 📊 Orientações Fiscais & Tributárias para Consultórios
-
-• **Carnê-Leão (Mensal Obrigatório):** Psicólogos e médicos que atendem pessoa física devem escriturar mensalmente os recebimentos no portal e-CAC da Receita Federal.
-• **Livro Caixa (Deduções Legais):** Você pode deduzir despesas diretamente ligadas ao exercício da profissão:
-  - Aluguel/condomínio do consultório ou taxa de sublocação.
-  - Softwares clínicos e ferramentas de gestão (ORDO CRM).
-  - Anuidade do CRP/CFM e cursos de pós-graduação/supervisão técnica.
-  - Energia, internet e material de escritório.
-• **DMED (Declaração de Serviços Médicos e de Saúde):** Deve ser enviada anualmente informando CPF e valores recebidos de cada paciente para validação na malha fina da Receita.`;
-  }
-
-  // 2. DOCUMENTOS CFP
-  if (lower.includes("laudo") || lower.includes("atestado") || lower.includes("relatório") || lower.includes("parecer") || lower.includes("cfp")) {
-    return `### 📄 Estrutura de Documentos Psicológicos (Resolução CFP nº 06/2019)
-
-Os 5 tipos oficiais de documentos e suas finalidades:
-
-1. **Declaração:** Informa apenas comparecimento, dias e horários das sessões (sem sigilo de diagnóstico).
-2. **Atestado Psicológico:** Certifica condições de saúde mental, aptidão ou necessidade de afastamento com base em avaliação prévia.
-3. **Relatório Psicológico:** Descreve a evolução do caso, demanda, procedimentos e conclusões terapêuticas para outros profissionais ou escolas.
-4. **Laudo Psicológico:** Documento pericial e conclusivo resultante de processo formal de Avaliação Psicológica.
-5. **Parecer Psicológico:** Resposta técnica e fundamentada a uma consulta específica sobre questão psicológica.
-
-⚠️ **Estrutura obrigatória:** Identificação, Descrição da Demanda, Procedimento, Análise e Conclusão com assinatura e número de registro no CRP.`;
-  }
-
-  // 3. MANEJO CLÍNICO & CRISES
-  if (lower.includes("suicíd") || lower.includes("suicid") || lower.includes("crise") || lower.includes("automutila") || lower.includes("emergência")) {
-    return `### 🚨 Protocolo de Manejo de Crise & Risco Imediato
-
-1. **Avaliação de Letalidade & Intencionalidade:**
-   - Investigue plano, acesso a meios e histórico prévio de tentativas.
-   - Mantenha postura empática, calma e sem julgamentos moralistas.
-2. **Quebra Ética de Sigilo (Art. 9º do Código de Ética CFP):**
-   - Em caso de risco iminente à vida, o sigilo profissional deve ser quebrado no estrito limite necessário para proteger o paciente.
-3. **Acionamento da Rede de Apoio:**
-   - Notifique imediatamente o contato de emergência cadastrado no prontuário.
-   - Encaminhe para avaliação psiquiátrica de urgência ou Pronto Atendimento / UPA.
-4. **Contatos de Suporte 24h:**
-   - **CVV (Centro de Valorização da Vida):** Telefone **188** (gratuito).
-   - **SAMU:** 192 (em caso de intoxicação ou emergência médica).`;
-  }
-
-  // 4. MENSAGENS E ATENDIMENTO
-  if (lower.includes("confirma") || lower.includes("lembrete")) {
-    return `Olá, ${name}! Tudo bem? 🌿
-
-Passando para confirmar nossa sessão agendada para **amanhã, às [Horário]**.
-
-📍 **Modalidade:** [Online via Google Meet / Consultório Presencial]
-🔗 **Link da sala:** [Link do Google Meet]
-
-Caso precise de qualquer ajuste, fico à disposição. Até breve!`;
-  }
-
-  return `### 🌿 Análise e Orientação Clínica ORDO
-
-Sobre a sua solicitação a respeito de "${prompt}":
-
-1. **Abordagem Recomendada:**
-   - Avalie o enquadre terapêutico e o alinhamento de expectativas com o paciente.
-   - Mantenha a clareza na comunicação e o registro detalhado em prontuário.
-2. **Próximos Passos Práticos:**
-   - Formalize os acordos de horários, valores e termos de sigilo.
-   - Utilize as ferramentas do ORDO CRM para acompanhar o ciclo de acompanhamento.
-
-💡 *Dica:* Estou conectado à sua **IA Local (Ollama)** e pronto para responder dúvidas detalhadas sobre casos clínicos, tributação, documentos CFP e estratégias de consultório!`;
+💡 *Dica:* Se o paciente apresentar dúvidas sobre valores ou convênio, utilize o recurso de **Reembolso de Convênio** e os **Pacotes Mensais** para facilitar a decisão.`;
 }
