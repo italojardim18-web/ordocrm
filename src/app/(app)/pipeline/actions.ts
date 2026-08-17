@@ -567,6 +567,63 @@ export async function setLeadFollowUp(
   return {};
 }
 
+export async function completeLeadFollowUp(
+  leadId: string,
+  outcome: "completed" | "not_completed",
+  note?: string | null,
+): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({
+      leadId: uuid,
+      outcome: z.enum(["completed", "not_completed"]),
+      note: z.string().trim().max(500).nullable().optional(),
+    })
+    .safeParse({ leadId, outcome, note });
+
+  if (!parsed.success) return { error: "Dados inválidos." };
+
+  const supabase = await createClient();
+
+  const isCompleted = parsed.data.outcome === "completed";
+  const motivoTexto = parsed.data.note ? ` ("${parsed.data.note}")` : "";
+  const content = isCompleted
+    ? `✅ Follow-up realizado com sucesso${motivoTexto}`
+    : `⚠️ Follow-up marcado como não realizado / sem retorno${motivoTexto}`;
+
+  // 1. Registra no histórico de atividades
+  await supabase.from("activities").insert({
+    workspace_id: context.workspace.id,
+    lead_id: leadId,
+    type: "system",
+    content,
+    actor_id: context.user.id,
+  });
+
+  // 2. Limpa o follow-up atual do lead e atualiza última interação se concluído
+  const updateData: Record<string, any> = {
+    follow_up_at: null,
+    follow_up_note: null,
+  };
+  if (isCompleted) {
+    updateData.last_interaction_at = new Date().toISOString();
+  }
+
+  const { error } = await supabase
+    .from("leads")
+    .update(updateData)
+    .eq("id", leadId);
+
+  if (error) return { error: "Não foi possível concluir o follow-up." };
+
+  revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/lead/${leadId}`);
+  revalidatePath("/dashboard");
+  return {};
+}
+
 export async function setLeadTemperatureOverride(
   leadId: string,
   override: "hot" | "warm" | "cold" | null,
