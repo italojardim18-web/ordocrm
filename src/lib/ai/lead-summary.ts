@@ -25,10 +25,10 @@ export async function generateLeadAISummary(
   try {
     const supabase = await createClient();
 
-    // 1. Busca dados do Lead
+    // 1. Busca dados do Lead com colunas reais do schema
     const { data: lead, error: leadError } = await supabase
       .from("leads")
-      .select("id, name, phone, email, status, temperature, origin, notes_summary, metadata, stage_id, workspace_id")
+      .select("id, name, phone, email, channel, source_detail, notes_summary, stage_id, workspace_id")
       .eq("id", leadId)
       .is("deleted_at", null)
       .maybeSingle();
@@ -119,7 +119,7 @@ export async function generateLeadAISummary(
     // Executa inferência com IA (Ollama Local prioritário)
     const aiResponse = await generateAICompletion({
       systemPrompt: SUMMARY_SYSTEM_PROMPT,
-      userPrompt: `Paciente: ${lead.name}\nEtapa atual: ${stageName}\nOrigem: ${lead.origin || "WhatsApp"}\n\nHistórico de Interações:\n${conversationText || "Nenhuma mensagem anterior registrada."}`,
+      userPrompt: `Paciente: ${lead.name}\nEtapa atual: ${stageName}\nOrigem/Canal: ${lead.channel || lead.source_detail || "WhatsApp"}\n\nHistórico de Interações:\n${conversationText || "Nenhuma mensagem anterior registrada."}`,
       jsonFormat: true,
       temperature: 0.2,
     });
@@ -240,7 +240,7 @@ function generateHeuristicSummary(
     openPoint = "Responder última mensagem do paciente e sugerir vaga.";
   }
 
-  const notesSummary = `Paciente ${lead.name}, captado(a) via ${lead.origin || "Indicação/WhatsApp"}. Encontra-se na etapa "${stageName}". ${need} ${moment}`;
+  const notesSummary = `Paciente ${lead.name}, captado(a) via ${lead.channel || lead.source_detail || "Indicação/WhatsApp"}. Encontra-se na etapa "${stageName}". ${need} ${moment}`;
 
   return {
     notes_summary: notesSummary,
