@@ -11,13 +11,35 @@ interface ChatMessage {
   sender: "user" | "assistant";
   text: string;
   timestamp: string;
+  model?: string;
 }
 
-const SHORTCUTS = [
-  { label: "📌 Follow-up acolhedor", prompt: "Escreva uma mensagem acolhedora de follow-up para um paciente que não respondeu há 3 dias." },
-  { label: "📅 Confirmar consulta", prompt: "Crie uma mensagem elegante para confirmar a sessão de amanhã com link do Google Meet." },
-  { label: "💡 Apresentar valores", prompt: "Como posso apresentar o valor da consulta psicológica de forma empática e valorizada?" },
-  { label: "🤝 Reativação de paciente", prompt: "Escreva uma mensagem de reativação para um paciente que interrompeu o tratamento há 2 meses." },
+const CATEGORY_SHORTCUTS = [
+  {
+    icon: "🧠",
+    label: "Casos Clínicos",
+    prompt: "Como fortalecer a aliança terapêutica e manejar a resistência inicial em pacientes ansiosos?",
+  },
+  {
+    icon: "💰",
+    label: "Finanças & Hora Clínica",
+    prompt: "Como calcular o valor ideal da minha hora clínica e estruturar pacotes mensais sustentáveis?",
+  },
+  {
+    icon: "📄",
+    label: "Documentos CFP",
+    prompt: "Quais os requisitos éticos e a estrutura obrigatória para emitir um Relatório Psicológico (Resolução CFP 06/2019)?",
+  },
+  {
+    icon: "💬",
+    label: "Follow-up WhatsApp",
+    prompt: "Escreva uma mensagem acolhedora e elegante de follow-up para um paciente que não respondeu há 3 dias.",
+  },
+  {
+    icon: "🚨",
+    label: "Manejo de Crises",
+    prompt: "Qual é o protocolo ético de quebra de sigilo e suporte em caso de ideação suicida ou risco iminente?",
+  },
 ];
 
 export function AppAssistantChatbot() {
@@ -28,8 +50,9 @@ export function AppAssistantChatbot() {
     {
       id: "welcome",
       sender: "assistant",
-      text: "Olá! Sou seu assistente de atendimento e gestão do ORDO CRM. Posso redigir mensagens para WhatsApp, criar follow-ups, roteiros de acolhimento ou tirar dúvidas. Em que posso te apoiar agora?",
+      text: "Olá! Sou seu **Especialista & Copiloto Clínico ORDO** 🌿\n\nEstou conectado à sua **IA Local (Ollama)** e pronto para te apoiar em:\n• 🧠 **Manejo Clínico & Hipóteses DSM-5**\n• 💰 **Precificação, Honorários & Finanças**\n• 📄 **Elaboração de Documentos CFP (Laudos/Atestados)**\n• 💬 **Comunicação Humanizada & WhatsApp**\n• 🚀 **Gestão e Desenvolvimento da Carreira**\n\nEm que posso te auxiliar hoje?",
       timestamp: "Agora",
+      model: "Ollama Local (qwen2.5:7b)",
     },
   ]);
 
@@ -71,6 +94,7 @@ export function AppAssistantChatbot() {
         sender: "assistant",
         text: data.reply || "Desculpe, não consegui processar a resposta.",
         timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        model: data.model || "Ollama Local",
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -83,27 +107,32 @@ export function AppAssistantChatbot() {
 
   function handleCopy(text: string) {
     navigator.clipboard.writeText(text);
-    toast.success("Mensagem copiada para a área de transferência!");
+    toast.success("Conteúdo copiado para a área de transferência!");
   }
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end print:hidden">
       {/* Janela Flutuante do Chatbot */}
       {isOpen ? (
-        <div className="ordo-card mb-3 w-[23rem] sm:w-96 flex h-[32rem] flex-col overflow-hidden bg-card shadow-2xl border-2 border-primary/20 animate-in fade-in slide-in-from-bottom-4">
+        <div className="ordo-card mb-3 w-[24rem] sm:w-[26rem] flex h-[36rem] flex-col overflow-hidden bg-card shadow-2xl border-2 border-[#521D2A]/30 rounded-3xl animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header do Chatbot */}
-          <div className="bg-primary text-primary-foreground p-3.5 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-full bg-primary-foreground/15 text-primary-foreground">
+          <div className="bg-[#291015] text-white p-4 flex items-center justify-between border-b border-[#521D2A] shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-2xl bg-[#521D2A] text-[#B2966F] border border-[#B2966F]/40 shadow-inner">
                 <OrdoSymbol className="size-5" />
               </div>
               <div className="flex flex-col">
-                <span className="font-heading text-xs font-bold tracking-wide">
-                  ORDO Assistant IA
-                </span>
-                <span className="text-[10px] text-primary-foreground/75 flex items-center gap-1">
-                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Assistente Operacional
+                <div className="flex items-center gap-2">
+                  <span className="font-heading text-xs font-bold tracking-wide text-white">
+                    ORDO Assistant IA
+                  </span>
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-300 border border-emerald-500/30">
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    IA Local Ativa
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#B2966F]">
+                  Especialista Clínico, Financeiro & Gestão
                 </span>
               </div>
             </div>
@@ -111,14 +140,30 @@ export function AppAssistantChatbot() {
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="rounded-full p-1 text-primary-foreground/80 hover:bg-primary-foreground/15 transition-colors"
+              className="flex size-7 items-center justify-center rounded-xl text-stone-400 hover:text-white hover:bg-white/10 transition-colors text-xs"
             >
               ✕
             </button>
           </div>
 
+          {/* Atalhos Rápidos por Categoria */}
+          <div className="bg-[#1E0B10]/40 border-b border-border/40 p-2 overflow-x-auto flex gap-1.5 kanban-scroll shrink-0">
+            {CATEGORY_SHORTCUTS.map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSend(s.prompt)}
+                disabled={loading}
+                className="flex items-center gap-1 whitespace-nowrap rounded-xl bg-card border border-border/70 px-2.5 py-1 text-[10px] font-medium text-stone-700 dark:text-stone-300 hover:bg-[#521D2A] hover:text-white transition-all shrink-0 shadow-2xs"
+              >
+                <span>{s.icon}</span>
+                <span>{s.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Área de Mensagens */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs bg-muted/15">
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 text-xs bg-muted/10">
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -127,21 +172,27 @@ export function AppAssistantChatbot() {
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3 shadow-2xs leading-relaxed ${
+                  className={`max-w-[90%] rounded-2xl p-3.5 shadow-2xs leading-relaxed ${
                     m.sender === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-xs"
-                      : "bg-card border border-border/80 text-foreground rounded-bl-xs"
+                      ? "bg-[#521D2A] text-white rounded-br-xs"
+                      : "bg-card border border-stone-200/80 dark:border-stone-800 text-foreground rounded-bl-xs"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{m.text}</p>
+                  <div className="whitespace-pre-wrap font-sans text-xs">
+                    {m.text}
+                  </div>
+
                   {m.sender === "assistant" && m.id !== "welcome" ? (
-                    <div className="mt-2.5 pt-2 border-t border-border/40 flex justify-end">
+                    <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground italic text-[9px]">
+                        {m.model || "Ollama Local"}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleCopy(m.text)}
-                        className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
+                        className="font-semibold text-primary hover:underline flex items-center gap-1"
                       >
-                        📋 Copiar mensagem
+                        📋 Copiar resposta
                       </button>
                     </div>
                   ) : null}
@@ -153,72 +204,53 @@ export function AppAssistantChatbot() {
             ))}
 
             {loading ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-xs p-2 italic">
-                <span className="size-2 rounded-full bg-primary animate-bounce" />
-                <span>Digitando sugestão...</span>
+              <div className="flex items-center gap-2 text-muted-foreground text-xs p-3 italic bg-card rounded-2xl border border-border/50 max-w-[80%]">
+                <span className="size-2 rounded-full bg-[#521D2A] animate-bounce" />
+                <span>Consultando especialista clínico e financeiro...</span>
               </div>
             ) : null}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Atalhos Rápidos */}
-          <div className="border-t border-border/50 bg-card p-2 overflow-x-auto flex gap-1.5 scrollbar-none">
-            {SHORTCUTS.map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                onClick={() => handleSend(s.prompt)}
-                disabled={loading}
-                className="shrink-0 rounded-full bg-secondary/80 hover:bg-secondary px-2.5 py-1 text-[10px] font-semibold text-primary transition-colors border border-border/60"
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
           {/* Input de Envio */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="border-t border-border/80 bg-card p-2.5 flex items-center gap-2"
-          >
+          <div className="border-t border-border/60 p-3 bg-card flex gap-2 items-center">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite o que precisa criar..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Tire dúvidas sobre casos clínicos, finanças, CFP..."
               disabled={loading}
-              className="h-9 rounded-xl text-xs"
+              className="text-xs h-10 rounded-xl bg-background border-stone-300 dark:border-stone-700"
             />
             <Button
-              type="submit"
-              size="sm"
-              disabled={loading || !input.trim()}
-              className="rounded-xl h-9 px-3 text-xs bg-primary text-primary-foreground font-semibold"
+              type="button"
+              onClick={() => handleSend()}
+              disabled={!input.trim() || loading}
+              className="h-10 px-3.5 bg-[#521D2A] text-white hover:bg-[#6b2737] rounded-xl shrink-0 font-semibold"
             >
               Enviar
             </Button>
-          </form>
+          </div>
         </div>
       ) : null}
 
-      {/* Botão Flutuante do Chatbot (Ícone no Canto Inferior Direito) */}
+      {/* Botão Flutuante de Abertura */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Abrir assistente de IA"
-        className="group relative flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl transition-all duration-200 hover:scale-108 active:scale-95 ring-4 ring-primary/20"
+        className="group flex size-13 items-center justify-center rounded-2xl bg-[#521D2A] text-white shadow-2xl transition-all duration-200 hover:scale-105 hover:bg-[#6b2737] border-2 border-[#B2966F]/50 ring-4 ring-black/10 relative"
+        title="Abrir ORDO Assistant IA"
       >
-        <span className="text-2xl transition-transform group-hover:rotate-12">
-          🤖
-        </span>
+        <OrdoSymbol className="size-7 text-[#B2966F] transition-transform group-hover:scale-110" />
 
-        {/* Badge Pulsante */}
-        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-background">
-          <span className="size-2 rounded-full bg-white animate-ping" />
-        </span>
+        {/* Ponto indicador de IA Online */}
+        <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white dark:ring-stone-900" />
       </button>
     </div>
   );
