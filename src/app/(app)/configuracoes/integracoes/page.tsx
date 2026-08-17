@@ -19,8 +19,10 @@ import { createClient } from "@/lib/supabase/server";
 import { CalendarPicker, DisconnectButton } from "./calendar-controls";
 import { MessageSimulator } from "./health";
 import { WhatsAppSessions } from "./whatsapp-sessions";
+import { AISettingsCard } from "@/components/ai-settings-card";
+import { getAISettingsAction } from "./ai-actions";
 
-export const metadata: Metadata = { title: "Integrações" };
+export const metadata: Metadata = { title: "Integrações & IA" };
 
 export default async function IntegrationsPage({
   searchParams,
@@ -41,6 +43,7 @@ export default async function IntegrationsPage({
     { count: webhookCount },
     { count: failedWebhooks },
     { count: pendingOutbox },
+    aiSettings,
   ] = await Promise.all([
     supabase
       .from("channel_connections")
@@ -60,6 +63,7 @@ export default async function IntegrationsPage({
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", context.workspace.id)
       .eq("status", "pending"),
+    getAISettingsAction(),
   ]);
 
   const whatsapp = (channels ?? []).find((c) => c.provider === "whatsapp");
@@ -87,13 +91,16 @@ export default async function IntegrationsPage({
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <h1 className="text-2xl font-semibold text-primary">Integrações</h1>
+      <h1 className="text-2xl font-semibold text-primary">Integrações & Inteligência Artificial</h1>
 
       {erro && errorMessages[erro] ? (
         <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
           {errorMessages[erro]}
         </p>
       ) : null}
+
+      {/* 1. Painel de Configurações de IA (Ollama Local prioritário e APIs Externas) */}
+      <AISettingsCard initialSettings={aiSettings} />
 
       <Card>
         <CardHeader>

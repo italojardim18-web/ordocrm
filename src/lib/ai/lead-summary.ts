@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { generateAICompletion } from "@/lib/ai/client";
 
 export interface AISummaryResult {
   notes_summary: string;
@@ -13,8 +14,9 @@ export interface AISummaryResult {
 
 /**
  * Gera o Resumo Comercial Inteligente 360° para um Lead.
- * Analisa mensagens do WhatsApp, notas clínicas/comerciais e agendamentos.
- * Utiliza LLM (Groq / OpenAI / Gemini) ou Motor Heurístico de Alta Precisão.
+ * Prioridade 1: Ollama Local (qwen2.5:7b)
+ * Prioridade 2: Groq / OpenAI / Gemini
+ * Prioridade 3: Motor Clínico Heurístico Local
  */
 export async function generateLeadAISummary(
   workspaceId: string,
@@ -23,7 +25,7 @@ export async function generateLeadAISummary(
   try {
     const supabase = await createClient();
 
-    // 1. Busca dados do Lead de forma direta e segura (sem joins frágeis)
+    // 1. Busca dados do Lead
     const { data: lead, error: leadError } = await supabase
       .from("leads")
       .select("id, name, phone, email, status, temperature, origin, notes_summary, metadata, stage_id, workspace_id")
@@ -33,7 +35,7 @@ export async function generateLeadAISummary(
 
     if (leadError) {
       console.error("Erro na busca do lead:", leadError);
-      return { success: false, error: `Erro no banco de dados: ${leadError.message}` };
+      return { success: false, error: `Erro no banco: ${leadError.message}` };
     }
 
     if (!lead) {
@@ -88,25 +90,19 @@ export async function generateLeadAISummary(
       .order("starts_at", { ascending: false })
       .limit(5);
 
-    // Contagem de fontes analisadas
     const sourceCount = messages.length + (notes?.length || 0) + (appointments?.length || 0);
 
-    // Montar texto do histórico para a IA
+    // Montar histórico
     const historyLines: string[] = [];
-
     messages.forEach((m) => {
       const sender = m.direction === "inbound" ? `[Paciente/Lead ${lead.name}]` : "[Clínica/Atendimento]";
       const content = (m.body || m.transcript || "").trim();
-      if (content) {
-        historyLines.push(`${sender}: ${content}`);
-      }
+      if (content) historyLines.push(`${sender}: ${content}`);
     });
 
     if (notes && notes.length > 0) {
       notes.forEach((n) => {
-        if (n.body?.trim()) {
-          historyLines.push(`[Anotação Clínica/Comercial]: ${n.body.trim()}`);
-        }
+        if (n.body?.trim()) historyLines.push(`[Anotação Interna]: ${n.body.trim()}`);
       });
     }
 
@@ -118,33 +114,40 @@ export async function generateLeadAISummary(
 
     const conversationText = historyLines.join("\n");
 
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-
     let result: AISummaryResult | null = null;
 
-    // TENTATIVA 1: Groq Llama 3.3 70B
-    if (!result && groqKey) {
-      result = await callGroqSummary(lead.name, conversationText, sourceCount);
+    // Executa inferência com IA (Ollama Local prioritário)
+    const aiResponse = await generateAICompletion({
+      systemPrompt: SUMMARY_SYSTEM_PROMPT,
+      userPrompt: `Paciente: ${lead.name}\nEtapa atual: ${stageName}\nOrigem: ${lead.origin || "WhatsApp"}\n\nHistórico de Interações:\n${conversationText || "Nenhuma mensagem anterior registrada."}`,
+      jsonFormat: true,
+      temperature: 0.2,
+    });
+
+    if (aiResponse) {
+      try {
+        const parsed = JSON.parse(aiResponse.text);
+        result = {
+          notes_summary: parsed.notes_summary || parsed.resumo_geral || "",
+          summary_need: parsed.summary_need || parsed.necessidade || "",
+          summary_moment: parsed.summary_moment || parsed.momento_urgencia || "",
+          summary_preference: parsed.summary_preference || parsed.preferencias || "",
+          summary_open_point: parsed.summary_open_point || parsed.ponto_aberto || "",
+          summary_source_count: sourceCount,
+          summary_model: aiResponse.model,
+          summary_generated_at: new Date().toISOString(),
+        };
+      } catch (parseErr) {
+        console.warn("Falha ao parsear JSON da IA:", parseErr);
+      }
     }
 
-    // TENTATIVA 2: OpenAI GPT-4o-mini
-    if (!result && openaiKey) {
-      result = await callOpenAISummary(lead.name, conversationText, sourceCount);
-    }
-
-    // TENTATIVA 3: Gemini 1.5 Flash
-    if (!result && geminiKey) {
-      result = await callGeminiSummary(lead.name, conversationText, geminiKey, sourceCount);
-    }
-
-    // TENTATIVA 4: Motor Heurístico Especializado Clínico (Fallback Local)
+    // Fallback para Motor Clínico Heurístico se a IA não responder
     if (!result) {
       result = generateHeuristicSummary(lead, stageName, messages, notes || [], appointments || [], sourceCount);
     }
 
-    // Salvar no Banco de Dados
+    // Salvar na tabela leads
     const nowIso = new Date().toISOString();
     result.summary_generated_at = nowIso;
 
@@ -174,135 +177,7 @@ export async function generateLeadAISummary(
   }
 }
 
-/** Chamada Groq Llama 3.3 70B */
-async function callGroqSummary(patientName: string, history: string, sourceCount: number): Promise<AISummaryResult | null> {
-  try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: SUMMARY_SYSTEM_PROMPT },
-          { role: "user", content: `Paciente: ${patientName}\n\nHistórico:\n${history || "Sem mensagens anteriores."}` },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-      }),
-    });
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    const raw = json.choices?.[0]?.message?.content;
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    return {
-      notes_summary: parsed.notes_summary || parsed.resumo_geral || "",
-      summary_need: parsed.summary_need || parsed.necessidade || "",
-      summary_moment: parsed.summary_moment || parsed.momento_urgencia || "",
-      summary_preference: parsed.summary_preference || parsed.preferencias || "",
-      summary_open_point: parsed.summary_open_point || parsed.ponto_aberto || "",
-      summary_source_count: sourceCount,
-      summary_model: "Llama 3.3 70B (Groq IA)",
-      summary_generated_at: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn("Groq summary error:", err);
-    return null;
-  }
-}
-
-/** Chamada OpenAI GPT-4o-mini */
-async function callOpenAISummary(patientName: string, history: string, sourceCount: number): Promise<AISummaryResult | null> {
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: SUMMARY_SYSTEM_PROMPT },
-          { role: "user", content: `Paciente: ${patientName}\n\nHistórico:\n${history || "Sem mensagens anteriores."}` },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-      }),
-    });
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    const raw = json.choices?.[0]?.message?.content;
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    return {
-      notes_summary: parsed.notes_summary || parsed.resumo_geral || "",
-      summary_need: parsed.summary_need || parsed.necessidade || "",
-      summary_moment: parsed.summary_moment || parsed.momento_urgencia || "",
-      summary_preference: parsed.summary_preference || parsed.preferencias || "",
-      summary_open_point: parsed.summary_open_point || parsed.ponto_aberto || "",
-      summary_source_count: sourceCount,
-      summary_model: "GPT-4o mini (OpenAI)",
-      summary_generated_at: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn("OpenAI summary error:", err);
-    return null;
-  }
-}
-
-/** Chamada Gemini 1.5 Flash */
-async function callGeminiSummary(patientName: string, history: string, apiKey: string, sourceCount: number): Promise<AISummaryResult | null> {
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: `${SUMMARY_SYSTEM_PROMPT}\n\nPaciente: ${patientName}\n\nHistórico:\n${history || "Sem mensagens anteriores."}` },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
-      }),
-    });
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    const raw = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    return {
-      notes_summary: parsed.notes_summary || parsed.resumo_geral || "",
-      summary_need: parsed.summary_need || parsed.necessidade || "",
-      summary_moment: parsed.summary_moment || parsed.momento_urgencia || "",
-      summary_preference: parsed.summary_preference || parsed.preferencias || "",
-      summary_open_point: parsed.summary_open_point || parsed.ponto_aberto || "",
-      summary_source_count: sourceCount,
-      summary_model: "Gemini 1.5 Flash (Google)",
-      summary_generated_at: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn("Gemini summary error:", err);
-    return null;
-  }
-}
-
-/** Motor Heurístico Local Especializado em Clínicas de Psicologia & Saúde Mental */
+/** Motor Heurístico Local Clínico */
 function generateHeuristicSummary(
   lead: any,
   stageName: string,
@@ -316,7 +191,6 @@ function generateHeuristicSummary(
     ...notes.map((n) => n.body || ""),
   ].join(" ").toLowerCase();
 
-  // 1. Necessidade
   let need = "Busca acolhimento e informações sobre atendimento psicológico/clínico.";
   if (allText.includes("ansiedade") || allText.includes("pânico") || allText.includes("crise")) {
     need = "Queixa de sintomas ansiosos e busca de manejo emocional.";
@@ -332,7 +206,6 @@ function generateHeuristicSummary(
     need = "Elaboração de luto e suporte em momento de perda recente.";
   }
 
-  // 2. Momento & Urgência
   let moment = "Em fase inicial de sondagem e qualificação de horários.";
   if (appointments.length > 0) {
     const nextAppt = appointments[0];
@@ -345,7 +218,6 @@ function generateHeuristicSummary(
     moment = "Engajado no atendimento via WhatsApp, avaliando agenda.";
   }
 
-  // 3. Preferências / Restrições
   const prefs: string[] = [];
   if (allText.includes("online") || allText.includes("meet") || allText.includes("vídeo")) prefs.push("Modalidade Online (Google Meet)");
   if (allText.includes("presencial") || allText.includes("consultório")) prefs.push("Modalidade Presencial");
@@ -357,7 +229,6 @@ function generateHeuristicSummary(
 
   const preference = prefs.length > 0 ? prefs.join(" · ") : "Sem restrições expressas de horário ou modalidade registradas.";
 
-  // 4. Ponto em Aberto / Próximo Passo
   let openPoint = "Apresentar opções de horários e valores da sessão.";
   if (appointments.some((a) => a.status === "scheduled")) {
     openPoint = "Enviar mensagem de confirmação de presença 24h antes da sessão.";
@@ -369,7 +240,6 @@ function generateHeuristicSummary(
     openPoint = "Responder última mensagem do paciente e sugerir vaga.";
   }
 
-  // 5. Síntese Geral
   const notesSummary = `Paciente ${lead.name}, captado(a) via ${lead.origin || "Indicação/WhatsApp"}. Encontra-se na etapa "${stageName}". ${need} ${moment}`;
 
   return {
@@ -379,26 +249,23 @@ function generateHeuristicSummary(
     summary_preference: preference,
     summary_open_point: openPoint,
     summary_source_count: sourceCount,
-    summary_model: "Motor Clínico ORDO (NLP Inteligente)",
+    summary_model: "Motor Clínico ORDO (NLP Integrado)",
     summary_generated_at: new Date().toISOString(),
   };
 }
 
 const SUMMARY_SYSTEM_PROMPT = `
-Você é o Analista Clínico e Comercial Inteligente do ORDO CRM (plataforma de alto padrão para psicólogos, terapeutas e clínicas).
-Sua missão é ler o histórico de mensagens, notas e agendamentos de um paciente/lead e extrair um Resumo Comercial 360° estruturado.
+Você é o Analista Clínico e Comercial Inteligente do ORDO CRM (plataforma para psicólogos, terapeutas e clínicas).
+Sua missão é ler o histórico de mensagens, notas e agendamentos de um paciente e gerar um Resumo Comercial 360° estruturado.
 
-Você DEVE retornar OBRIGATORIAMENTE um JSON estrito no seguinte formato:
+Retorne EXCLUSIVAMENTE um objeto JSON estrito com os seguintes campos:
 {
   "notes_summary": "Parágrafo executivo conciso (2 a 3 frases) sintetizando quem é o paciente, o contexto geral e o estágio da negociação clínica.",
-  "summary_need": "Qual é a queixa principal, motivo da procura ou necessidade terapêutica/médica identificada (ex: Sintomas de ansiedade generalizada, Terapia de casal, Avaliação neuropsicológica).",
-  "summary_moment": "Em qual momento de decisão ou urgência o paciente está (ex: Urgência alta com crise, Avaliando opções de preço, Consulta agendada).",
-  "summary_preference": "Preferências de horários, dias da semana, modalidade online/presencial, recibo/reembolso ou restrições manifestadas.",
-  "summary_open_point": "Qual é a pendência ou próximo passo comercial imediato (ex: Enviar horários de terça-feira à noite, Confirmar link do Meet, Aguardar comprovante Pix)."
+  "summary_need": "Qual é a queixa principal, motivo da procura ou necessidade terapêutica identificada.",
+  "summary_moment": "Em qual momento de decisão ou urgência o paciente está.",
+  "summary_preference": "Preferências de horários, dias, modalidade online/presencial ou recibo/reembolso.",
+  "summary_open_point": "Qual é a pendência ou próximo passo comercial imediato."
 }
 
-Regras:
-- Seja direto, clínico, profissional e focado na prática da saúde mental e consultórios.
-- Responda em português do Brasil.
-- Se algum ponto não for mencionado no histórico, preencha com uma inferência lógica ou "A ser explorado no primeiro contato".
+Responda em português do Brasil de forma concisa e profissional.
 `;

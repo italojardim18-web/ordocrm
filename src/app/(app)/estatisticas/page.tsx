@@ -7,6 +7,7 @@ import { formatBRL, channelLabel } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { OrdoSymbol } from "@/components/ordo-mark";
 import { StatsClient } from "./stats-client";
+import { AIAnalyticsDiagnosisCard } from "./ai-diagnosis-card";
 
 export const metadata: Metadata = { title: "Estatísticas & Relatórios" };
 
@@ -82,6 +83,9 @@ export default async function StatisticsPage() {
           currentClientsGoal={currentClientsGoal}
         />
       </div>
+
+      {/* Diagnóstico & Inteligência Estratégica por IA Local */}
+      <AIAnalyticsDiagnosisCard />
 
       {/* 1. Análise de Vendas & Relatório Consolidado (Cards Principais) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4 print:gap-2 break-inside-avoid">

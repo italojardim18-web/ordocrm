@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionContext } from "@/lib/auth";
+import { generateAICompletion } from "@/lib/ai/client";
 
 export async function POST(req: NextRequest) {
   const context = await getSessionContext();
@@ -8,14 +9,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { prompt, patientName, stage, channel } = await req.json();
+    const { prompt, patientName, stage } = await req.json();
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json({ error: "Prompt inválido." }, { status: 400 });
     }
-
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     const patientContext = patientName ? `Paciente atual: ${patientName}. ` : "";
     const stageContext = stage ? `Etapa no funil: ${stage}. ` : "";
@@ -28,99 +25,22 @@ Diretrizes:
 - Mantenha sempre um tom profissional, acolhedor, humanizado e sofisticado.
 - Adapte-se ao Código de Ética Profissional (CFP/CFM), valorizando o sigilo e o cuidado com a saúde mental.
 - Responda em português do Brasil de forma clara, elegante e pronta para copiar e colar no WhatsApp.
-- Quando sugerir mensagens, coloque o texto entre aspas ou em bloco destacado para facilitar a cópia.
+- Quando sugerir mensagens, coloque o texto formatado e limpo para facilitar a cópia.
 ${patientContext}${stageContext}
 `;
 
-    // 1. Tenta Groq (Llama 3.3 70B Turbo) se configurado
-    if (groqKey) {
-      try {
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqKey}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 800,
-          }),
-        });
+    // 1. Tenta gerar via Cliente de IA Unificado (Ollama Local prioritário -> Groq -> OpenAI -> Gemini)
+    const aiResponse = await generateAICompletion({
+      systemPrompt,
+      userPrompt: prompt,
+      temperature: 0.7,
+    });
 
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.choices?.[0]?.message?.content;
-          if (text) return NextResponse.json({ reply: text, model: "Llama 3.3 70B (Groq)" });
-        }
-      } catch (err) {
-        console.warn("Groq assistant fallback:", err);
-      }
+    if (aiResponse && aiResponse.text) {
+      return NextResponse.json({ reply: aiResponse.text, model: aiResponse.model });
     }
 
-    // 2. Tenta OpenAI (GPT-4o mini) se configurado
-    if (openaiKey) {
-      try {
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openaiKey}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 800,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.choices?.[0]?.message?.content;
-          if (text) return NextResponse.json({ reply: text, model: "GPT-4o mini (OpenAI)" });
-        }
-      } catch (err) {
-        console.warn("OpenAI assistant fallback:", err);
-      }
-    }
-
-    // 3. Tenta Google Gemini (1.5 Flash) se configurado
-    if (geminiKey) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: `${systemPrompt}\n\nPergunta/Solicitação do Usuário:\n${prompt}` },
-                ],
-              },
-            ],
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return NextResponse.json({ reply: text, model: "Gemini 1.5 Flash (Google)" });
-        }
-      } catch (err) {
-        console.warn("Gemini assistant fallback:", err);
-      }
-    }
-
-    // 4. Motor Especializado de NLP Local Clínico (Respostas completas, humanizadas e não genéricas)
+    // 2. Fallback para Motor Clínico Heurístico Local Especializado
     const reply = generateClinicalAssistantResponse(prompt, patientName);
     return NextResponse.json({ reply, model: "Motor Clínico ORDO (NLP Integrado)" });
   } catch (error: any) {
@@ -223,7 +143,6 @@ Informamos que nosso consultório estará em recesso profissional do dia [Data I
 Desejamos a você um excelente período de descanso e renovação!"`;
   }
 
-  // Resposta padrão aprimorada com estrutura humanizada
   return `Entendido! Para a sua solicitação sobre "${prompt}", elaborei a seguinte proposta de mensagem humanizada e refinada:
 
 "Olá, ${name}! Tudo bem? 🌿

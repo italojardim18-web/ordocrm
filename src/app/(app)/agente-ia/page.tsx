@@ -6,6 +6,8 @@ import { getChannelConnections } from "@/lib/crm/queries";
 import { Badge } from "@/components/ui/badge";
 import { ReactivationPanel, type LostLeadItem } from "./reactivation-panel";
 import { StageTriggersPanel, type StageTriggerItem } from "./stage-triggers-panel";
+import { AISettingsCard } from "@/components/ai-settings-card";
+import { getAISettingsAction } from "@/app/(app)/configuracoes/integracoes/ai-actions";
 
 export const metadata: Metadata = { title: "Agente de IA & Automações" };
 
@@ -20,6 +22,7 @@ export default async function AIAgentPage() {
     channelConnections,
     { data: lostLeadsRaw },
     { data: stagesRaw },
+    aiSettings,
   ] = await Promise.all([
     supabase
       .from("workspaces")
@@ -38,6 +41,7 @@ export default async function AIAgentPage() {
       .from("pipeline_stages")
       .select("id, name, stage_type, position, automation_message_enabled, automation_message_template, automation_reminder_24h, automation_reminder_template")
       .order("position", { ascending: true }),
+    getAISettingsAction(),
   ]);
 
   const channels = channelConnections.map((ch) => ({
@@ -85,16 +89,19 @@ export default async function AIAgentPage() {
               Agente de IA & Automações
             </h1>
             <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-3 py-0.5 text-xs font-semibold">
-              Ativo
+              ● IA Local Conectada
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Automações de mensagens de WhatsApp por etapa do funil, agendamentos com link do Meet e reativação inteligente de pacientes.
+            IA Local (Ollama) e provedores na nuvem para diagnósticos, resumos de leads, assistente no WhatsApp e automações clínicas.
           </p>
         </div>
       </div>
 
-      {/* 1. Automação de Mensagens por Mudança de Etapa / Agendamento (NOVO - Estilo Kommo) */}
+      {/* 1. Painel de Configurações de IA (Ollama Local e Provedores) */}
+      <AISettingsCard initialSettings={aiSettings} />
+
+      {/* 2. Automação de Mensagens por Mudança de Etapa / Agendamento */}
       <StageTriggersPanel stages={stages} isAdmin={isAdmin} />
 
       {/* 2. Automação de Reativação de Leads Perdidos */}
