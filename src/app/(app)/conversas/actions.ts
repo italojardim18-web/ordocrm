@@ -108,7 +108,7 @@ export interface SuggestedReply {
 }
 
 /**
- * Sugere 3 opções de respostas de WhatsApp contextualizadas com o Lead 360:
+ * Sugere 3 opções de respostas de WhatsApp com análise estrita de estado de diálogo:
  * Prioridade: Ollama Local (qwen2.5:7b)
  */
 export async function suggestRepliesAction(conversationId: string): Promise<{
@@ -184,70 +184,91 @@ export async function suggestRepliesAction(conversationId: string): Promise<{
 
     const msgs = (msgList ?? []).reverse();
     const historyLines = msgs.map((m) => {
-      const role = m.direction === "inbound" ? `[${leadName}]` : "[Atendimento/Clínica]";
+      const role = m.direction === "inbound" ? `[${leadName} - Paciente]` : "[Atendimento / Clínica]";
       const txt = (m.body || m.transcript || "").trim();
       return `${role}: ${txt}`;
     }).filter(Boolean);
 
+    // 3. Análise estrita do último emissor e estado de silêncio
+    const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    const isWaitingLeadReply = lastMsg?.direction === "outbound";
+    const lastMessageContent = (lastMsg?.body || lastMsg?.transcript || "").trim();
+
+    let dialogStateInfo = "";
+    if (isWaitingLeadReply) {
+      dialogStateInfo = `
+⚠️ ESTADO CRÍTICO DO DIÁLOGO:
+- A ÚLTIMA mensagem foi enviada pela CLÍNICA: "${lastMessageContent}".
+- O CONTATO (${leadName}) AINDA NÃO RESPONDEU a essa mensagem!
+- REGRA FUNDAMENTAL: NUNCA assuma que ${leadName} respondeu ou já tomou uma decisão (ex: se a clínica perguntou se falou com o marido e ela não respondeu, ela NÃO confirmou que falou!).
+- OBJETIVO: Sugerir 3 abordagens de FOLLOW-UP gentil, respeitoso e acolhedor para reabrir a conversa e se colocar à disposição.
+`;
+    } else {
+      dialogStateInfo = `
+⚠️ ESTADO CRÍTICO DO DIÁLOGO:
+- A ÚLTIMA mensagem foi enviada pelo CONTATO (${leadName}): "${lastMessageContent}".
+- OBJETIVO: Responder estritamente ao que ${leadName} acabou de dizer, quebrando eventuais objeções e avançando o agendamento.
+`;
+    }
+
     const systemPrompt = `
 Você é o Copiloto Especialista em Vendas Consultivas, Quebra de Objeções e Atendimento do ORDO CRM.
-Sua missão é sugerir 3 opções de respostas altamente refinadas, acolhedoras e persuasivas para o profissional de saúde ou secretária enviar ao paciente/contato no WhatsApp.
+Sua missão é sugerir 3 opções de respostas de WhatsApp estritamente alinhadas com o estado real do diálogo.
 
 REGRAS DE CONTEXTO & PLAYBOOK DE VENDAS:
-- O contato se chama: ${leadName}
-- Produto / Serviço de interesse: ${produtosTexto} (ATENÇÃO: Se for "Supervisão Clínica", trate como mentoria/supervisão de psicólogo; se for "Psicoterapia", trate como terapia).
+- Contato: ${leadName}
+- Produto / Serviço de interesse: ${produtosTexto}
 - Etiquetas: ${tagsTexto || "Nenhuma"}
 - Etapa do funil: ${stageName}
+${dialogStateInfo}
 
-DIRETRIZES DE QUEBRA DE OBJEÇÕES:
-1. Se o contato mencionou preço/dinheiro: Valide a preocupação, apresente a opção de Reembolso do Plano de Saúde (recibo para restituição de 60% a 100%) ou Pacote Mensal.
-2. Se mencionou convênio/plano: Explique o diferencial do atendimento particular de 50 min dedicado e oriente o reembolso simples pelo app do convênio.
-3. Se tem dúvida sobre online: Citar a eficácia científica comprovada e convidar para uma 1ª sessão experimental no Google Meet.
-4. Se disse "vou pensar / depois aviso": Acolher com empatia, abrir espaço para dúvidas e oferecer pré-reserva temporária de horário para não perder a vaga.
-5. Se disse "falar com esposo/família": Apoiar e se colocar à disposição para enviar resumo de horários e reembolso.
+DIRETRIZES DE RESPOSTA:
+- NUNCA invente fatos ou respostas que o contato não escreveu.
+- Se o contato está sem responder à pergunta anterior da clínica, sugira mensagens de follow-up empático (ex: "Passando para saber se está tudo bem", "Ficou alguma dúvida sobre os horários/valores?", "Para te ajudar caso ainda queira deixar a vaga pré-reservada").
+- Se o contato acabou de falar algo, responda diretamente com empatia, esclarecimento e chamada para ação.
 
-Gere EXATAMENTE 3 opções de respostas estratégicas:
-1. Opção 1: "🌿 Acolhedora" (Empática, humana e escuta ativa)
-2. Opção 2: "🛡️ Quebra de Objeção" ou "🎯 Direta & Prática" (Resolve a dúvida/objeção com técnica de vendas ética e clara)
-3. Opção 3: "📅 Agendamento & Avanço" (Focada em propor dia, horário, envio de link ou confirmação da sessão)
+Gere EXATAMENTE 3 opções de respostas:
+1. Opção 1: "🌿 Empática" (Acolhedora, humana e sem pressão)
+2. Opção 2: "🛡️ Quebra de Objeção / Follow-up" (Estratégica para destravar a decisão ou apoiar a conversa)
+3. Opção 3: "📅 Agendamento & Avanço" (Focada em propor dia, horário, envio de link ou confirmar vaga)
 
-Retorne OBRIGATORIAMENTE um JSON estrito no seguinte formato:
+Retorne OBRIGATORIAMENTE um JSON estrito no formato:
 {
   "suggestions": [
     {
       "id": "1",
-      "label": "Acolhedora",
+      "label": "Empática",
       "badge": "🌿 Empática",
-      "text": "Texto completo e pronto para envio no WhatsApp..."
+      "text": "Texto completo para envio..."
     },
     {
       "id": "2",
-      "label": "Quebra de Objeção",
-      "badge": "🛡️ Quebra de Objeção",
-      "text": "Texto completo e pronto para envio no WhatsApp..."
+      "label": "Estratégica",
+      "badge": "${isWaitingLeadReply ? "💬 Follow-up Acolhedor" : "🛡️ Quebra de Objeção"}",
+      "text": "Texto completo para envio..."
     },
     {
       "id": "3",
       "label": "Agendamento",
       "badge": "📅 Propor Vaga",
-      "text": "Texto completo e pronto para envio no WhatsApp..."
+      "text": "Texto completo para envio..."
     }
   ]
 }
 `;
 
     const userPrompt = `
-Histórico recente da conversa:
+Histórico completo e cronológico da conversa:
 ${historyLines.join("\n") || "Nenhuma mensagem anterior registrada."}
 
-Com base na última mensagem de ${leadName} e no serviço de ${produtosTexto}, gere as 3 sugestões de resposta para o WhatsApp.
+Analise quem mandou a última mensagem e gere as 3 sugestões adequadas ao estado atual do contato ${leadName}.
 `;
 
     const aiRes = await generateAICompletion({
       systemPrompt,
       userPrompt,
       jsonFormat: true,
-      temperature: 0.4,
+      temperature: 0.3,
     });
 
     if (aiRes) {
@@ -265,27 +286,51 @@ Com base na última mensagem de ${leadName} e no serviço de ${produtosTexto}, g
       }
     }
 
-    // Fallback Heurístico
-    const fallbackSuggestions: SuggestedReply[] = [
-      {
-        id: "1",
-        label: "Acolhedora",
-        badge: "🌿 Empática",
-        text: `Olá, ${leadName}! Tudo bem? 🌸 Fico à disposição para esclarecer qualquer dúvida sobre nosso serviço de ${produtosTexto} e encontrar o formato mais confortável para você.`,
-      },
-      {
-        id: "2",
-        label: "Direta",
-        badge: "🎯 Prática",
-        text: `Olá, ${leadName}! Nosso atendimento de ${produtosTexto} tem duração de 50 minutos e pode ser realizado de forma online (via Google Meet) ou presencial. Gostaria que eu te envie as opções de dias disponíveis?`,
-      },
-      {
-        id: "3",
-        label: "Agendamento",
-        badge: "📅 Propor Vaga",
-        text: `Olá, ${leadName}! Tenho disponibilidade para iniciarmos nossa sessão de ${produtosTexto} esta semana. Você teria preferência pelo período da manhã, tarde ou noite?`,
-      },
-    ];
+    // Fallback Heurístico Contextual baseado na direção da última mensagem
+    let fallbackSuggestions: SuggestedReply[] = [];
+    if (isWaitingLeadReply) {
+      fallbackSuggestions = [
+        {
+          id: "1",
+          label: "Empática",
+          badge: "🌿 Empática",
+          text: `Olá, ${leadName}! Como você tem passado? 🌸 Passando apenas para saber se está tudo bem por aí e me colocar à disposição caso tenha ficado qualquer dúvida.`,
+        },
+        {
+          id: "2",
+          label: "Follow-up",
+          badge: "💬 Follow-up Acolhedor",
+          text: `Olá, ${leadName}! Tudo bem? Sei que a rotina pode ser bastante corrida, então fique à vontade para responder no seu tempo. Se precisar que eu te envie mais detalhes sobre as sessões ou o reembolso do convênio para te ajudar na decisão, me avise!`,
+        },
+        {
+          id: "3",
+          label: "Agendamento",
+          badge: "📅 Pré-Reserva",
+          text: `Olá, ${leadName}! Temos algumas opções de horários abertos para ${produtosTexto} esta semana. Gostaria que eu deixasse uma vaga pré-reservada para você enquanto vocês avaliam?`,
+        },
+      ];
+    } else {
+      fallbackSuggestions = [
+        {
+          id: "1",
+          label: "Empática",
+          badge: "🌿 Empática",
+          text: `Olá, ${leadName}! Compreendo perfeitamente. Fico à sua total disposição para tirar qualquer dúvida e encontrar o melhor formato para iniciarmos.`,
+        },
+        {
+          id: "2",
+          label: "Quebra de Objeção",
+          badge: "🛡️ Quebra de Objeção",
+          text: `Olá, ${leadName}! Podemos estruturar o atendimento de ${produtosTexto} de forma muito flexível, inclusive com emissão de recibo para reembolso no seu plano de saúde. O que acha de fazermos uma primeira sessão experimental?`,
+        },
+        {
+          id: "3",
+          label: "Agendamento",
+          badge: "📅 Propor Vaga",
+          text: `Olá, ${leadName}! Tenho disponibilidade para ${produtosTexto} nos períodos da manhã ou noite esta semana. Qual horário se encaixa melhor na sua rotina?`,
+        },
+      ];
+    }
 
     return {
       success: true,
