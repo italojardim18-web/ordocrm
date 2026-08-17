@@ -190,7 +190,7 @@ export function OpportunitiesPanel({
         </form>
 
         {/* Lista de Oportunidades com Ações de Venda Realizada e Perdida */}
-        <ul className="flex flex-col gap-2.5 border-t border-border/60 pt-3">
+        <ul className="flex flex-col gap-3 border-t border-border/60 pt-3">
           {opportunities.map((opportunity) => {
             const isWon = opportunity.status === "won";
             const isLost = opportunity.status === "lost";
@@ -199,7 +199,7 @@ export function OpportunitiesPanel({
             return (
               <li
                 key={opportunity.id}
-                className={`flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 border transition-all ${
+                className={`flex flex-col gap-3 rounded-xl p-3.5 border transition-all ${
                   isWon
                     ? "bg-emerald-500/5 border-emerald-500/30"
                     : isLost
@@ -207,63 +207,66 @@ export function OpportunitiesPanel({
                       : "bg-card border-border/80 shadow-2xs"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                {/* Cabeçalho do Card: Nome do Produto e Badge de Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-foreground">
                       {productName(opportunity.product_id)}
                     </p>
-                    <Badge
-                      variant={
-                        isWon
-                          ? "default"
-                          : isLost
-                            ? "destructive"
-                            : "secondary"
-                      }
-                      className={
-                        isWon
-                          ? "bg-emerald-600 text-white font-semibold text-[10px]"
-                          : isLost
-                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px]"
-                            : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[10px]"
-                      }
-                    >
+                    <p className="text-xs text-muted-foreground mt-0.5 font-medium">
                       {isWon
-                        ? "🎉 Venda Realizada"
+                        ? `Fechado por ${formatBRL(opportunity.sold_value)} em ${formatDate(opportunity.closed_at)}`
                         : isLost
-                          ? "❌ Perdida"
-                          : "⏳ Em Negociação"}
-                    </Badge>
+                          ? `Perdida em ${formatDate(opportunity.closed_at)}`
+                          : `Valor potencial: ${formatBRL(opportunity.potential_value)}`}
+                      {opportunity.payment_method
+                        ? ` · ${opportunity.payment_method}`
+                        : ""}
+                    </p>
                   </div>
 
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <Badge
+                    variant={
+                      isWon
+                        ? "default"
+                        : isLost
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className={
+                      isWon
+                        ? "bg-emerald-600 text-white font-semibold text-[10px] shrink-0"
+                        : isLost
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] shrink-0"
+                          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[10px] shrink-0"
+                    }
+                  >
                     {isWon
-                      ? `Fechado por ${formatBRL(opportunity.sold_value)} em ${formatDate(opportunity.closed_at)}`
+                      ? "🎉 Venda Realizada"
                       : isLost
-                        ? `Perdida em ${formatDate(opportunity.closed_at)}`
-                        : `Valor Potencial: ${formatBRL(opportunity.potential_value)}`}
-                    {opportunity.payment_method
-                      ? ` · Forma de Pagamento: ${opportunity.payment_method}`
-                      : ""}
-                  </p>
+                        ? "❌ Perdida"
+                        : "⏳ Em Negociação"}
+                  </Badge>
                 </div>
 
                 {/* Botões de Ação para Oportunidade Aberta */}
                 {isOpen ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/50">
                     <Button
+                      type="button"
                       size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs gap-1.5"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs h-8 gap-1.5"
                       onClick={() => openSaleForOpportunity(opportunity)}
                     >
                       <span>🎉</span>
                       <span>Venda Realizada</span>
                     </Button>
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
                       disabled={pending}
-                      className="text-xs text-muted-foreground hover:text-destructive hover:bg-rose-500/10 border-border/80"
+                      className="text-xs text-muted-foreground hover:text-destructive hover:bg-rose-500/10 border-border/80 h-8 px-3"
                       onClick={() => openLostForOpportunity(opportunity)}
                     >
                       Marcar perdida
