@@ -65,24 +65,37 @@ export async function POST(request: NextRequest) {
     return new NextResponse("invalid json", { status: 400 });
   }
 
-  // Identifica a conexão de canal específica por sessionId
-  let specificConnectionId = connection.id;
-  if (envelope.sessionId) {
-    const sessionId = envelope.sessionId;
-    const targetName =
-      sessionId === "principal"
-        ? "Dr. Ítalo"
-        : sessionId === "secretaria"
-          ? "Secretária"
-          : sessionId.charAt(0).toUpperCase() + sessionId.slice(1);
+  // Identifica as conexões específicas do Dr. Ítalo e da Secretária
+  const drItaloConn = connections.find(
+    (c) =>
+      c.display_name?.toLowerCase().includes("italo") ||
+      c.display_name?.toLowerCase().includes("ítalo") ||
+      c.display_name?.toLowerCase().includes("dr"),
+  ) ?? connections[0];
 
-    const match = connections.find(
-      (c) =>
-        c.display_name?.toLowerCase() === targetName.toLowerCase() ||
-        c.display_name?.toLowerCase() === sessionId.toLowerCase(),
-    );
-    if (match) {
-      specificConnectionId = match.id;
+  const secretariaConn = connections.find(
+    (c) =>
+      c.display_name?.toLowerCase().includes("secretaria") ||
+      c.display_name?.toLowerCase().includes("secretária"),
+  );
+
+  let specificConnectionId = drItaloConn.id;
+
+  if (envelope.sessionId) {
+    const sId = envelope.sessionId.toLowerCase();
+    if (sId === "secretaria" && secretariaConn) {
+      specificConnectionId = secretariaConn.id;
+    } else if ((sId === "principal" || sId.includes("italo") || sId.includes("dr")) && drItaloConn) {
+      specificConnectionId = drItaloConn.id;
+    } else {
+      const match = connections.find(
+        (c) =>
+          c.display_name?.toLowerCase() === sId ||
+          c.id.toLowerCase() === sId,
+      );
+      if (match) {
+        specificConnectionId = match.id;
+      }
     }
   }
 
@@ -159,7 +172,14 @@ export async function POST(request: NextRequest) {
         updateLead.name = message.senderName.trim();
       }
 
-      if (specificConnectionId) {
+      // NUNCA sobrescrever a linha de um lead que já possui canal atribuído!
+      const { data: existingLead } = await admin
+        .from("leads")
+        .select("channel_connection_id")
+        .eq("id", outLeadId)
+        .single();
+
+      if (!existingLead?.channel_connection_id && specificConnectionId) {
         updateLead.channel_connection_id = specificConnectionId;
       }
 
