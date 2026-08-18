@@ -532,6 +532,28 @@ export async function iniciarWhatsapp() {
   await Promise.all(entradas.map((id) => iniciarSessao(id)));
 }
 
+export function determinarJidDestino(identificador) {
+  if (!identificador) return null;
+  const str = String(identificador).trim();
+  if (str.includes("@")) return str;
+
+  const limpo = str.replace(/\D/g, "");
+  if (!limpo) return null;
+
+  // Telefone brasileiro: 55 + DDD (2 dígitos) + 8 ou 9 dígitos = 12 ou 13 dígitos
+  if (/^55[1-9][0-9]9?[0-9]{8}$/.test(limpo)) {
+    return `${limpo}@s.whatsapp.net`;
+  }
+
+  // Telefone internacional padrão dos EUA / Canadá: 1 + 10 dígitos = 11 dígitos
+  if (/^1[2-9][0-9]{9}$/.test(limpo)) {
+    return `${limpo}@s.whatsapp.net`;
+  }
+
+  // Qualquer outro identificador (como 9427470037079, 3917161185369, 154648904220865, etc.) é LID do WhatsApp
+  return `${limpo}@lid`;
+}
+
 /**
  * Envia uma mensagem de texto por uma sessão específica.
  *
@@ -546,22 +568,15 @@ export async function enviarTexto(identificador, texto, sessionId = "principal")
   }
 
   const socket = sessao.socket;
-  const limpo = String(identificador).replace(/\D/g, "");
-  if (!limpo) throw new Error("destinatário vazio");
-
-  let destino;
-
-  if (limpo.length <= 13) {
-    destino = `${limpo}@s.whatsapp.net`;
-  } else {
-    destino = `${limpo}@lid`;
-  }
+  const destino = determinarJidDestino(identificador);
+  if (!destino) throw new Error("destinatário inválido");
 
   // Delay mínimo de 150ms apenas para não engasgar o buffer de rede
   if (config.sendDelayMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, Math.min(config.sendDelayMs, 200)));
   }
 
+  console.log(`[send:${sessionId}] enviando mensagem para ${destino}`);
   const resultado = await socket.sendMessage(destino, { text: texto });
   return resultado?.key?.id ?? null;
 }
