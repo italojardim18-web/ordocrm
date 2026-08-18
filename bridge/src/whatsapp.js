@@ -111,8 +111,16 @@ function extrairNomeSaudacao(texto) {
     const blacklist = [
       "meu", "minha", "amigo", "amiga", "mestre", "doutor", "doutora",
       "dr", "dra", "pessoal", "todos", "tudo", "como", "gente", "galera", "bom", "boa",
+      "beleza", "bem", "vai", "vc", "voce", "você",
     ];
-    const primeiro = nome.split(" ")[0].toLowerCase();
+    const partes = nome.split(/\s+/);
+    if (partes.length === 2 && blacklist.includes(partes[1].toLowerCase())) {
+      const primeiro = partes[0].toLowerCase();
+      if (!blacklist.includes(primeiro)) {
+        return partes[0];
+      }
+    }
+    const primeiro = partes[0].toLowerCase();
     if (!blacklist.includes(primeiro)) {
       return nome;
     }

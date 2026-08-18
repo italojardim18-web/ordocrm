@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { LeadCard, Member, Product, Stage } from "@/lib/crm/types";
+import type { LeadCard, LostReason, Member, Product, Stage } from "@/lib/crm/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KanbanBoard } from "./kanban-board";
@@ -42,6 +42,7 @@ export function PipelineView({
   leads,
   products,
   members,
+  lostReasons = [],
   channelOptions,
   activeChannelId,
 }: {
@@ -52,6 +53,7 @@ export function PipelineView({
   leads: LeadCard[];
   products: Product[];
   members: Member[];
+  lostReasons?: LostReason[];
   channelOptions?: ChannelOption[];
   activeChannelId?: string | null;
 }) {
@@ -278,6 +280,7 @@ export function PipelineView({
           members={members}
           pipelineId={pipelineId}
           isAdmin={isAdmin}
+          lostReasons={lostReasons}
         />
       ) : (
         <LeadList stages={stages} leads={filtered} members={members} />

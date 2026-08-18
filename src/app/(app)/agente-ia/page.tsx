@@ -32,7 +32,7 @@ export default async function AIAgentPage() {
     getChannelConnections(context.workspace.id),
     supabase
       .from("leads")
-      .select("id, name, phone, lost_at, lost_reason_id, reactivated_at, reactivation_status, lost_reasons (label)")
+      .select("id, name, phone, lost_at, lost_reason_id, lost_note, reactivated_at, reactivation_status, lost_reasons (label)")
       .eq("workspace_id", context.workspace.id)
       .not("lost_at", "is", null)
       .is("deleted_at", null)
@@ -60,6 +60,7 @@ export default async function AIAgentPage() {
       phone: l.phone,
       lost_at: l.lost_at,
       lost_reason: l.lost_reasons?.label || null,
+      lost_note: l.lost_note || null,
       daysPassed,
       reactivated_at: l.reactivated_at,
       reactivation_status: l.reactivation_status,

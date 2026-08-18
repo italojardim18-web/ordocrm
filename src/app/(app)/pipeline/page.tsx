@@ -4,6 +4,7 @@ import {
   getBoardLeads,
   getChannelConnections,
   getDefaultPipeline,
+  getLostReasons,
   getMembers,
   getProducts,
   getStages,
@@ -44,11 +45,12 @@ export default async function PipelinePage({
   const channelConnections = await getChannelConnections(context.workspace.id);
   const activeChannelId = selectedChannel || channelConnections[0]?.id || null;
 
-  const [stages, leads, products, members] = await Promise.all([
+  const [stages, leads, products, members, lostReasons] = await Promise.all([
     getStages(pipeline.id),
     getBoardLeads(pipeline.id, activeChannelId),
     getProducts(context.workspace.id, true),
     getMembers(context.workspace.id),
+    getLostReasons(context.workspace.id),
   ]);
 
   const channelOptions = channelConnections.map((ch) => ({
@@ -66,6 +68,7 @@ export default async function PipelinePage({
       leads={leads}
       products={products}
       members={members}
+      lostReasons={lostReasons}
       channelOptions={channelOptions}
       activeChannelId={activeChannelId}
     />

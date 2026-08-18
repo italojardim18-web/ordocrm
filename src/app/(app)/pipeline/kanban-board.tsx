@@ -22,9 +22,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { moveLead } from "./actions";
-import type { LeadCard, Member, Stage } from "@/lib/crm/types";
+import { moveLead, markLeadLostFromKanban } from "./actions";
+import type { LeadCard, LostReason, Member, Stage } from "@/lib/crm/types";
 import { NewStageColumn } from "./new-stage-column";
+import { MarkLostDialog } from "./mark-lost-dialog";
 import { channelLabel, formatBRL, formatDate } from "@/lib/format";
 import { positionBetween } from "@/lib/positions";
 import { initials } from "@/lib/validation";
@@ -316,12 +317,14 @@ export function KanbanBoard({
   members,
   pipelineId,
   isAdmin,
+  lostReasons = [],
 }: {
   stages: Stage[];
   leads: LeadCard[];
   members: Member[];
   pipelineId: string;
   isAdmin: boolean;
+  lostReasons?: LostReason[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -330,6 +333,13 @@ export function KanbanBoard({
     groupByStage(stages, leads),
   );
   const [activeLead, setActiveLead] = useState<LeadCard | null>(null);
+
+  // Estado para interceptar movimentações para a coluna "Perdido"
+  const [pendingLostMove, setPendingLostMove] = useState<{
+    lead: LeadCard;
+    targetStageId: string;
+    position: number;
+  } | null>(null);
 
   useMemo(() => {
     setBoard(groupByStage(stages, leads));
@@ -342,6 +352,14 @@ export function KanbanBoard({
     useSensor(KeyboardSensor),
   );
 
+  function isStageLost(stageId: string): boolean {
+    const stage = stages.find((s) => s.id === stageId);
+    return Boolean(
+      stage?.stage_type === "lost" ||
+      stage?.name?.toLowerCase().includes("perdido")
+    );
+  }
+
   function moveToStage(leadId: string, toStageId: string) {
     const lead = leads.find((l) => l.id === leadId);
     if (!lead || lead.stage_id === toStageId) return;
@@ -351,6 +369,16 @@ export function KanbanBoard({
       targetList.length > 0
         ? targetList[targetList.length - 1].position + 1000
         : 1000;
+
+    // Se o destino for a etapa de perda, abre o modal de confirmação
+    if (isStageLost(toStageId)) {
+      setPendingLostMove({
+        lead,
+        targetStageId: toStageId,
+        position,
+      });
+      return;
+    }
 
     startTransition(async () => {
       const res = await moveLead(leadId, toStageId, position);
@@ -428,6 +456,16 @@ export function KanbanBoard({
       insertAt < targetBase.length ? targetBase[insertAt].position : null;
     const position = positionBetween(before, after);
 
+    // Se o destino for a etapa de perda, intercepta e abre o modal sem mover ainda
+    if (isStageLost(toColumn) && fromColumn !== toColumn) {
+      setPendingLostMove({
+        lead: moved,
+        targetStageId: toColumn,
+        position,
+      });
+      return;
+    }
+
     const movedLead = { ...moved, stage_id: toColumn, position };
     const target = [
       ...targetBase.slice(0, insertAt),
@@ -445,40 +483,89 @@ export function KanbanBoard({
     persistMove(activeId, toColumn, position);
   }
 
+  async function handleConfirmLost(payload: {
+    leadId: string;
+    lostStageId: string;
+    position: number;
+    lostReasonId: string;
+    note: string;
+    enableReactivation: boolean;
+  }) {
+    startTransition(async () => {
+      const res = await markLeadLostFromKanban({
+        leadId: payload.leadId,
+        stageId: payload.lostStageId,
+        position: payload.position,
+        lostReasonId: payload.lostReasonId,
+        note: payload.note,
+        enableReactivation: payload.enableReactivation,
+      });
+
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(
+          payload.enableReactivation
+            ? "Lead marcado como perdido e adicionado à Fila de Reativação Automática!"
+            : "Lead marcado como perdido."
+        );
+      }
+      setPendingLostMove(null);
+      router.refresh();
+    });
+  }
+
   return (
-    <DndContext
-      id="pipeline-board"
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveLead(null)}
-    >
-      <div className="flex gap-3 sm:gap-3.5 overflow-x-auto pb-6 pt-1 w-full kanban-scroll pr-8">
-        {stages.map((stage) => (
-          <StageColumn
-            key={stage.id}
-            stage={stage}
-            leads={board[stage.id] ?? []}
-            stages={stages}
-            members={members}
-            onMoveTo={moveToStage}
-          />
-        ))}
-        {/* Opção ao final do pipeline de criar nova coluna */}
-        <NewStageColumn pipelineId={pipelineId} isAdmin={isAdmin} />
-      </div>
-      <DragOverlay>
-        {activeLead ? (
-          <LeadCardView
-            lead={activeLead}
-            stages={stages}
-            members={members}
-            onMoveTo={() => {}}
-            dragging
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+    <>
+      <DndContext
+        id="pipeline-board"
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveLead(null)}
+      >
+        <div className="flex gap-3 sm:gap-3.5 overflow-x-auto pb-6 pt-1 w-full kanban-scroll pr-8">
+          {stages.map((stage) => (
+            <StageColumn
+              key={stage.id}
+              stage={stage}
+              leads={board[stage.id] ?? []}
+              stages={stages}
+              members={members}
+              onMoveTo={moveToStage}
+            />
+          ))}
+          {/* Opção ao final do pipeline de criar nova coluna */}
+          <NewStageColumn pipelineId={pipelineId} isAdmin={isAdmin} />
+        </div>
+        <DragOverlay>
+          {activeLead ? (
+            <LeadCardView
+              lead={activeLead}
+              stages={stages}
+              members={members}
+              onMoveTo={() => {}}
+              dragging
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Modal Interativo de Perda & Fila de Reativação */}
+      <MarkLostDialog
+        lead={pendingLostMove?.lead ?? null}
+        lostStageId={pendingLostMove?.targetStageId ?? null}
+        targetPosition={pendingLostMove?.position ?? 0}
+        lostReasons={lostReasons}
+        isOpen={Boolean(pendingLostMove)}
+        onClose={() => {
+          setPendingLostMove(null);
+          // Força reset para a posição original
+          setBoard(groupByStage(stages, leads));
+        }}
+        onConfirm={handleConfirmLost}
+      />
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSessionContext } from "@/lib/auth";
 import { findDuplicates } from "@/lib/crm/queries";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { triggerStageAutomation } from "@/lib/crm/stage-automation";
 
 const uuid = z.uuid();
@@ -49,6 +50,98 @@ export async function moveLead(
   );
 
   revalidatePath("/pipeline");
+  return {};
+}
+
+export async function markLeadLostFromKanban(params: {
+  leadId: string;
+  stageId: string;
+  position: number;
+  lostReasonId: string;
+  note?: string | null;
+  enableReactivation?: boolean;
+}): Promise<{ error?: string }> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
+  const parsed = z
+    .object({
+      leadId: uuid,
+      stageId: uuid,
+      position: z.number().finite(),
+      lostReasonId: uuid,
+      note: z.string().max(1000).optional().nullable(),
+      enableReactivation: z.boolean().optional(),
+    })
+    .safeParse(params);
+  if (!parsed.success) return { error: "Dados inválidos para perda do lead." };
+
+  const supabase = await createClient();
+  const admin = createAdminClient();
+
+  // 1. Move o lead para a etapa de perda e atualiza histórico transacional
+  const { error: moveError } = await supabase.rpc("move_lead_stage", {
+    p_lead_id: params.leadId,
+    p_stage_id: params.stageId,
+    p_position: params.position,
+  });
+
+  if (moveError) return { error: "Erro ao mover lead para a etapa de perda." };
+
+  // 2. Atualiza os dados da perda e status de reativação
+  const { error: updateError } = await admin
+    .from("leads")
+    .update({
+      lost_reason_id: params.lostReasonId,
+      lost_note: params.note || null,
+      lost_at: new Date().toISOString(),
+      reactivation_status: params.enableReactivation !== false ? "pending" : "none",
+      reactivated_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.leadId)
+    .eq("workspace_id", context.workspace.id);
+
+  if (updateError) {
+    return { error: "Erro ao atualizar dados de perda: " + updateError.message };
+  }
+
+  // 3. Fecha oportunidades abertas como lost
+  await admin
+    .from("opportunities")
+    .update({
+      status: "lost",
+      lost_reason_id: params.lostReasonId,
+      notes: params.note || null,
+      closed_at: new Date().toISOString(),
+    })
+    .eq("lead_id", params.leadId)
+    .eq("workspace_id", context.workspace.id)
+    .eq("status", "open");
+
+  // 4. Registra atividade com as notas
+  const { data: reason } = await admin
+    .from("lost_reasons")
+    .select("label")
+    .eq("id", params.lostReasonId)
+    .single();
+
+  await admin.from("activities").insert({
+    workspace_id: context.workspace.id,
+    lead_id: params.leadId,
+    type: "note",
+    content: `Lead marcado como perdido. Motivo: ${reason?.label || "Não informado"}${params.note ? `\nObjeções/Notas: ${params.note}` : ""}`,
+    meta: {
+      action: "lead_lost",
+      lost_reason_id: params.lostReasonId,
+      reactivation_status: params.enableReactivation !== false ? "pending" : "none",
+    },
+    actor_id: context.user.id,
+  });
+
+  revalidatePath("/pipeline");
+  revalidatePath("/agente-ia");
+  revalidatePath(`/pipeline/lead/${params.leadId}`);
   return {};
 }
 
