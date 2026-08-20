@@ -12,6 +12,7 @@ import {
   getWorkspaceTags,
   isCalendarConnected,
 } from "@/lib/crm/queries";
+import { isStageLost } from "@/lib/crm/stages";
 import { channelLabel, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -117,12 +118,37 @@ export default async function LeadPage({
             </Badge>
           ) : null}
         </div>
-        {currentStage?.stage_type === "lost" ? (
-          <p className="text-sm text-destructive">
-            Perdido em {formatDateTime(lead.lost_at)}
-            {lostReason ? ` — ${lostReason.label}` : ""}
-            {lead.lost_note ? ` (${lead.lost_note})` : ""}
-          </p>
+        {isStageLost(currentStage) || lead.lost_at ? (
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-full bg-rose-600 text-white text-xs font-bold shadow-xs">
+                  ✕
+                </span>
+                <span className="text-sm font-bold text-rose-700 dark:text-rose-400">
+                  Paciente Marcado como Perdido em {formatDateTime(lead.lost_at)}
+                </span>
+                {lostReason ? (
+                  <Badge variant="outline" className="bg-background/80 text-foreground text-xs font-semibold">
+                    Motivo: {lostReason.label}
+                  </Badge>
+                ) : null}
+              </div>
+              <Badge variant="secondary" className="bg-rose-500/20 text-rose-800 dark:text-rose-300 font-bold text-xs">
+                {lead.reactivation_status === "reactivated"
+                  ? "✓ Reativado"
+                  : lead.reactivation_status === "pending"
+                    ? "✨ Na Fila de Reativação com IA"
+                    : "Sem reativação ativa"}
+              </Badge>
+            </div>
+
+            {lead.lost_note ? (
+              <div className="mt-1 text-xs text-foreground/90 whitespace-pre-line bg-background/80 p-3 rounded-xl border border-rose-200 dark:border-rose-900/40">
+                {lead.lost_note}
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

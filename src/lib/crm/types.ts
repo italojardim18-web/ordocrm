@@ -112,6 +112,8 @@ export interface LeadDetail {
   lost_note: string | null;
   lost_at: string | null;
   reactivated_count: number;
+  reactivation_status?: string | null;
+  reactivated_at?: string | null;
   follow_up_at: string | null;
   follow_up_note: string | null;
   last_interaction_at: string | null;

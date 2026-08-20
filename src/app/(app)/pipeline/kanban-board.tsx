@@ -24,6 +24,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { moveLead, markLeadLostFromKanban } from "./actions";
 import type { LeadCard, LostReason, Member, Stage } from "@/lib/crm/types";
+import { isStageLost as checkIsStageLost } from "@/lib/crm/stages";
 import { NewStageColumn } from "./new-stage-column";
 import { MarkLostDialog } from "./mark-lost-dialog";
 import { channelLabel, formatBRL, formatDate } from "@/lib/format";
@@ -264,7 +265,10 @@ function StageColumn({
   const total = leads.reduce((sum, l) => sum + (l.potential_value ?? 0), 0);
 
   return (
-    <div className="flex w-[15.5rem] sm:w-[16.5rem] lg:w-[17.5rem] shrink-0 flex-col rounded-3xl bg-muted/45 p-3 border border-border/60 shadow-2xs">
+    <div
+      ref={setNodeRef}
+      className="flex w-[15.5rem] sm:w-[16.5rem] lg:w-[17.5rem] shrink-0 flex-col rounded-3xl bg-muted/45 p-3 border border-border/60 shadow-2xs"
+    >
       {/* Cabeçalho da Coluna em Pílula */}
       <div className="flex items-center justify-between gap-2 px-2 pb-3 pt-1">
         <div className="flex items-center gap-2 min-w-0">
@@ -288,7 +292,6 @@ function StageColumn({
         strategy={verticalListSortingStrategy}
       >
         <ul
-          ref={setNodeRef}
           className="flex min-h-64 flex-1 flex-col gap-2.5 rounded-2xl p-1 transition-colors"
         >
           {leads.map((lead) => (
@@ -354,10 +357,7 @@ export function KanbanBoard({
 
   function isStageLost(stageId: string): boolean {
     const stage = stages.find((s) => s.id === stageId);
-    return Boolean(
-      stage?.stage_type === "lost" ||
-      stage?.name?.toLowerCase().includes("perdido")
-    );
+    return checkIsStageLost(stage);
   }
 
   function moveToStage(leadId: string, toStageId: string) {
@@ -458,11 +458,13 @@ export function KanbanBoard({
 
     // Se o destino for a etapa de perda, intercepta e abre o modal sem mover ainda
     if (isStageLost(toColumn) && fromColumn !== toColumn) {
-      setPendingLostMove({
-        lead: moved,
-        targetStageId: toColumn,
-        position,
-      });
+      setTimeout(() => {
+        setPendingLostMove({
+          lead: moved,
+          targetStageId: toColumn,
+          position,
+        });
+      }, 50);
       return;
     }
 
@@ -553,19 +555,21 @@ export function KanbanBoard({
       </DndContext>
 
       {/* Modal Interativo de Perda & Fila de Reativação */}
-      <MarkLostDialog
-        lead={pendingLostMove?.lead ?? null}
-        lostStageId={pendingLostMove?.targetStageId ?? null}
-        targetPosition={pendingLostMove?.position ?? 0}
-        lostReasons={lostReasons}
-        isOpen={Boolean(pendingLostMove)}
-        onClose={() => {
-          setPendingLostMove(null);
-          // Força reset para a posição original
-          setBoard(groupByStage(stages, leads));
-        }}
-        onConfirm={handleConfirmLost}
-      />
+      {pendingLostMove ? (
+        <MarkLostDialog
+          lead={pendingLostMove.lead}
+          lostStageId={pendingLostMove.targetStageId}
+          targetPosition={pendingLostMove.position}
+          lostReasons={lostReasons}
+          isOpen={true}
+          onClose={() => {
+            setPendingLostMove(null);
+            // Força reset para a posição original
+            setBoard(groupByStage(stages, leads));
+          }}
+          onConfirm={handleConfirmLost}
+        />
+      ) : null}
     </>
   );
 }

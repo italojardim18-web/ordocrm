@@ -1,18 +1,20 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
   archiveLead,
   unarchiveLead,
   markEngaged,
-  markLost,
   moveLead,
   reactivateLead,
   setLeadOwner,
-  type SimpleState,
+  markLeadLostFromKanban,
 } from "../../actions";
 import type { LeadDetail, LostReason, Member, Stage } from "@/lib/crm/types";
+import { isStageLost } from "@/lib/crm/stages";
+import { MarkLostDialog } from "../../mark-lost-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,8 +37,10 @@ export function LeadActions({
   lostReasons: LostReason[];
   members: Member[];
 }) {
+  const router = useRouter();
   const [stageId, setStageId] = useState(lead.stage_id);
   const [lostOpen, setLostOpen] = useState(false);
+  const [targetLostStageId, setTargetLostStageId] = useState<string | null>(null);
   const [arquivarOpen, setArquivarOpen] = useState(false);
   const [naoComercial, setNaoComercial] = useState(false);
   const [motivoArquivo, setMotivoArquivo] = useState("");
@@ -44,22 +48,75 @@ export function LeadActions({
   const [pending, startTransition] = useTransition();
 
   const currentStage = stages.find((s) => s.id === lead.stage_id);
-  const isLost = currentStage?.stage_type === "lost";
+  const isLost = isStageLost(currentStage);
 
-  const [lostState, lostAction, lostPending] = useActionState<
-    SimpleState,
-    FormData
-  >(
-    async (prev, formData) => {
-      const result = await markLost.bind(null, lead.id)(prev, formData);
-      if (result.done) {
-        toast.success("Lead marcado como perdido.");
-        setLostOpen(false);
+  // Busca a primeira etapa de perda configurada no pipeline
+  const defaultLostStage =
+    stages.find((s) => isStageLost(s)) ??
+    stages.find((s) => s.stage_type === "lost") ??
+    currentStage;
+
+  function handleOpenLostModal(stageToMoveId?: string) {
+    setTargetLostStageId(stageToMoveId || defaultLostStage?.id || lead.stage_id);
+    setLostOpen(true);
+  }
+
+  function handleStageSelectChange(newStageId: string) {
+    setStageId(newStageId);
+    const targetStage = stages.find((s) => s.id === newStageId);
+    if (targetStage && isStageLost(targetStage)) {
+      handleOpenLostModal(targetStage.id);
+    }
+  }
+
+  function handleMove() {
+    const targetStage = stages.find((s) => s.id === stageId);
+    if (targetStage && isStageLost(targetStage)) {
+      handleOpenLostModal(targetStage.id);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await moveLead(lead.id, stageId, 0);
+      if (result.error) toast.error(result.error);
+      else {
+        toast.success("Lead movido.");
+        router.refresh();
       }
-      return result;
-    },
-    {},
-  );
+    });
+  }
+
+  async function handleConfirmLost(payload: {
+    leadId: string;
+    lostStageId: string;
+    position: number;
+    lostReasonId: string;
+    note: string;
+    enableReactivation: boolean;
+  }) {
+    startTransition(async () => {
+      const res = await markLeadLostFromKanban({
+        leadId: payload.leadId,
+        stageId: payload.lostStageId,
+        position: payload.position,
+        lostReasonId: payload.lostReasonId,
+        note: payload.note,
+        enableReactivation: payload.enableReactivation,
+      });
+
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(
+          payload.enableReactivation
+            ? "Lead marcado como perdido e adicionado à Fila de Reativação Automática!"
+            : "Lead marcado como perdido."
+        );
+        setLostOpen(false);
+        router.refresh();
+      }
+    });
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -71,11 +128,11 @@ export function LeadActions({
           <select
             id="stageSelect"
             value={stageId}
-            onChange={(event) => setStageId(event.target.value)}
+            onChange={(event) => handleStageSelectChange(event.target.value)}
             className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
           >
             {stages
-              .filter((s) => s.stage_type !== "lost")
+              .filter((s) => !isStageLost(s))
               .map((stage) => (
                 <option key={stage.id} value={stage.id}>
                   {stage.name}
@@ -85,13 +142,7 @@ export function LeadActions({
           <Button
             size="sm"
             disabled={pending || stageId === lead.stage_id}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await moveLead(lead.id, stageId, 0);
-                if (result.error) toast.error(result.error);
-                else toast.success("Lead movido.");
-              })
-            }
+            onClick={handleMove}
           >
             Mover
           </Button>
@@ -137,70 +188,114 @@ export function LeadActions({
       </select>
 
       {isLost ? (
-        <div className="flex items-center gap-2">
-          <select
-            aria-label="Etapa para reativação"
-            value={reactivateStage}
-            onChange={(event) => setReactivateStage(event.target.value)}
-            className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
-          >
-            <option value="">Reativar para…</option>
-            {stages
-              .filter((s) => s.stage_type !== "lost")
-              .map((stage) => (
-                <option key={stage.id} value={stage.id}>
-                  {stage.name}
-                </option>
-              ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
           <Button
+            variant="outline"
             size="sm"
-            disabled={pending || !reactivateStage}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await reactivateLead(lead.id, reactivateStage);
-                if (result.error) toast.error(result.error);
-                else toast.success("Lead reativado — histórico preservado.");
-              })
-            }
+            onClick={() => handleOpenLostModal()}
+            className="rounded-2xl gap-2 text-xs font-bold border-2 border-rose-400/80 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20 dark:border-rose-500/50 dark:text-rose-300 py-2.5 px-4 shadow-sm hover:shadow-md cursor-pointer transition-all"
           >
-            Reativar
+            <span>✏️</span>
+            <span>Editar Motivo, Objeções & Contexto da IA</span>
           </Button>
+
+          <div className="flex items-center gap-2 border-l border-border/80 pl-3">
+            <select
+              aria-label="Etapa para reativação"
+              value={reactivateStage}
+              onChange={(event) => setReactivateStage(event.target.value)}
+              className="border-input h-9.5 rounded-xl border bg-transparent px-3 text-xs shadow-xs font-medium"
+            >
+              <option value="">Reativar para…</option>
+              {stages
+                .filter((s) => !isStageLost(s))
+                .map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </option>
+                ))}
+            </select>
+            <Button
+              size="sm"
+              disabled={pending || !reactivateStage}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await reactivateLead(lead.id, reactivateStage);
+                  if (result.error) toast.error(result.error);
+                  else {
+                    toast.success("Lead reativado — histórico preservado.");
+                    router.refresh();
+                  }
+                })
+              }
+              className="rounded-xl text-xs h-9.5 px-4 font-semibold shadow-xs"
+            >
+              Reativar
+            </Button>
+          </div>
         </div>
       ) : (
-        <div className="ml-auto flex items-center gap-2">
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => setLostOpen(true)}
-        >
-          Marcar como perdido
-        </Button>
-        {lead.archived_at ? (
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          {/* Botão de Emergência Vermelho para Perda & Reativação IA */}
           <Button
-            variant="outline"
+            type="button"
+            variant="destructive"
             size="sm"
-            onClick={() =>
-              startTransition(async () => {
-                const r = await unarchiveLead(lead.id);
-                if (r.error) toast.error(r.error);
-                else toast.success("Lead de volta ao pipeline.");
-              })
-            }
+            onClick={() => handleOpenLostModal()}
+            className="rounded-2xl font-bold gap-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 active:scale-95 text-white shadow-lg hover:shadow-xl ring-2 ring-rose-500/50 hover:ring-rose-500 border border-rose-400/40 text-xs py-2.5 px-4.5 cursor-pointer transition-all"
           >
-            Desarquivar
+            <span className="flex size-5 items-center justify-center rounded-full bg-white/20 text-xs">🚨</span>
+            <span>Marcar como Perdido & Iniciar Reativação IA</span>
           </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setArquivarOpen(true)}
-          >
-            Arquivar
-          </Button>
-        )}
+
+          {lead.archived_at ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                startTransition(async () => {
+                  const r = await unarchiveLead(lead.id);
+                  if (r.error) toast.error(r.error);
+                  else {
+                    toast.success("Lead de volta ao pipeline.");
+                    router.refresh();
+                  }
+                })
+              }
+              className="rounded-xl text-xs h-9"
+            >
+              Desarquivar
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setArquivarOpen(true)}
+              className="rounded-xl text-xs h-9"
+            >
+              Arquivar
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Modal Interativo de Perda & Fila de Reativação */}
+      {lostOpen ? (
+        <MarkLostDialog
+          lead={{
+            id: lead.id,
+            name: lead.name,
+            potential_value: lead.potential_value,
+            lost_reason_id: lead.lost_reason_id,
+            lost_note: lead.lost_note,
+          }}
+          lostStageId={targetLostStageId}
+          lostReasons={lostReasons}
+          isOpen={true}
+          onClose={() => setLostOpen(false)}
+          onConfirm={handleConfirmLost}
+        />
+      ) : null}
 
       <Dialog open={arquivarOpen} onOpenChange={setArquivarOpen}>
         <DialogContent>
@@ -255,6 +350,7 @@ export function LeadActions({
                           : "Lead arquivado.",
                       );
                       setArquivarOpen(false);
+                      router.refresh();
                     }
                   })
                 }
@@ -263,60 +359,6 @@ export function LeadActions({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={lostOpen} onOpenChange={setLostOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Marcar como perdido</DialogTitle>
-            <DialogDescription>
-              O motivo é obrigatório e alimenta o relatório de perdas. O lead
-              pode ser reativado depois, com o histórico preservado.
-            </DialogDescription>
-          </DialogHeader>
-          <form action={lostAction} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="lostReason">Motivo *</Label>
-              <select
-                id="lostReason"
-                name="reasonId"
-                required
-                defaultValue=""
-                className="border-input h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
-              >
-                <option value="" disabled>
-                  Selecione…
-                </option>
-                {lostReasons.map((reason) => (
-                  <option key={reason.id} value={reason.id}>
-                    {reason.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="lostNote">Observação (opcional)</Label>
-              <Input id="lostNote" name="note" maxLength={300} />
-            </div>
-            {lostState.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {lostState.error}
-              </p>
-            ) : null}
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setLostOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" variant="destructive" disabled={lostPending}>
-                {lostPending ? "Salvando…" : "Confirmar perda"}
-              </Button>
-            </div>
-          </form>
         </DialogContent>
       </Dialog>
     </div>

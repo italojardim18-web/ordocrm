@@ -7,6 +7,7 @@ import { findDuplicates } from "@/lib/crm/queries";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { triggerStageAutomation } from "@/lib/crm/stage-automation";
+import { isStageLost } from "@/lib/crm/stages";
 
 const uuid = z.uuid();
 
@@ -44,12 +45,43 @@ export async function moveLead(
 
   if (error) return { error: "Não foi possível mover o lead." };
 
+  // Verifica o tipo da etapa de destino e sincroniza lost_at / status de reativação
+  const admin = createAdminClient();
+  const { data: targetStage } = await supabase
+    .from("pipeline_stages")
+    .select("id, name, stage_type")
+    .eq("id", stageId)
+    .maybeSingle();
+
+  if (targetStage && isStageLost(targetStage)) {
+    await admin
+      .from("leads")
+      .update({
+        lost_at: new Date().toISOString(),
+        reactivation_status: "pending",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leadId);
+
+    // Fecha oportunidades abertas
+    await admin
+      .from("opportunities")
+      .update({
+        status: "lost",
+        closed_at: new Date().toISOString(),
+      })
+      .eq("lead_id", leadId)
+      .eq("status", "open");
+  }
+
   // Dispara gatilho automático de mensagem via WhatsApp caso a etapa possua automação ativa
   triggerStageAutomation(leadId, stageId, context.workspace.id).catch((err) =>
     console.error("Erro ao disparar automação de etapa:", err),
   );
 
   revalidatePath("/pipeline");
+  revalidatePath("/agente-ia");
+  revalidatePath(`/pipeline/lead/${leadId}`);
   return {};
 }
 
@@ -57,7 +89,7 @@ export async function markLeadLostFromKanban(params: {
   leadId: string;
   stageId: string;
   position: number;
-  lostReasonId: string;
+  lostReasonId?: string | null;
   note?: string | null;
   enableReactivation?: boolean;
 }): Promise<{ error?: string }> {
@@ -69,8 +101,8 @@ export async function markLeadLostFromKanban(params: {
       leadId: uuid,
       stageId: uuid,
       position: z.number().finite(),
-      lostReasonId: uuid,
-      note: z.string().max(1000).optional().nullable(),
+      lostReasonId: z.string().optional().nullable(),
+      note: z.string().max(3000).optional().nullable(),
       enableReactivation: z.boolean().optional(),
     })
     .safeParse(params);
@@ -78,6 +110,45 @@ export async function markLeadLostFromKanban(params: {
 
   const supabase = await createClient();
   const admin = createAdminClient();
+
+  // Resolve um UUID válido de motivo de perda do workspace
+  let finalReasonId: string | null = null;
+  if (params.lostReasonId && uuid.safeParse(params.lostReasonId).success) {
+    const { data: validReason } = await admin
+      .from("lost_reasons")
+      .select("id")
+      .eq("id", params.lostReasonId)
+      .eq("workspace_id", context.workspace.id)
+      .maybeSingle();
+    if (validReason) finalReasonId = validReason.id;
+  }
+
+  if (!finalReasonId) {
+    const { data: firstReason } = await admin
+      .from("lost_reasons")
+      .select("id")
+      .eq("workspace_id", context.workspace.id)
+      .eq("is_active", true)
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (firstReason) {
+      finalReasonId = firstReason.id;
+    } else {
+      const { data: createdReason } = await admin
+        .from("lost_reasons")
+        .insert({
+          workspace_id: context.workspace.id,
+          label: "Outro motivo / Não especificado",
+          position: 1000,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+      finalReasonId = createdReason?.id || null;
+    }
+  }
 
   // 1. Move o lead para a etapa de perda e atualiza histórico transacional
   const { error: moveError } = await supabase.rpc("move_lead_stage", {
@@ -92,7 +163,7 @@ export async function markLeadLostFromKanban(params: {
   const { error: updateError } = await admin
     .from("leads")
     .update({
-      lost_reason_id: params.lostReasonId,
+      lost_reason_id: finalReasonId,
       lost_note: params.note || null,
       lost_at: new Date().toISOString(),
       reactivation_status: params.enableReactivation !== false ? "pending" : "none",
@@ -111,7 +182,7 @@ export async function markLeadLostFromKanban(params: {
     .from("opportunities")
     .update({
       status: "lost",
-      lost_reason_id: params.lostReasonId,
+      lost_reason_id: finalReasonId,
       notes: params.note || null,
       closed_at: new Date().toISOString(),
     })
@@ -120,20 +191,24 @@ export async function markLeadLostFromKanban(params: {
     .eq("status", "open");
 
   // 4. Registra atividade com as notas
-  const { data: reason } = await admin
-    .from("lost_reasons")
-    .select("label")
-    .eq("id", params.lostReasonId)
-    .single();
+  let reasonLabel = "Não informado";
+  if (finalReasonId) {
+    const { data: reason } = await admin
+      .from("lost_reasons")
+      .select("label")
+      .eq("id", finalReasonId)
+      .maybeSingle();
+    if (reason?.label) reasonLabel = reason.label;
+  }
 
   await admin.from("activities").insert({
     workspace_id: context.workspace.id,
     lead_id: params.leadId,
     type: "note",
-    content: `Lead marcado como perdido. Motivo: ${reason?.label || "Não informado"}${params.note ? `\nObjeções/Notas: ${params.note}` : ""}`,
+    content: `🚨 Lead marcado como perdido.\nMotivo: ${reasonLabel}${params.note ? `\n\n${params.note}` : ""}`,
     meta: {
       action: "lead_lost",
-      lost_reason_id: params.lostReasonId,
+      lost_reason_id: finalReasonId,
       reactivation_status: params.enableReactivation !== false ? "pending" : "none",
     },
     actor_id: context.user.id,
@@ -142,6 +217,8 @@ export async function markLeadLostFromKanban(params: {
   revalidatePath("/pipeline");
   revalidatePath("/agente-ia");
   revalidatePath(`/pipeline/lead/${params.leadId}`);
+  revalidatePath("/resultado");
+  revalidatePath("/dashboard");
   return {};
 }
 
@@ -520,8 +597,18 @@ export async function markLost(
 
   if (error) return { error: "Não foi possível marcar como perdido." };
 
+  const admin = createAdminClient();
+  await admin
+    .from("leads")
+    .update({
+      reactivation_status: "pending",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+
   revalidatePath(`/pipeline/lead/${leadId}`);
   revalidatePath("/pipeline");
+  revalidatePath("/agente-ia");
   return { done: true };
 }
 

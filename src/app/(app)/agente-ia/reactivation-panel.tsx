@@ -359,15 +359,15 @@ export function ReactivationPanel({
                       {lead.phone ?? "—"}
                     </td>
 
-                    <td className="py-3 max-w-xs">
+                    <td className="py-3 max-w-sm">
                       <div className="flex flex-col gap-1">
-                        <Badge variant="secondary" className="w-fit rounded-full text-[10px] px-2 py-0">
+                        <Badge variant="secondary" className="w-fit rounded-full text-[10px] px-2.5 py-0.5 font-semibold">
                           {lead.lost_reason || "Sem motivo registrado"}
                         </Badge>
                         {lead.lost_note ? (
-                          <p className="text-[11px] text-muted-foreground line-clamp-2 italic">
-                            &ldquo;{lead.lost_note}&rdquo;
-                          </p>
+                          <div className="text-[11px] text-muted-foreground whitespace-pre-line line-clamp-3 bg-muted/40 rounded-lg p-2 border border-border/40 font-mono text-[10px]">
+                            {lead.lost_note}
+                          </div>
                         ) : null}
                       </div>
                     </td>
@@ -479,9 +479,9 @@ export function ReactivationPanel({
                 ) : null}
               </div>
               {selectedLeadForAI?.lost_note ? (
-                <p className="text-muted-foreground italic text-[11px]">
-                  &ldquo;{selectedLeadForAI.lost_note}&rdquo;
-                </p>
+                <div className="text-muted-foreground text-[11px] whitespace-pre-line bg-background/80 p-2.5 rounded-lg border border-border/40 mt-1 font-mono text-[10px]">
+                  {selectedLeadForAI.lost_note}
+                </div>
               ) : null}
             </div>
 

@@ -111,7 +111,52 @@ export async function getLostReasons(
     .eq("is_active", true)
     .order("position", { ascending: true })
     .returns<LostReason[]>();
-  return data ?? [];
+
+  if (data && data.length > 0) {
+    return data;
+  }
+
+  // Se não houver motivos cadastrados no workspace, inicializa automaticamente
+  try {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+    const defaultReasons = [
+      { label: "Preço / Condições de pagamento", position: 1000 },
+      { label: "Optou por concorrente / outro profissional", position: 2000 },
+      { label: "Sem interesse no momento", position: 3000 },
+      { label: "Não respondeu aos contatos (Sem retorno)", position: 4000 },
+      { label: "Horário / Local incompatível", position: 5000 },
+      { label: "Outro motivo", position: 6000 },
+    ];
+
+    const { data: inserted } = await admin
+      .from("lost_reasons")
+      .insert(
+        defaultReasons.map((r) => ({
+          workspace_id: workspaceId,
+          label: r.label,
+          position: r.position,
+          is_active: true,
+        }))
+      )
+      .select("id, label, is_active")
+      .returns<LostReason[]>();
+
+    if (inserted && inserted.length > 0) {
+      return inserted;
+    }
+  } catch (err) {
+    console.error("Erro ao inicializar motivos padrão de perda:", err);
+  }
+
+  return [
+    { id: "default-preco", label: "Preço / Condições de pagamento", is_active: true },
+    { id: "default-concorrente", label: "Optou por concorrente / outro profissional", is_active: true },
+    { id: "default-sem-interesse", label: "Sem interesse no momento", is_active: true },
+    { id: "default-sem-retorno", label: "Não respondeu aos contatos (Sem retorno)", is_active: true },
+    { id: "default-horario", label: "Horário / Local incompatível", is_active: true },
+    { id: "default-outro", label: "Outro motivo", is_active: true },
+  ];
 }
 
 export async function getMembers(workspaceId: string): Promise<Member[]> {

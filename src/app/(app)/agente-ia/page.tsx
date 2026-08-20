@@ -9,6 +9,8 @@ import { StageTriggersPanel, type StageTriggerItem } from "./stage-triggers-pane
 import { AISettingsCard } from "@/components/ai-settings-card";
 import { getAISettingsAction } from "@/app/(app)/configuracoes/integracoes/ai-actions";
 
+import { isStageLost } from "@/lib/crm/stages";
+
 export const metadata: Metadata = { title: "Agente de IA & Automações" };
 
 export default async function AIAgentPage() {
@@ -20,7 +22,7 @@ export default async function AIAgentPage() {
   const [
     { data: ws },
     channelConnections,
-    { data: lostLeadsRaw },
+    { data: leadsRaw },
     { data: stagesRaw },
     aiSettings,
   ] = await Promise.all([
@@ -32,11 +34,10 @@ export default async function AIAgentPage() {
     getChannelConnections(context.workspace.id),
     supabase
       .from("leads")
-      .select("id, name, phone, lost_at, lost_reason_id, lost_note, reactivated_at, reactivation_status, lost_reasons (label)")
+      .select("id, name, phone, lost_at, lost_reason_id, lost_note, reactivated_at, reactivation_status, created_at, updated_at, stage_id, lost_reasons (label), pipeline_stages (id, name, stage_type)")
       .eq("workspace_id", context.workspace.id)
-      .not("lost_at", "is", null)
       .is("deleted_at", null)
-      .order("lost_at", { ascending: false }),
+      .order("created_at", { ascending: false }),
     supabase
       .from("pipeline_stages")
       .select("id, name, stage_type, position, automation_message_enabled, automation_message_template, automation_reminder_24h, automation_reminder_template")
@@ -50,22 +51,25 @@ export default async function AIAgentPage() {
   }));
 
   const now = Date.now();
-  const lostLeads: LostLeadItem[] = (lostLeadsRaw ?? []).map((l: any) => {
-    const lostTime = l.lost_at ? new Date(l.lost_at).getTime() : now;
-    const daysPassed = Math.max(0, Math.floor((now - lostTime) / (1000 * 60 * 60 * 24)));
+  const lostLeads: LostLeadItem[] = (leadsRaw ?? [])
+    .filter((l: any) => l.lost_at !== null || isStageLost(l.pipeline_stages))
+    .map((l: any) => {
+      const lostDateStr = l.lost_at || l.updated_at || l.created_at;
+      const lostTime = lostDateStr ? new Date(lostDateStr).getTime() : now;
+      const daysPassed = Math.max(0, Math.floor((now - lostTime) / (1000 * 60 * 60 * 24)));
 
-    return {
-      id: l.id,
-      name: l.name,
-      phone: l.phone,
-      lost_at: l.lost_at,
-      lost_reason: l.lost_reasons?.label || null,
-      lost_note: l.lost_note || null,
-      daysPassed,
-      reactivated_at: l.reactivated_at,
-      reactivation_status: l.reactivation_status,
-    };
-  });
+      return {
+        id: l.id,
+        name: l.name,
+        phone: l.phone,
+        lost_at: l.lost_at || lostDateStr,
+        lost_reason: l.lost_reasons?.label || null,
+        lost_note: l.lost_note || null,
+        daysPassed,
+        reactivated_at: l.reactivated_at,
+        reactivation_status: l.reactivation_status || "pending",
+      };
+    });
 
   const stages: StageTriggerItem[] = (stagesRaw ?? []).map((s: any) => ({
     id: s.id,
