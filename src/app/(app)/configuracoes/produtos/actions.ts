@@ -50,7 +50,11 @@ export async function saveProduct(
   };
 
   const { error } = productId
-    ? await supabase.from("products").update(payload).eq("id", productId)
+    ? await supabase
+        .from("products")
+        .update(payload)
+        .eq("id", productId)
+        .eq("workspace_id", context.workspace.id)
     : await supabase
         .from("products")
         .insert({ ...payload, workspace_id: context.workspace.id });
@@ -62,11 +66,12 @@ export async function saveProduct(
 }
 
 export async function setProductActive(productId: string, active: boolean) {
-  await requireAdmin();
+  const context = await requireAdmin();
   const supabase = await createClient();
   await supabase
     .from("products")
     .update({ is_active: active })
-    .eq("id", productId);
+    .eq("id", productId)
+    .eq("workspace_id", context.workspace.id);
   revalidatePath("/configuracoes/produtos");
 }

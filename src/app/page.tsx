@@ -1,4 +1,4 @@
-import { getSessionContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingHero } from "@/components/landing/landing-hero";
@@ -10,10 +10,13 @@ import { FaqSection } from "@/components/landing/faq-section";
 import { LandingFooter } from "@/components/landing/landing-footer";
 
 export default async function HomePage() {
-  const context = await getSessionContext();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Se o usuário já estiver logado no CRM, entra direto no Pipeline
-  if (context) {
+  if (user) {
     redirect("/pipeline");
   }
 

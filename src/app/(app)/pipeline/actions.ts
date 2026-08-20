@@ -359,6 +359,9 @@ export async function updateLead(
   _prev: SimpleState,
   formData: FormData,
 ): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const parsed = updateLeadSchema.safeParse({
     name: formData.get("name"),
     socialName: formData.get("socialName") ?? "",
@@ -398,7 +401,8 @@ export async function updateLead(
           : null,
       next_action: parsed.data.nextAction || null,
     })
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível salvar o cadastro." };
 
@@ -408,11 +412,15 @@ export async function updateLead(
 }
 
 export async function setLeadOwner(leadId: string, ownerId: string | null) {
+  const context = await getSessionContext();
+  if (!context) return;
+
   const supabase = await createClient();
   await supabase
     .from("leads")
     .update({ owner_id: ownerId })
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
   revalidatePath(`/pipeline/lead/${leadId}`);
   revalidatePath("/pipeline");
 }
@@ -425,7 +433,8 @@ export async function setLeadInterests(leadId: string, productIds: string[]) {
   const { data: current } = await supabase
     .from("lead_product_interests")
     .select("id, product_id")
-    .eq("lead_id", leadId);
+    .eq("lead_id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   const currentIds = new Set((current ?? []).map((i) => i.product_id));
   const nextIds = new Set(productIds);
@@ -437,7 +446,8 @@ export async function setLeadInterests(leadId: string, productIds: string[]) {
     await supabase
       .from("lead_product_interests")
       .delete()
-      .in("id", toRemove.map((i) => i.id));
+      .in("id", toRemove.map((i) => i.id))
+      .eq("workspace_id", context.workspace.id);
   }
   if (toAdd.length > 0) {
     await supabase.from("lead_product_interests").insert(
@@ -454,12 +464,16 @@ export async function setLeadInterests(leadId: string, productIds: string[]) {
 
 /** Registra o engajamento uma única vez (sem pontuação). */
 export async function markEngaged(leadId: string) {
+  const context = await getSessionContext();
+  if (!context) return;
+
   const supabase = await createClient();
   const now = new Date().toISOString();
   await supabase
     .from("leads")
     .update({ engaged_at: now, first_contact_at: now })
     .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id)
     .is("engaged_at", null);
   revalidatePath(`/pipeline/lead/${leadId}`);
 }
@@ -534,11 +548,15 @@ export async function addTask(
 }
 
 export async function toggleTask(taskId: string, done: boolean, leadId?: string) {
+  const context = await getSessionContext();
+  if (!context) return;
+
   const supabase = await createClient();
   await supabase
     .from("tasks")
     .update({ completed_at: done ? new Date().toISOString() : null })
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .eq("workspace_id", context.workspace.id);
   if (leadId) revalidatePath(`/pipeline/lead/${leadId}`);
   revalidatePath("/dashboard");
 }
@@ -583,6 +601,9 @@ export async function markLost(
   _prev: SimpleState,
   formData: FormData,
 ): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const reasonId = String(formData.get("reasonId") ?? "");
   const note = String(formData.get("note") ?? "").trim();
 
@@ -604,7 +625,8 @@ export async function markLost(
       reactivation_status: "pending",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   revalidatePath(`/pipeline/lead/${leadId}`);
   revalidatePath("/pipeline");
@@ -616,6 +638,9 @@ export async function reactivateLead(
   leadId: string,
   stageId: string,
 ): Promise<{ error?: string }> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("reactivate_lead", {
     p_lead_id: leadId,
@@ -640,6 +665,9 @@ export async function archiveLead(
   reason: string | null,
   markNonCommercial: boolean,
 ): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("archive_lead", {
     p_lead_id: leadId,
@@ -655,6 +683,9 @@ export async function archiveLead(
 }
 
 export async function unarchiveLead(leadId: string): Promise<SimpleState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("unarchive_lead", { p_lead_id: leadId });
   if (error) return { error: "Não foi possível desarquivar." };
@@ -740,7 +771,8 @@ export async function setLeadFollowUp(
       follow_up_at: parsed.data.followUpAt || null,
       follow_up_note: parsed.data.note || null,
     })
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível salvar o follow-up." };
 
@@ -797,7 +829,8 @@ export async function completeLeadFollowUp(
   const { error } = await supabase
     .from("leads")
     .update(updateData)
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível concluir o follow-up." };
 
@@ -830,7 +863,8 @@ export async function setLeadTemperatureOverride(
       temperature_override: parsed.data.override || null,
       temperature_override_at: parsed.data.override ? new Date().toISOString() : null,
     })
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível atualizar a temperatura." };
 
@@ -876,7 +910,8 @@ export async function updateLeadSummary(
   const { error } = await supabase
     .from("leads")
     .update(updateData)
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível atualizar o resumo." };
 
@@ -960,7 +995,8 @@ export async function removeTagFromLead(
     .from("lead_tags")
     .delete()
     .eq("lead_id", leadId)
-    .eq("tag_id", tagId);
+    .eq("tag_id", tagId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível remover a etiqueta." };
 

@@ -185,7 +185,8 @@ export async function setAppointmentStatus(
   const { error } = await supabase
     .from("appointments")
     .update({ status })
-    .eq("id", appointmentId);
+    .eq("id", appointmentId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível atualizar a sessão." };
 
@@ -259,6 +260,9 @@ export async function registerSale(
   _prev: CommercialState,
   formData: FormData,
 ): Promise<CommercialState> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const productId = String(formData.get("productId") ?? "");
   const opportunityId = String(formData.get("opportunityId") ?? "");
   const soldValue = parseMoney(formData.get("soldValue"));
@@ -288,6 +292,9 @@ export async function markOpportunityLost(
   leadId: string,
   reasonId: string | null,
 ): Promise<{ error?: string }> {
+  const context = await getSessionContext();
+  if (!context) return { error: "Sessão expirada." };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("mark_opportunity_lost", {
     p_opportunity_id: opportunityId,

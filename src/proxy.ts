@@ -2,6 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
+  "/",
+  "/planos",
+  "/ecossistema",
   "/login",
   "/recuperar-senha",
   "/convite",
@@ -11,13 +14,15 @@ const PUBLIC_PATHS = [
   "/f",
   "/api/forms",
   "/api/webhooks",
-  // Job protegido por token próprio (JOBS_SECRET), não por sessão.
+  // Jobs e automações protegidos por token de servidor (JOBS_SECRET / CRON_SECRET).
   "/api/jobs",
+  "/api/automations",
 ];
 
 function isPublicPath(pathname: string) {
+  if (pathname === "/") return true;
   return PUBLIC_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
+    (path) => path !== "/" && (pathname === path || pathname.startsWith(`${path}/`)),
   );
 }
 

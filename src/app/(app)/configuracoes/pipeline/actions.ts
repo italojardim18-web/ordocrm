@@ -26,7 +26,7 @@ export async function renameStage(
   _prev: StageState,
   formData: FormData,
 ): Promise<StageState> {
-  await requireAdmin();
+  const context = await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   if (!name || name.length > 80) return { error: "Nome inválido." };
 
@@ -34,7 +34,8 @@ export async function renameStage(
   const { error } = await supabase
     .from("pipeline_stages")
     .update({ name })
-    .eq("id", stageId);
+    .eq("id", stageId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível renomear a etapa." };
 
@@ -70,6 +71,7 @@ export async function addStage(
     .from("pipeline_stages")
     .select("position")
     .eq("pipeline_id", pipelineId)
+    .eq("workspace_id", context.workspace.id)
     .order("position", { ascending: false })
     .limit(1);
 
@@ -95,13 +97,14 @@ export async function swapStagePositions(
   stageId: string,
   otherStageId: string,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  const context = await requireAdmin();
   const supabase = await createClient();
 
   const { data: stages } = await supabase
     .from("pipeline_stages")
     .select("id, position")
-    .in("id", [stageId, otherStageId]);
+    .in("id", [stageId, otherStageId])
+    .eq("workspace_id", context.workspace.id);
 
   if (!stages || stages.length !== 2) return { error: "Etapas inválidas." };
 
@@ -109,11 +112,13 @@ export async function swapStagePositions(
   await supabase
     .from("pipeline_stages")
     .update({ position: b.position })
-    .eq("id", a.id);
+    .eq("id", a.id)
+    .eq("workspace_id", context.workspace.id);
   await supabase
     .from("pipeline_stages")
     .update({ position: a.position })
-    .eq("id", b.id);
+    .eq("id", b.id)
+    .eq("workspace_id", context.workspace.id);
 
   revalidatePath("/configuracoes/pipeline");
   revalidatePath("/pipeline");
@@ -123,13 +128,14 @@ export async function swapStagePositions(
 export async function archiveStage(
   stageId: string,
 ): Promise<{ error?: string }> {
-  await requireAdmin();
+  const context = await requireAdmin();
   const supabase = await createClient();
 
   const { count } = await supabase
     .from("leads")
     .select("id", { count: "exact", head: true })
     .eq("stage_id", stageId)
+    .eq("workspace_id", context.workspace.id)
     .is("deleted_at", null);
 
   if ((count ?? 0) > 0) {
@@ -142,7 +148,8 @@ export async function archiveStage(
   const { error } = await supabase
     .from("pipeline_stages")
     .update({ archived_at: new Date().toISOString() })
-    .eq("id", stageId);
+    .eq("id", stageId)
+    .eq("workspace_id", context.workspace.id);
 
   if (error) return { error: "Não foi possível arquivar a etapa." };
 

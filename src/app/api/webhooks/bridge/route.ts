@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (!candidate.bridge_secret_enc) {
       // Se não tem segredo cadastrado por linha, usa o ORDO_BRIDGE_SECRET global
       const globalSecret = process.env.ORDO_BRIDGE_SECRET;
-      if (!globalSecret) return true;
+      if (!globalSecret) return false;
       return verifyBridgeSignature(rawBody, signature, globalSecret);
     }
     try {
@@ -107,7 +107,11 @@ export async function POST(request: NextRequest) {
     } catch {
       return false;
     }
-  }) ?? connections[0];
+  });
+
+  if (!connection) {
+    return new NextResponse("invalid signature", { status: 401 });
+  }
 
   let envelope: BridgeEnvelope & { sessionId?: string };
   try {

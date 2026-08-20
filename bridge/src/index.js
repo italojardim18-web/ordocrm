@@ -130,8 +130,8 @@ const servidor = createServer(async (req, res) => {
   return responder(404, { erro: "rota inexistente" });
 });
 
-servidor.listen(config.port, () => {
-  console.log(`[ponte] ouvindo em http://localhost:${config.port}`);
+servidor.listen(config.port, "127.0.0.1", () => {
+  console.log(`[ponte] ouvindo exclusivamente em http://127.0.0.1:${config.port}`);
   console.log(`[ponte] ORDO em ${config.ordoUrl}`);
 });
 

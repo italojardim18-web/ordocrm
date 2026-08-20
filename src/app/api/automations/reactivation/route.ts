@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateAIReactivationMessage } from "@/lib/ai/reactivation-ai";
 
+export const maxDuration = 60;
+
+function autorizado(request: NextRequest): boolean {
+  const esperado = process.env.JOBS_SECRET || process.env.CRON_SECRET;
+  if (!esperado) return false;
+
+  const recebido =
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+
+  if (recebido.length !== esperado.length) return false;
+  return timingSafeEqual(Buffer.from(recebido), Buffer.from(esperado));
+}
+
 export async function POST(req: NextRequest) {
+  if (!autorizado(req)) {
+    return new NextResponse("não autorizado", { status: 401 });
+  }
+
   try {
     const admin = createAdminClient();
 
@@ -130,4 +148,8 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Erro no processamento." }, { status: 500 });
   }
+}
+
+export async function GET(request: NextRequest) {
+  return POST(request);
 }
